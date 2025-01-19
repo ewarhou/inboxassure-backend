@@ -18,7 +18,7 @@ echo "📦 Pushing changes to GitHub..."
 # Deploy to server
 echo "🌐 Deploying to server..."
 "$SSH_PATH" -i ~/.ssh/inboxassure root@68.183.98.54 "\
-    cd /root/inboxassure-backend && \
+    cd /var/www/inboxassure-backend && \
     git pull origin main && \
     source venv/bin/activate && \
     pip install -r requirements.txt && \
