@@ -27,11 +27,21 @@ URL : https://miyrqjqzrdmnxbbkkgpc.supabase.co
 service_role : eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1peXJxanF6cmRtbnhiYmtrZ3BjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNDE1MDc3OCwiZXhwIjoyMDQ5NzI2Nzc4fQ.MlO47zYnoSciDas0KLn_t4THQEpRIWsH16Z4MCrzmQA
 
 If you are asked to check problems reported by frontend developer OR report problems to the frontend developer: 
-please report it to Fronty by writing a message in this file : C:\Users\FatiiMa\Desktop\InboxAssure\teamchat.txt (use bash command to write or read the message)
+please use the read_file tool to read messages from Fronty in this file: ../teamchat.txt
+And use edit_file tool to write responses back to the same file.
+These tools are more reliable for reading and writing local files than shell commands.
 
 Always update dependencies if needed in requirements.txt before committing and pushing your changes.
 
 {
     "shell": "C:\\Program Files\\Git\\bin\\bash.exe",
-    "cwd": "C:\\Users\\FatiiMa\\Desktop\\InboxAssure\\inboxassure-backend"
+    "shell_args": ["--login", "-i"],
+    "cwd": "C:\\Users\\FatiiMa\\Desktop\\InboxAssure\\inboxassure-backend",
+    "env": {
+        "PATH": "C:\\Program Files\\Git\\bin;C:\\Program Files\\Git\\usr\\bin;%PATH%",
+        "HOME": "C:\\Users\\FatiiMa",
+        "REMOTE_HOST": "68.183.98.54",
+        "REMOTE_PATH": "/var/www/inboxassure-backend",
+        "SSH_KEY_PATH": "~/.ssh/inboxassure"
+    }
 }

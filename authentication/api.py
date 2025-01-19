@@ -22,7 +22,7 @@ class SignUpSchema(Schema):
     last_name: str = None
 
 class LoginSchema(Schema):
-    username: str
+    email: str
     password: str
 
 class TokenSchema(Schema):
@@ -83,12 +83,25 @@ def register(request, data: SignUpSchema):
 
 @router.post("/login", response={200: TokenSchema, 401: ErrorSchema})
 def login(request, data: LoginSchema):
-    user = authenticate(username=data.username, password=data.password)
-    if not user:
+    try:
+        # Get user by email
+        user = User.objects.get(email=data.email)
+        # Authenticate using username and password
+        authenticated_user = authenticate(username=user.username, password=data.password)
+        
+        if not authenticated_user:
+            logger.warning(f"Failed login attempt for email: {data.email}")
+            return 401, {"detail": "Invalid credentials"}
+        
+        logger.info(f"Successful login for email: {data.email}")
+        token = generate_token(authenticated_user)
+        return 200, {"access_token": token, "token_type": "bearer"}
+    except User.DoesNotExist:
+        logger.warning(f"Login attempt with non-existent email: {data.email}")
         return 401, {"detail": "Invalid credentials"}
-    
-    token = generate_token(user)
-    return 200, {"access_token": token, "token_type": "bearer"}
+    except Exception as e:
+        logger.error(f"Error during login: {str(e)}")
+        return 401, {"detail": "Login failed"}
 
 def generate_token(user):
     payload = {

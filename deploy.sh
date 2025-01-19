@@ -1,23 +1,16 @@
 #!/bin/bash
 
-# Set Git executable path
-GIT_PATH="/c/Program Files/Git/bin/git.exe"
-SSH_PATH="/c/Program Files/Git/usr/bin/ssh.exe"
-
 echo "🚀 Starting deployment process..."
 
-# Navigate to project directory
-cd "/c/Users/FatiiMa/Desktop/InboxAssure/inboxassure-backend"
+# Local machine deployment
+echo "💻 Local machine: Committing and pushing changes..."
+git add .
+git commit -m "Update: Modified login endpoint to use email instead of username"
+git push origin main
 
-# Push changes to GitHub
-echo "📦 Pushing changes to GitHub..."
-"$GIT_PATH" add .
-"$GIT_PATH" commit -m "Update: CORS configuration"
-"$GIT_PATH" push origin main
-
-# Deploy to server
-echo "🌐 Deploying to server..."
-"$SSH_PATH" -i ~/.ssh/inboxassure root@68.183.98.54 "\
+# Remote server deployment
+echo "🌐 Remote server: Deploying to DigitalOcean..."
+ssh -i ~/.ssh/inboxassure root@68.183.98.54 "\
     cd /var/www/inboxassure-backend && \
     git pull origin main && \
     source venv/bin/activate && \
