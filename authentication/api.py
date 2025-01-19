@@ -14,7 +14,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from typing import Dict
 from .models import PasswordResetToken
-from .schema import TokenSchema, ErrorMessage, PasswordResetRequestSchema, PasswordResetVerifySchema
+from .schema import TokenSchema, ErrorMessage, PasswordResetRequestSchema, PasswordResetVerifySchema, PasswordResetConfirmSchema
 
 logger = logging.getLogger(__name__)
 
@@ -183,17 +183,17 @@ def verify_reset_token(request, data: PasswordResetVerifySchema):
         return 404, {"message": "Invalid token"}
 
 @router.post("/password-reset-confirm", response={200: Dict, 400: ErrorMessage, 404: ErrorMessage})
-def confirm_password_reset(request, token: str, new_password: str):
+def confirm_password_reset(request, data: PasswordResetConfirmSchema):
     """Reset the password using the token"""
     try:
-        reset_token = PasswordResetToken.objects.get(token=token)
+        reset_token = PasswordResetToken.objects.get(token=data.token)
         
         if not reset_token.is_valid():
             return 400, {"message": "Token has expired or has been used"}
         
         # Update password
         user = reset_token.user
-        user.set_password(new_password)
+        user.set_password(data.new_password)
         user.save()
         
         # Mark token as used
