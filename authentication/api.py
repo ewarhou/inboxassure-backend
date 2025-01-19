@@ -8,6 +8,13 @@ from django.conf import settings
 from django.db import connections
 from ninja.responses import Response
 import logging
+from django.contrib.auth.models import User
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils import timezone
+from typing import Dict
+from .models import PasswordResetToken
+from .schema import TokenSchema, ErrorMessage
 
 logger = logging.getLogger(__name__)
 
@@ -122,4 +129,77 @@ class AuthBearer(HttpBearer):
         except:
             return None
 
-auth = AuthBearer() 
+auth = AuthBearer()
+
+@router.post("/password-reset-request", response={200: Dict, 404: ErrorMessage})
+def request_password_reset(request, email: str):
+    """Request a password reset for the given email"""
+    try:
+        user = User.objects.get(email=email)
+        
+        # Create reset token
+        token = PasswordResetToken.objects.create(user=user)
+        
+        # Create reset link
+        reset_link = f"http://inboxassure.online/reset-password?token={token.token}"
+        
+        # Send email
+        email_body = f"""
+        Hello {user.username},
+        
+        You have requested to reset your password. Please click the link below to reset your password:
+        
+        {reset_link}
+        
+        This link will expire in 1 hour.
+        
+        If you did not request this password reset, please ignore this email.
+        
+        Best regards,
+        InboxAssure Team
+        """
+        
+        send_mail(
+            subject="Password Reset Request",
+            message=email_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+        
+        return {"message": "Password reset email sent"}
+    except User.DoesNotExist:
+        return 404, {"message": "User with this email does not exist"}
+
+@router.post("/password-reset-verify", response={200: Dict, 404: ErrorMessage})
+def verify_reset_token(request, token: str):
+    """Verify if a password reset token is valid"""
+    try:
+        reset_token = PasswordResetToken.objects.get(token=token)
+        if reset_token.is_valid():
+            return {"valid": True}
+        return {"valid": False, "message": "Token has expired or has been used"}
+    except PasswordResetToken.DoesNotExist:
+        return 404, {"message": "Invalid token"}
+
+@router.post("/password-reset-confirm", response={200: Dict, 400: ErrorMessage, 404: ErrorMessage})
+def confirm_password_reset(request, token: str, new_password: str):
+    """Reset the password using the token"""
+    try:
+        reset_token = PasswordResetToken.objects.get(token=token)
+        
+        if not reset_token.is_valid():
+            return 400, {"message": "Token has expired or has been used"}
+        
+        # Update password
+        user = reset_token.user
+        user.set_password(new_password)
+        user.save()
+        
+        # Mark token as used
+        reset_token.used = True
+        reset_token.save()
+        
+        return {"message": "Password has been reset successfully"}
+    except PasswordResetToken.DoesNotExist:
+        return 404, {"message": "Invalid token"} 

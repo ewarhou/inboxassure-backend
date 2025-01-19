@@ -179,3 +179,15 @@ CORS_ALLOW_HEADERS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'dev@vitalitymarketingfirm.com'
+EMAIL_HOST_PASSWORD = 'odag awwd qwki ylhd'
+DEFAULT_FROM_EMAIL = 'InboxAssure <dev@vitalitymarketingfirm.com>'
+
+# Password Reset Settings
+PASSWORD_RESET_TIMEOUT = 3600  # 1 hour in seconds
