@@ -14,7 +14,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from typing import Dict
 from .models import PasswordResetToken
-from .schema import TokenSchema, ErrorMessage
+from .schema import TokenSchema, ErrorMessage, PasswordResetRequestSchema
 
 logger = logging.getLogger(__name__)
 
@@ -132,10 +132,10 @@ class AuthBearer(HttpBearer):
 auth = AuthBearer()
 
 @router.post("/password-reset-request", response={200: Dict, 404: ErrorMessage})
-def request_password_reset(request, email: str):
+def request_password_reset(request, data: PasswordResetRequestSchema):
     """Request a password reset for the given email"""
     try:
-        user = User.objects.get(email=email)
+        user = User.objects.get(email=data.email)
         
         # Create reset token
         token = PasswordResetToken.objects.create(user=user)
@@ -163,7 +163,7 @@ def request_password_reset(request, email: str):
             subject="Password Reset Request",
             message=email_body,
             from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
+            recipient_list=[data.email],
             fail_silently=False,
         )
         
