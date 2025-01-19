@@ -6,6 +6,7 @@ import jwt
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.db import connections
+from ninja.responses import Response
 
 User = get_user_model()
 router = Router()
@@ -25,6 +26,9 @@ class TokenSchema(Schema):
     access_token: str
     token_type: str
 
+class ErrorSchema(Schema):
+    detail: str
+
 def verify_client_email(email):
     with connections['default'].cursor() as cursor:
         cursor.execute(
@@ -34,17 +38,17 @@ def verify_client_email(email):
         count = cursor.fetchone()[0]
         return count > 0
 
-@router.post("/register", response=TokenSchema)
+@router.post("/register", response={200: TokenSchema, 400: ErrorSchema})
 def register(request, data: SignUpSchema):
     # First verify if the email exists in inboxassure_clients
     if not verify_client_email(data.email):
-        return {"detail": "Email not found in our client database. Please contact support."}, 400
+        return 400, {"detail": "Email not found in our client database. Please contact support."}
     
     if User.objects.filter(username=data.username).exists():
-        return {"detail": "Username already registered"}, 400
+        return 400, {"detail": "Username already registered"}
     
     if User.objects.filter(email=data.email).exists():
-        return {"detail": "Email already registered"}, 400
+        return 400, {"detail": "Email already registered"}
     
     user = User.objects.create(
         username=data.username,
@@ -55,16 +59,16 @@ def register(request, data: SignUpSchema):
     )
     
     token = generate_token(user)
-    return {"access_token": token, "token_type": "bearer"}
+    return 200, {"access_token": token, "token_type": "bearer"}
 
-@router.post("/login", response=TokenSchema)
+@router.post("/login", response={200: TokenSchema, 401: ErrorSchema})
 def login(request, data: LoginSchema):
     user = authenticate(username=data.username, password=data.password)
     if not user:
-        return {"detail": "Invalid credentials"}, 401
+        return 401, {"detail": "Invalid credentials"}
     
     token = generate_token(user)
-    return {"access_token": token, "token_type": "bearer"}
+    return 200, {"access_token": token, "token_type": "bearer"}
 
 def generate_token(user):
     payload = {
