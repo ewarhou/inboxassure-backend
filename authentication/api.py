@@ -28,7 +28,7 @@ class TokenSchema(Schema):
 def verify_client_email(email):
     with connections['default'].cursor() as cursor:
         cursor.execute(
-            "SELECT COUNT(*) FROM inboxassure_clients WHERE email = %s",
+            "SELECT COUNT(*) FROM inboxassure_clients WHERE client_email = %s",
             [email]
         )
         count = cursor.fetchone()[0]
