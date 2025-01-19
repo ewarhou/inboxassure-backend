@@ -30,3 +30,8 @@ If you are asked to check problems reported by frontend developer OR report prob
 please report it to Fronty by writing a message in this file : C:\Users\FatiiMa\Desktop\InboxAssure\teamchat.txt (use bash command to write or read the message)
 
 Always update dependencies if needed in requirements.txt before committing and pushing your changes.
+
+{
+    "shell": "C:\\Program Files\\Git\\bin\\bash.exe",
+    "cwd": "C:\\Users\\FatiiMa\\Desktop\\InboxAssure\\inboxassure-backend"
+}
