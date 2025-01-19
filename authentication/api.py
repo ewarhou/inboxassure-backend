@@ -55,13 +55,15 @@ def register(request, data: SignUpSchema):
         logger.warning(f"Email not found in clients database: {data.email}")
         return 400, {"detail": "Email not found in our client database. Please contact support."}
     
+    # Check if email already exists in auth users
+    if User.objects.filter(email=data.email).exists():
+        logger.warning(f"Email already registered in auth users: {data.email}")
+        return 400, {"detail": "Email already registered"}
+    
+    # Check username uniqueness
     if User.objects.filter(username=data.username).exists():
         logger.warning(f"Username already exists: {data.username}")
         return 400, {"detail": "Username already registered"}
-    
-    if User.objects.filter(email=data.email).exists():
-        logger.warning(f"Email already registered: {data.email}")
-        return 400, {"detail": "Email already registered"}
     
     try:
         user = User.objects.create(
