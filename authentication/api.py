@@ -5,6 +5,7 @@ from ninja.security import HttpBearer
 import jwt
 from datetime import datetime, timedelta
 from django.conf import settings
+from django.db import connections
 
 User = get_user_model()
 router = Router()
@@ -24,8 +25,21 @@ class TokenSchema(Schema):
     access_token: str
     token_type: str
 
+def verify_client_email(email):
+    with connections['default'].cursor() as cursor:
+        cursor.execute(
+            "SELECT COUNT(*) FROM inboxassure_clients WHERE email = %s",
+            [email]
+        )
+        count = cursor.fetchone()[0]
+        return count > 0
+
 @router.post("/register", response=TokenSchema)
 def register(request, data: SignUpSchema):
+    # First verify if the email exists in inboxassure_clients
+    if not verify_client_email(data.email):
+        return {"detail": "Email not found in our client database. Please contact support."}, 400
+    
     if User.objects.filter(username=data.username).exists():
         return {"detail": "Username already registered"}, 400
     

@@ -22,3 +22,6 @@ We're connecting to Mysql database with the following credentials :
     - password : Warhou19981@
     - database : inboxassure
 
+Sync the database with Supabase using the following credentials : 
+URL : https://miyrqjqzrdmnxbbkkgpc.supabase.co
+service_role : eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1peXJxanF6cmRtbnhiYmtrZ3BjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNDE1MDc3OCwiZXhwIjoyMDQ5NzI2Nzc4fQ.MlO47zYnoSciDas0KLn_t4THQEpRIWsH16Z4MCrzmQA
