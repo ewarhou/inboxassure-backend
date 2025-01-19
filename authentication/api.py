@@ -7,6 +7,9 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.db import connections
 from ninja.responses import Response
+import logging
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 router = Router()
@@ -30,36 +33,51 @@ class ErrorSchema(Schema):
     detail: str
 
 def verify_client_email(email):
-    with connections['default'].cursor() as cursor:
-        cursor.execute(
-            "SELECT COUNT(*) FROM inboxassure_clients WHERE client_email = %s",
-            [email]
-        )
-        count = cursor.fetchone()[0]
-        return count > 0
+    try:
+        with connections['default'].cursor() as cursor:
+            cursor.execute(
+                "SELECT COUNT(*) FROM inboxassure_clients WHERE client_email = %s",
+                [email]
+            )
+            count = cursor.fetchone()[0]
+            logger.info(f"Found {count} clients with email {email}")
+            return count > 0
+    except Exception as e:
+        logger.error(f"Error verifying client email: {str(e)}")
+        return False
 
 @router.post("/register", response={200: TokenSchema, 400: ErrorSchema})
 def register(request, data: SignUpSchema):
+    logger.info(f"Registration attempt for email: {data.email}")
+    
     # First verify if the email exists in inboxassure_clients
     if not verify_client_email(data.email):
+        logger.warning(f"Email not found in clients database: {data.email}")
         return 400, {"detail": "Email not found in our client database. Please contact support."}
     
     if User.objects.filter(username=data.username).exists():
+        logger.warning(f"Username already exists: {data.username}")
         return 400, {"detail": "Username already registered"}
     
     if User.objects.filter(email=data.email).exists():
+        logger.warning(f"Email already registered: {data.email}")
         return 400, {"detail": "Email already registered"}
     
-    user = User.objects.create(
-        username=data.username,
-        email=data.email,
-        password=make_password(data.password),
-        first_name=data.first_name or "",
-        last_name=data.last_name or ""
-    )
-    
-    token = generate_token(user)
-    return 200, {"access_token": token, "token_type": "bearer"}
+    try:
+        user = User.objects.create(
+            username=data.username,
+            email=data.email,
+            password=make_password(data.password),
+            first_name=data.first_name or "",
+            last_name=data.last_name or ""
+        )
+        logger.info(f"Successfully created user: {user.username}")
+        
+        token = generate_token(user)
+        return 200, {"access_token": token, "token_type": "bearer"}
+    except Exception as e:
+        logger.error(f"Error creating user: {str(e)}")
+        return 400, {"detail": "Error creating user account"}
 
 @router.post("/login", response={200: TokenSchema, 401: ErrorSchema})
 def login(request, data: LoginSchema):
