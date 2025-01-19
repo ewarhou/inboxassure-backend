@@ -65,90 +65,95 @@ Notes:
 - Token expires after 24 hours
 - Use the returned token in the Authorization header for authenticated requests 
 
-3. Password Reset Request
-------------------------
-POST /auth/password-reset-request
+## Password Reset Flow
 
-Request Body:
+### 1. Request Password Reset
+- Endpoint: `POST /auth/password-reset-request`
+- Description: Initiates the password reset process by sending a reset link to the user's email
+- Request Body:
+```json
 {
-    "email": "string"
+    "email": "user@example.com"
 }
+```
+- Responses:
+  - 200: Password reset email sent successfully
+  ```json
+  {
+      "message": "Password reset email sent"
+  }
+  ```
+  - 404: User not found
+  ```json
+  {
+      "message": "User with this email does not exist"
+  }
+  ```
 
-Response (200):
+### 2. Verify Reset Token
+- Endpoint: `POST /auth/password-reset-verify`
+- Description: Verifies if a password reset token is valid (not expired and not used)
+- Request Body:
+```json
 {
-    "message": "Password reset email sent"
+    "token": "uuid-token-from-email-link"
 }
+```
+- Responses:
+  - 200: Token is valid
+  ```json
+  {
+      "valid": true
+  }
+  ```
+  - 200: Token is invalid or expired
+  ```json
+  {
+      "valid": false,
+      "message": "Token has expired or has been used"
+  }
+  ```
+  - 404: Token not found
+  ```json
+  {
+      "message": "Invalid token"
+  }
+  ```
 
-Response (404):
+### 3. Reset Password
+- Endpoint: `POST /auth/password-reset-confirm`
+- Description: Resets the user's password using a valid token
+- Request Body:
+```json
 {
-    "message": "User with this email does not exist"
+    "token": "uuid-token-from-email-link",
+    "new_password": "new-password"
 }
+```
+- Responses:
+  - 200: Password reset successful
+  ```json
+  {
+      "message": "Password has been reset successfully"
+  }
+  ```
+  - 400: Token invalid or expired
+  ```json
+  {
+      "message": "Token has expired or has been used"
+  }
+  ```
+  - 404: Token not found
+  ```json
+  {
+      "message": "Invalid token"
+  }
+  ```
 
 Notes:
-- Sends a password reset email with a reset link
-- Link expires in 1 hour
-- Link format: http://inboxassure.online/reset-password?token=<reset_token>
-
-4. Verify Reset Token
---------------------
-POST /auth/password-reset-verify
-
-Request Body:
-{
-    "token": "string"
-}
-
-Response (200):
-{
-    "valid": true
-}
-
-OR
-
-Response (200):
-{
-    "valid": false,
-    "message": "Token has expired or has been used"
-}
-
-Response (404):
-{
-    "message": "Invalid token"
-}
-
-Notes:
-- Use this to verify token before showing password reset form
-- Tokens expire after 1 hour
-- Tokens can only be used once
-
-5. Reset Password
-----------------
-POST /auth/password-reset-confirm
-
-Request Body:
-{
-    "token": "string",
-    "new_password": "string"
-}
-
-Response (200):
-{
-    "message": "Password has been reset successfully"
-}
-
-Response (400):
-{
-    "message": "Token has expired or has been used"
-}
-
-Response (404):
-{
-    "message": "Invalid token"
-}
-
-Notes:
-- Token is invalidated after successful password reset
-- New password must meet security requirements
+- The reset token is valid for 1 hour after creation
+- The token can only be used once
+- The reset link format is: `http://inboxassure.online/reset-password?token={token}`
 
 Mock Data for UI Development
 ===========================
@@ -284,88 +289,3 @@ Error Response (Invalid Token):
     "message": "Invalid token"
 }
 
-12. Mock Static Pages Content
-----------------------------
-About Us:
-{
-    "title": "About InboxAssure",
-    "content": "InboxAssure is a leading email deliverability platform that helps businesses ensure their emails reach the intended recipients' inboxes. Our advanced tools and expert guidance help improve email deliverability rates and maintain sender reputation.",
-    "mission": "Our mission is to make email deliverability simple and reliable for businesses of all sizes.",
-    "features": [
-        "Advanced Email Testing",
-        "Deliverability Monitoring",
-        "Reputation Management",
-        "Real-time Analytics",
-        "Expert Support"
-    ]
-}
-
-Contact Us:
-{
-    "address": "123 Email Street, Digital City, DC 12345",
-    "phone": "+1 (555) 123-4567",
-    "email": "support@inboxassure.com",
-    "hours": "Monday - Friday: 9:00 AM - 6:00 PM EST",
-    "social_media": {
-        "twitter": "@inboxassure",
-        "linkedin": "inboxassure",
-        "facebook": "InboxAssure"
-    }
-}
-
-Pricing Plans:
-[
-    {
-        "name": "Starter",
-        "price": "$49/month",
-        "features": [
-            "1,000 email tests/month",
-            "Basic analytics",
-            "Email support",
-            "Standard reports"
-        ]
-    },
-    {
-        "name": "Professional",
-        "price": "$149/month",
-        "features": [
-            "10,000 email tests/month",
-            "Advanced analytics",
-            "Priority support",
-            "Custom reports",
-            "API access"
-        ]
-    },
-    {
-        "name": "Enterprise",
-        "price": "Custom",
-        "features": [
-            "Unlimited email tests",
-            "Full analytics suite",
-            "24/7 dedicated support",
-            "Custom integration",
-            "Dedicated IP pools",
-            "SLA guarantee"
-        ]
-    }
-]
-
-FAQ:
-[
-    {
-        "question": "What is email deliverability?",
-        "answer": "Email deliverability is the ability to deliver emails to subscribers' inboxes. It's determined by various factors including sender reputation, email content, and technical setup."
-    },
-    {
-        "question": "How does InboxAssure improve email deliverability?",
-        "answer": "We provide tools to test, monitor, and optimize your email campaigns before sending. This includes spam testing, content analysis, and infrastructure verification."
-    },
-    {
-        "question": "Do you offer a trial period?",
-        "answer": "Yes, we offer a 14-day free trial on all our plans. No credit card required."
-    },
-    {
-        "question": "Can I upgrade or downgrade my plan?",
-        "answer": "Yes, you can change your plan at any time. Changes take effect on your next billing cycle."
-    }
-] 

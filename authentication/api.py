@@ -14,7 +14,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 from typing import Dict
 from .models import PasswordResetToken
-from .schema import TokenSchema, ErrorMessage, PasswordResetRequestSchema
+from .schema import TokenSchema, ErrorMessage, PasswordResetRequestSchema, PasswordResetVerifySchema
 
 logger = logging.getLogger(__name__)
 
@@ -172,10 +172,10 @@ def request_password_reset(request, data: PasswordResetRequestSchema):
         return 404, {"message": "User with this email does not exist"}
 
 @router.post("/password-reset-verify", response={200: Dict, 404: ErrorMessage})
-def verify_reset_token(request, token: str):
+def verify_reset_token(request, data: PasswordResetVerifySchema):
     """Verify if a password reset token is valid"""
     try:
-        reset_token = PasswordResetToken.objects.get(token=token)
+        reset_token = PasswordResetToken.objects.get(token=data.token)
         if reset_token.is_valid():
             return {"valid": True}
         return {"valid": False, "message": "Token has expired or has been used"}
