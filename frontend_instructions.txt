@@ -1,0 +1,129 @@
+InboxAssure API Documentation
+=========================
+
+Base URL: http://inboxassure-backend.imnodev.com/api
+
+Authentication
+-------------
+All authenticated endpoints require a Bearer token in the Authorization header:
+Authorization: Bearer <access_token>
+
+Endpoints
+---------
+
+1. Register New User
+-------------------
+POST /auth/register
+
+Request Body:
+{
+    "username": "string",
+    "email": "string",
+    "password": "string",
+    "first_name": "string" (optional),
+    "last_name": "string" (optional)
+}
+
+Response (200):
+{
+    "access_token": "string",
+    "token_type": "bearer"
+}
+
+Response (400):
+{
+    "detail": "error message"
+}
+
+Notes:
+- Email must exist in the client database
+- Username and email must be unique
+- Password should be secure
+
+2. Login
+--------
+POST /auth/login
+
+Request Body:
+{
+    "username": "string",
+    "password": "string"
+}
+
+Response (200):
+{
+    "access_token": "string",
+    "token_type": "bearer"
+}
+
+Response (401):
+{
+    "detail": "Invalid credentials"
+}
+
+Notes:
+- Token expires after 24 hours
+- Use the returned token in the Authorization header for authenticated requests 
+
+Mock Data for UI Development
+===========================
+
+1. Mock User for Registration
+----------------------------
+{
+    "username": "john.doe",
+    "email": "john.doe@example.com",
+    "password": "SecurePass123!",
+    "first_name": "John",
+    "last_name": "Doe"
+}
+
+2. Mock Successful Registration Response
+--------------------------------------
+{
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImpvaG4uZG9lIiwiZXhwIjoxNzA5NDU2Nzg5LCJpYXQiOjE3MDkzNzAzODl9.mock-token-hash",
+    "token_type": "bearer"
+}
+
+3. Mock Registration Error Responses
+----------------------------------
+Email not found:
+{
+    "detail": "Email not found in our client database. Please contact support."
+}
+
+Email already registered:
+{
+    "detail": "Email already registered"
+}
+
+Username taken:
+{
+    "detail": "Username already registered"
+}
+
+4. Mock Login Credentials
+------------------------
+{
+    "username": "john.doe",
+    "password": "SecurePass123!"
+}
+
+5. Mock Login Success Response
+----------------------------
+{
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImpvaG4uZG9lIiwiZXhwIjoxNzA5NDU2Nzg5LCJpYXQiOjE3MDkzNzAzODl9.mock-token-hash",
+    "token_type": "bearer"
+}
+
+6. Mock Login Error Response
+---------------------------
+{
+    "detail": "Invalid credentials"
+}
+
+7. Mock Headers for Authenticated Requests
+----------------------------------------
+{
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImpvaG4uZG9lIiwiZXhwIjoxNzA5NDU2Nzg5LCJpYXQiOjE3MDkzNzAzODl9.mock-token-hash"
+} 
