@@ -2,12 +2,6 @@
 
 echo "🚀 Starting deployment process..."
 
-# Local machine deployment
-echo "💻 Local machine: Committing and pushing changes..."
-git add .
-git commit -m "Update: Modified login endpoint to use email instead of username"
-git push origin main
-
 # Remote server deployment
 echo "🌐 Remote server: Deploying to DigitalOcean..."
 ssh -i ~/.ssh/inboxassure root@68.183.98.54 "\
