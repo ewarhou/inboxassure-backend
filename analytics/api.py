@@ -42,15 +42,9 @@ class ProviderPerformanceResponse(BaseModel):
 
 def get_client_organizations(client_id: str):
     """Helper function to get all organizations for a client"""
-    try:
-        return ClientOrganizations.objects.filter(
-            client_id=uuid.UUID(client_id)
-        ).select_related('organization')
-    except ValueError:
-        # If client_id is not a UUID, try using it as is
-        return ClientOrganizations.objects.filter(
-            client_id=client_id
-        ).select_related('organization')
+    return ClientOrganizations.objects.filter(
+        client_id=int(client_id)
+    ).select_related('organization')
 
 class AuthBearer(HttpBearer):
     def authenticate(self, request, token):
@@ -73,16 +67,10 @@ def get_sending_power(request):
     result = []
     
     for client_org in client_orgs:
-        try:
-            reports = InboxassureReports.objects.filter(
-                client_id=uuid.UUID(request.auth['client_id']),
-                organization_id=client_org.organization_id
-            ).order_by('report_datetime')
-        except ValueError:
-            reports = InboxassureReports.objects.filter(
-                client_id=request.auth['client_id'],
-                organization_id=client_org.organization_id
-            ).order_by('report_datetime')
+        reports = InboxassureReports.objects.filter(
+            client_id=int(request.auth['client_id']),
+            organization_id=client_org.organization_id
+        ).order_by('report_datetime')
         
         for report in reports:
             result.append(
@@ -103,16 +91,10 @@ def get_account_performance(request):
     result = []
     
     for client_org in client_orgs:
-        try:
-            reports = InboxassureReports.objects.filter(
-                client_id=uuid.UUID(request.auth['client_id']),
-                organization_id=client_org.organization_id
-            ).order_by('report_datetime')
-        except ValueError:
-            reports = InboxassureReports.objects.filter(
-                client_id=request.auth['client_id'],
-                organization_id=client_org.organization_id
-            ).order_by('report_datetime')
+        reports = InboxassureReports.objects.filter(
+            client_id=int(request.auth['client_id']),
+            organization_id=client_org.organization_id
+        ).order_by('report_datetime')
         
         for report in reports:
             result.append(
@@ -137,17 +119,11 @@ def get_provider_performance(request):
     result = []
     
     for client_org in client_orgs:
-        try:
-            # Get the latest report for each organization
-            latest_report = InboxassureReports.objects.filter(
-                client_id=uuid.UUID(request.auth['client_id']),
-                organization_id=client_org.organization_id
-            ).latest('report_datetime')
-        except ValueError:
-            latest_report = InboxassureReports.objects.filter(
-                client_id=request.auth['client_id'],
-                organization_id=client_org.organization_id
-            ).latest('report_datetime')
+        # Get the latest report for each organization
+        latest_report = InboxassureReports.objects.filter(
+            client_id=int(request.auth['client_id']),
+            organization_id=client_org.organization_id
+        ).latest('report_datetime')
         
         if not latest_report:
             continue

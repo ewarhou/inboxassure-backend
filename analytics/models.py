@@ -3,7 +3,7 @@ import uuid
 
 class InboxassureReports(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    client_id = models.UUIDField()
+    client_id = models.IntegerField()
     organization_id = models.UUIDField()
     total_accounts = models.IntegerField(default=0)
     sending_power = models.IntegerField(default=0)
@@ -40,7 +40,7 @@ class ProviderPerformance(models.Model):
 
 class ClientOrganizations(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    client_id = models.UUIDField()
+    client_id = models.IntegerField()
     organization_id = models.UUIDField()
     created_at = models.DateTimeField(auto_now_add=True)
 
