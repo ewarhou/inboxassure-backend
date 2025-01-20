@@ -145,7 +145,7 @@ def request_password_reset(request, data: PasswordResetRequestSchema):
         
         # Send email
         email_body = f"""
-        Hello {user.username},
+        Hello {user.first_name if user.first_name else user.email.split('@')[0]},
         
         You have requested to reset your password. Please click the link below to reset your password:
         
