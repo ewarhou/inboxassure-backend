@@ -44,6 +44,3 @@ Always update dependencies if needed in requirements.txt before committing and p
         "SSH_KEY_PATH": "~/.ssh/inboxassure"
     }
 }
-
-Always use deploy.sh to deploy the application.
-Always check database_docs.txt to know the database structure if you need to know the database structure.
