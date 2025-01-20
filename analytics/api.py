@@ -48,7 +48,7 @@ def get_client_uuid(auth_id: str):
     """Helper function to get client UUID from auth ID"""
     with connections['default'].cursor() as cursor:
         query = """
-            SELECT ic.id 
+            SELECT ic.id, ic.client_email, au.email, au.id as auth_id
             FROM inboxassure_clients ic
             JOIN auth_user au ON au.email = ic.client_email
             WHERE au.id = %s
@@ -58,7 +58,10 @@ def get_client_uuid(auth_id: str):
         result = cursor.fetchone()
         logger.info(f"Query result: {result}")
         if result:
-            return result[0]
+            client_uuid = result[0]
+            logger.info(f"Found client UUID: {client_uuid} for auth_id: {auth_id}")
+            return client_uuid
+        logger.warning(f"No client found for auth_id: {auth_id}")
         return None
 
 def get_client_organizations(client_id: str):
@@ -93,22 +96,37 @@ class AuthBearer(HttpBearer):
 def get_sending_power(request):
     """Get sending power over time for all client organizations"""
     logger.info(f"Getting sending power for client_id: {request.auth['client_id']}")
-    client_orgs = get_client_organizations(request.auth['client_id'])
-    result = []
-    
     client_uuid = get_client_uuid(request.auth['client_id'])
+    logger.info(f"Retrieved client_uuid: {client_uuid}")
+    
     if not client_uuid:
         logger.warning(f"No client UUID found for auth_id: {request.auth['client_id']}")
         return []
     
+    client_orgs = ClientOrganizations.objects.filter(client_id=client_uuid)
+    org_count = client_orgs.count()
+    logger.info(f"Found {org_count} organizations for client {client_uuid}")
+    
+    if org_count == 0:
+        logger.warning(f"No organizations found for client {client_uuid}")
+        return []
+    
+    result = []
     for client_org in client_orgs:
+        logger.info(f"Processing organization: {client_org.organization.id} ({client_org.organization.name})")
         reports = InboxassureReports.objects.filter(
             client_id=client_uuid,
             organization_id=client_org.organization.id
         ).order_by('report_datetime')
-        logger.info(f"Found {reports.count()} reports for organization {client_org.organization.name}")
+        report_count = reports.count()
+        logger.info(f"Found {report_count} reports for organization {client_org.organization.name}")
         
+        if report_count == 0:
+            logger.warning(f"No reports found for organization {client_org.organization.name}")
+            continue
+            
         for report in reports:
+            logger.info(f"Adding report {report.id} with sending_power: {report.sending_power}")
             result.append(
                 SendingPowerResponse(
                     organization_id=str(client_org.organization.id),
@@ -118,19 +136,21 @@ def get_sending_power(request):
                 )
             )
     
+    logger.info(f"Returning {len(result)} total reports")
     return result
 
 @router.get("/get-account-performance", response=List[AccountPerformanceResponse], auth=AuthBearer())
 def get_account_performance(request):
     """Get daily account performance metrics for all client organizations"""
     logger.info(f"Getting account performance for client_id: {request.auth['client_id']}")
-    client_orgs = get_client_organizations(request.auth['client_id'])
-    result = []
-    
     client_uuid = get_client_uuid(request.auth['client_id'])
     if not client_uuid:
         logger.warning(f"No client UUID found for auth_id: {request.auth['client_id']}")
         return []
+    
+    client_orgs = ClientOrganizations.objects.filter(client_id=client_uuid)
+    logger.info(f"Found {client_orgs.count()} organizations for client {client_uuid}")
+    result = []
     
     for client_org in client_orgs:
         reports = InboxassureReports.objects.filter(
@@ -159,13 +179,15 @@ def get_provider_performance(request):
     """Get provider performance metrics over last 14 days for all client organizations"""
     logger.info(f"Getting provider performance for client_id: {request.auth['client_id']}")
     two_weeks_ago = timezone.now() - timedelta(days=14)
-    client_orgs = get_client_organizations(request.auth['client_id'])
-    result = []
     
     client_uuid = get_client_uuid(request.auth['client_id'])
     if not client_uuid:
         logger.warning(f"No client UUID found for auth_id: {request.auth['client_id']}")
         return []
+    
+    client_orgs = ClientOrganizations.objects.filter(client_id=client_uuid)
+    logger.info(f"Found {client_orgs.count()} organizations for client {client_uuid}")
+    result = []
     
     for client_org in client_orgs:
         # Get the latest report for each organization
