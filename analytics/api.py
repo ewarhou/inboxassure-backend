@@ -43,7 +43,7 @@ class ProviderPerformanceResponse(BaseModel):
 def get_client_organizations(client_id: str):
     """Helper function to get all organizations for a client"""
     return ClientOrganizations.objects.filter(
-        client_id=int(client_id)
+        client_id=uuid.UUID(client_id)
     ).select_related('organization')
 
 class AuthBearer(HttpBearer):
@@ -68,7 +68,7 @@ def get_sending_power(request):
     
     for client_org in client_orgs:
         reports = InboxassureReports.objects.filter(
-            client_id=int(request.auth['client_id']),
+            client_id=uuid.UUID(request.auth['client_id']),
             organization_id=client_org.organization.id
         ).order_by('report_datetime')
         
@@ -92,7 +92,7 @@ def get_account_performance(request):
     
     for client_org in client_orgs:
         reports = InboxassureReports.objects.filter(
-            client_id=int(request.auth['client_id']),
+            client_id=uuid.UUID(request.auth['client_id']),
             organization_id=client_org.organization.id
         ).order_by('report_datetime')
         
@@ -121,7 +121,7 @@ def get_provider_performance(request):
     for client_org in client_orgs:
         # Get the latest report for each organization
         latest_report = InboxassureReports.objects.filter(
-            client_id=int(request.auth['client_id']),
+            client_id=uuid.UUID(request.auth['client_id']),
             organization_id=client_org.organization.id
         ).latest('report_datetime')
         

@@ -13,7 +13,7 @@ class InboxassureOrganizations(models.Model):
 
 class ClientOrganizations(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    client_id = models.IntegerField()
+    client_id = models.UUIDField()
     organization = models.ForeignKey(InboxassureOrganizations, on_delete=models.CASCADE, db_column='organization_id')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -23,7 +23,7 @@ class ClientOrganizations(models.Model):
 
 class InboxassureReports(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    client_id = models.IntegerField()
+    client_id = models.UUIDField()
     organization_id = models.UUIDField()
     total_accounts = models.IntegerField(default=0)
     sending_power = models.IntegerField(default=0)
