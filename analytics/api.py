@@ -7,6 +7,7 @@ from django.utils import timezone
 from .models import InboxassureReports, ProviderPerformance, ClientOrganizations, InboxassureOrganizations
 from pydantic import BaseModel
 import uuid
+from django.db import connections
 
 router = Router()
 
@@ -40,10 +41,23 @@ class ProviderPerformanceResponse(BaseModel):
     outlook_score: float
     overall_score: float
 
+def get_client_uuid(auth_id: str):
+    """Helper function to get client UUID from auth ID"""
+    with connections['default'].cursor() as cursor:
+        cursor.execute(
+            "SELECT id FROM inboxassure_clients WHERE client_email = (SELECT email FROM auth_user WHERE id = %s)",
+            [auth_id]
+        )
+        result = cursor.fetchone()
+        return result[0] if result else None
+
 def get_client_organizations(client_id: str):
     """Helper function to get all organizations for a client"""
+    client_uuid = get_client_uuid(client_id)
+    if not client_uuid:
+        return []
     return ClientOrganizations.objects.filter(
-        client_id=uuid.UUID(client_id)
+        client_id=client_uuid
     ).select_related('organization')
 
 class AuthBearer(HttpBearer):
@@ -66,9 +80,13 @@ def get_sending_power(request):
     client_orgs = get_client_organizations(request.auth['client_id'])
     result = []
     
+    client_uuid = get_client_uuid(request.auth['client_id'])
+    if not client_uuid:
+        return []
+    
     for client_org in client_orgs:
         reports = InboxassureReports.objects.filter(
-            client_id=uuid.UUID(request.auth['client_id']),
+            client_id=client_uuid,
             organization_id=client_org.organization.id
         ).order_by('report_datetime')
         
@@ -90,9 +108,13 @@ def get_account_performance(request):
     client_orgs = get_client_organizations(request.auth['client_id'])
     result = []
     
+    client_uuid = get_client_uuid(request.auth['client_id'])
+    if not client_uuid:
+        return []
+    
     for client_org in client_orgs:
         reports = InboxassureReports.objects.filter(
-            client_id=uuid.UUID(request.auth['client_id']),
+            client_id=client_uuid,
             organization_id=client_org.organization.id
         ).order_by('report_datetime')
         
@@ -118,10 +140,14 @@ def get_provider_performance(request):
     client_orgs = get_client_organizations(request.auth['client_id'])
     result = []
     
+    client_uuid = get_client_uuid(request.auth['client_id'])
+    if not client_uuid:
+        return []
+    
     for client_org in client_orgs:
         # Get the latest report for each organization
         latest_report = InboxassureReports.objects.filter(
-            client_id=uuid.UUID(request.auth['client_id']),
+            client_id=client_uuid,
             organization_id=client_org.organization.id
         ).latest('report_datetime')
         
