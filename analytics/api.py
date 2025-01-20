@@ -4,7 +4,6 @@ from ninja import Router
 from ninja.security import HttpBearer
 from django.db.models import Avg
 from django.utils import timezone
-from authentication.auth import AuthBearer
 from inboxassure_reports.models import InboxassureReports
 from provider_performance.models import ProviderPerformance
 from client_organizations.models import ClientOrganizations
@@ -47,6 +46,20 @@ def get_client_organizations(client_id: str):
     return ClientOrganizations.objects.filter(
         client_id=client_id
     ).select_related('organization')
+
+class AuthBearer(HttpBearer):
+    def authenticate(self, request, token):
+        try:
+            import jwt
+            from django.conf import settings
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+            user = User.objects.get(id=payload['user_id'])
+            return {'client_id': str(user.id)}
+        except:
+            return None
 
 @router.get("/get-sending-power", response=List[SendingPowerResponse], auth=AuthBearer())
 def get_sending_power(request):
