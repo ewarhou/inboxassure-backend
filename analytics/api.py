@@ -64,16 +64,21 @@ def get_client_uuid(auth_id: str):
         logger.warning(f"No client found for auth_id: {auth_id}")
         return None
 
-def get_client_organizations(client_id: str):
+def get_client_organizations(client_id):
     """Helper function to get all organizations for a client"""
-    client_uuid = get_client_uuid(client_id)
-    logger.info(f"Got client UUID: {client_uuid} for client_id: {client_id}")
-    if not client_uuid:
-        return []
+    if isinstance(client_id, uuid.UUID):
+        client_uuid = str(client_id)
+    else:
+        client_uuid = client_id
+        
+    logger.info(f"Getting organizations for client UUID: {client_uuid}")
+    
     orgs = ClientOrganizations.objects.filter(
         client_id=client_uuid
     ).select_related('organization')
-    logger.info(f"Found {orgs.count()} organizations for client")
+    
+    org_count = orgs.count()
+    logger.info(f"Found {org_count} organizations for client {client_uuid}")
     return orgs
 
 class AuthBearer(HttpBearer):
