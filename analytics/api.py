@@ -109,7 +109,7 @@ def get_sending_power(request):
     # Get all reports for this client
     reports = InboxassureReports.objects.filter(
         client_id=client_uuid_obj,
-        organization_id=uuid.UUID('d9749aa5-84a6-4e56-9ff1-08d6f9de1d20')  # hardcoded for testing
+        organization_id=uuid.UUID("d9749aa5-84a6-4e56-9ff1-08d6f9de1d20")  # hardcoded for testing
     ).order_by('report_datetime')
     
     report_count = reports.count()
@@ -149,7 +149,7 @@ def get_account_performance(request):
     # Get all reports for this client
     reports = InboxassureReports.objects.filter(
         client_id=client_uuid_obj,
-        organization_id=uuid.UUID('d9749aa5-84a6-4e56-9ff1-08d6f9de1d20')  # hardcoded for testing
+        organization_id=uuid.UUID("d9749aa5-84a6-4e56-9ff1-08d6f9de1d20")  # hardcoded for testing
     ).order_by('report_datetime')
     
     report_count = reports.count()
@@ -193,7 +193,7 @@ def get_provider_performance(request):
     try:
         latest_report = InboxassureReports.objects.filter(
             client_id=client_uuid_obj,
-            organization_id=uuid.UUID('d9749aa5-84a6-4e56-9ff1-08d6f9de1d20')  # hardcoded for testing
+            organization_id=uuid.UUID("d9749aa5-84a6-4e56-9ff1-08d6f9de1d20")  # hardcoded for testing
         ).latest('report_datetime')
         logger.info(f"Found latest report for organization")
     except InboxassureReports.DoesNotExist:
