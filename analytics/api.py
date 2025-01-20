@@ -44,12 +44,16 @@ class ProviderPerformanceResponse(BaseModel):
 def get_client_uuid(auth_id: str):
     """Helper function to get client UUID from auth ID"""
     with connections['default'].cursor() as cursor:
-        cursor.execute(
-            "SELECT id FROM inboxassure_clients WHERE client_email = (SELECT email FROM auth_user WHERE id = %s)",
-            [auth_id]
-        )
+        cursor.execute("""
+            SELECT ic.id 
+            FROM inboxassure_clients ic
+            JOIN auth_user au ON au.email = ic.client_email
+            WHERE au.id = %s
+        """, [auth_id])
         result = cursor.fetchone()
-        return result[0] if result else None
+        if result:
+            return result[0]
+        return None
 
 def get_client_organizations(client_id: str):
     """Helper function to get all organizations for a client"""
