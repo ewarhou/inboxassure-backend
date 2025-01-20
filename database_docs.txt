@@ -1,0 +1,253 @@
+Comprehensive Database Documentation
+1. accounts_results
+Tracks individual email delivery test results.
+Columns:
+
+id (UUID, PK): Auto-generated unique identifier
+report_id (UUID): Reference to the report
+domain (varchar): The tested domain
+report_link (text, nullable): Link to detailed report
+score (numeric, nullable): Overall score
+google_pro_score (varchar, nullable): Google-specific score
+outlook_pro_score (varchar, nullable): Outlook-specific score
+created_at (timestamp): Creation timestamp
+tags (text, nullable): Associated tags
+campaigns (text, nullable): Associated campaigns
+
+Example Row:
+jsonCopy{
+  "id": "bb36f6e7-0838-4467-b1ce-2b5bf987e4fb",
+  "domain": "procoachedge.com",
+  "google_pro_score": "4/4",
+  "outlook_pro_score": "0/4",
+  "tags": "p.Maildoso, Google Good, Outlook Bad",
+  "campaigns": "CoachPro for RIA's v2 - Other & Google, RSCP: Accountants (Aug 22)"
+}
+2. inboxassure_clients
+Stores client information.
+Columns:
+
+id (UUID, PK): Auto-generated unique identifier
+client_email (varchar): Client's email address
+created_at (timestamp): Creation timestamp
+updated_at (timestamp): Last update timestamp
+
+Example Row:
+jsonCopy{
+  "id": "52465294-3e44-4137-931f-9f276decaf09",
+  "client_email": "jason@vitalitymarketingfirm.com",
+  "created_at": "2024-12-17T23:24:49.933854+00:00",
+  "updated_at": "2024-12-17T23:24:49.933854+00:00"
+}
+3. inboxassure_organizations
+Manages organization details.
+Columns:
+
+id (UUID, PK): Auto-generated unique identifier
+name (varchar): Organization name
+created_at (timestamp): Creation timestamp
+updated_at (timestamp): Last update timestamp
+
+Example Row:
+jsonCopy{
+  "id": "666c1d9f-3a81-4106-85c9-828a1fac4b8b",
+  "name": "karpos",
+  "created_at": "2024-12-17T23:25:15.251115+00:00",
+  "updated_at": "2024-12-17T23:25:15.251115+00:00"
+}
+4. client_organizations
+Junction table linking clients to organizations.
+Columns:
+
+id (UUID, PK): Auto-generated unique identifier
+client_id (UUID, FK): Reference to inboxassure_clients
+organization_id (UUID, FK): Reference to inboxassure_organizations
+created_at (timestamp): Creation timestamp
+
+Example Row:
+jsonCopy{
+  "id": "9d8c4dae-684e-487d-95b5-cdcd1ec35eb3",
+  "client_id": "52465294-3e44-4137-931f-9f276decaf09",
+  "organization_id": "666c1d9f-3a81-4106-85c9-828a1fac4b8b",
+  "created_at": "2024-12-17T23:25:32.216581+00:00"
+}
+5. inboxassure_reports
+Stores aggregate email delivery metrics.
+Columns:
+
+id (UUID, PK): Auto-generated unique identifier
+client_id (UUID, FK): Reference to client
+organization_id (UUID, FK): Reference to organization
+total_accounts (integer): Default 0
+sending_power (integer): Default 0
+google_good (integer): Default 0
+google_bad (integer): Default 0
+outlook_good (integer): Default 0
+outlook_bad (integer): Default 0
+report_datetime (timestamp): Report generation time
+created_at & updated_at (timestamp): Timestamps
+
+Example Row:
+jsonCopy{
+  "id": "c89c7ec2-3a26-4cf3-8273-a1093c00c070",
+  "total_accounts": 269,
+  "sending_power": 1301,
+  "google_good": 43,
+  "google_bad": 226,
+  "outlook_good": 20,
+  "outlook_bad": 249
+}
+6. provider_performance
+Detailed provider-specific metrics.
+Columns:
+
+id (UUID, PK): Auto-generated unique identifier
+report_id (UUID, FK): Reference to report
+provider (varchar): Provider name
+total_checked_inboxes (integer): Default 0
+good_accounts_percent (numeric): Default 0
+bad_accounts_percent (numeric): Default 0
+google_good_percent (numeric): Default 0
+google_bad_percent (numeric): Default 0
+outlook_good_percent (numeric): Default 0
+outlook_bad_percent (numeric): Default 0
+reply_rate (numeric, nullable): Reply rate
+bounce_rate (numeric, nullable): Bounce rate
+created_at (timestamp): Creation timestamp
+
+Example Row:
+jsonCopy{
+  "id": "86ed18b5-3838-4578-8b13-d20638260fc2",
+  "provider": "Maildoso",
+  "total_checked_inboxes": 120,
+  "good_accounts_percent": 100,
+  "google_good_percent": 102.5,
+  "outlook_good_percent": 16.67,
+  "reply_rate": 0.6,
+  "bounce_rate": 0.45
+}
+Common Patterns
+
+Primary Keys: All tables use UUID with auto-generation
+Timestamps: All tables track creation time
+Foreign Keys: Used for maintaining referential integrity
+Default Values: Numeric columns often default to 0
+Nullable Fields: Used for optional data points
+
+Relationships
+
+One client can belong to multiple organizations (M:N through client_organizations)
+Each report is associated with one client and one organization
+Provider performance metrics are linked to specific reports
+Account results are linked to specific reports
+
+Detailed Database Structure
+Tables and Their Columns
+1. accounts_results
+
+Primary Key: id (uuid)
+Required Fields:
+
+report_id (uuid)
+domain (varchar)
+
+
+Optional Fields:
+
+report_link (text)
+score (numeric)
+google_pro_score (varchar)
+outlook_pro_score (varchar)
+tags (text)
+campaigns (text)
+
+
+Timestamps: created_at
+
+2. client_organizations (Junction Table)
+
+Primary Key: id (uuid)
+Required Fields:
+
+client_id (uuid) → References inboxassure_clients
+organization_id (uuid) → References inboxassure_organizations
+
+
+Timestamps: created_at
+
+3. inboxassure_clients
+
+Primary Key: id (uuid)
+Required Fields:
+
+client_email (varchar)
+
+
+Timestamps: created_at, updated_at
+
+4. inboxassure_organizations
+
+Primary Key: id (uuid)
+Required Fields:
+
+name (varchar)
+
+
+Timestamps: created_at, updated_at
+
+5. inboxassure_reports
+
+Primary Key: id (uuid)
+Required Fields:
+
+client_id (uuid)
+organization_id (uuid)
+total_accounts (integer, default: 0)
+sending_power (integer, default: 0)
+google_good (integer, default: 0)
+google_bad (integer, default: 0)
+outlook_good (integer, default: 0)
+outlook_bad (integer, default: 0)
+
+
+Timestamps: report_datetime, created_at, updated_at
+
+6. provider_performance
+
+Primary Key: id (uuid)
+Required Fields:
+
+report_id (uuid)
+provider (varchar)
+total_checked_inboxes (integer, default: 0)
+Various percentage fields (numeric, default: 0):
+
+good_accounts_percent
+bad_accounts_percent
+google_good_percent
+google_bad_percent
+outlook_good_percent
+outlook_bad_percent
+
+
+
+
+Optional Fields:
+
+reply_rate (numeric)
+bounce_rate (numeric)
+
+
+Timestamps: created_at
+
+Regarding auth_user Relationship
+From the provided schema, there's no direct relationship visible between auth_user and inboxassure_clients. The auth_user table isn't present in the schema, suggesting either:
+
+It's in a different schema
+Authentication is handled separately
+The relationship might be managed at the application level
+
+If you need to establish this relationship, you'd need to:
+
+First check if the auth_user table exists
+Then potentially add a foreign key from inboxassure_clients to auth_user
