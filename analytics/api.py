@@ -8,6 +8,9 @@ from .models import InboxassureReports, ProviderPerformance, ClientOrganizations
 from pydantic import BaseModel
 import uuid
 from django.db import connections
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -44,13 +47,16 @@ class ProviderPerformanceResponse(BaseModel):
 def get_client_uuid(auth_id: str):
     """Helper function to get client UUID from auth ID"""
     with connections['default'].cursor() as cursor:
-        cursor.execute("""
+        query = """
             SELECT ic.id 
             FROM inboxassure_clients ic
             JOIN auth_user au ON au.email = ic.client_email
             WHERE au.id = %s
-        """, [auth_id])
+        """
+        logger.info(f"Executing query: {query} with auth_id: {auth_id}")
+        cursor.execute(query, [auth_id])
         result = cursor.fetchone()
+        logger.info(f"Query result: {result}")
         if result:
             return result[0]
         return None
@@ -58,11 +64,14 @@ def get_client_uuid(auth_id: str):
 def get_client_organizations(client_id: str):
     """Helper function to get all organizations for a client"""
     client_uuid = get_client_uuid(client_id)
+    logger.info(f"Got client UUID: {client_uuid} for client_id: {client_id}")
     if not client_uuid:
         return []
-    return ClientOrganizations.objects.filter(
+    orgs = ClientOrganizations.objects.filter(
         client_id=client_uuid
     ).select_related('organization')
+    logger.info(f"Found {orgs.count()} organizations for client")
+    return orgs
 
 class AuthBearer(HttpBearer):
     def authenticate(self, request, token):
@@ -74,18 +83,22 @@ class AuthBearer(HttpBearer):
             
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
             user = User.objects.get(id=payload['user_id'])
+            logger.info(f"Authenticated user: {user.id} ({user.email})")
             return {'client_id': str(user.id)}
-        except:
+        except Exception as e:
+            logger.error(f"Authentication error: {str(e)}")
             return None
 
 @router.get("/get-sending-power", response=List[SendingPowerResponse], auth=AuthBearer())
 def get_sending_power(request):
     """Get sending power over time for all client organizations"""
+    logger.info(f"Getting sending power for client_id: {request.auth['client_id']}")
     client_orgs = get_client_organizations(request.auth['client_id'])
     result = []
     
     client_uuid = get_client_uuid(request.auth['client_id'])
     if not client_uuid:
+        logger.warning(f"No client UUID found for auth_id: {request.auth['client_id']}")
         return []
     
     for client_org in client_orgs:
@@ -93,6 +106,7 @@ def get_sending_power(request):
             client_id=client_uuid,
             organization_id=client_org.organization.id
         ).order_by('report_datetime')
+        logger.info(f"Found {reports.count()} reports for organization {client_org.organization.name}")
         
         for report in reports:
             result.append(
@@ -109,11 +123,13 @@ def get_sending_power(request):
 @router.get("/get-account-performance", response=List[AccountPerformanceResponse], auth=AuthBearer())
 def get_account_performance(request):
     """Get daily account performance metrics for all client organizations"""
+    logger.info(f"Getting account performance for client_id: {request.auth['client_id']}")
     client_orgs = get_client_organizations(request.auth['client_id'])
     result = []
     
     client_uuid = get_client_uuid(request.auth['client_id'])
     if not client_uuid:
+        logger.warning(f"No client UUID found for auth_id: {request.auth['client_id']}")
         return []
     
     for client_org in client_orgs:
@@ -121,6 +137,7 @@ def get_account_performance(request):
             client_id=client_uuid,
             organization_id=client_org.organization.id
         ).order_by('report_datetime')
+        logger.info(f"Found {reports.count()} reports for organization {client_org.organization.name}")
         
         for report in reports:
             result.append(
@@ -140,22 +157,26 @@ def get_account_performance(request):
 @router.get("/get-provider-performance", response=List[ProviderPerformanceResponse], auth=AuthBearer())
 def get_provider_performance(request):
     """Get provider performance metrics over last 14 days for all client organizations"""
+    logger.info(f"Getting provider performance for client_id: {request.auth['client_id']}")
     two_weeks_ago = timezone.now() - timedelta(days=14)
     client_orgs = get_client_organizations(request.auth['client_id'])
     result = []
     
     client_uuid = get_client_uuid(request.auth['client_id'])
     if not client_uuid:
+        logger.warning(f"No client UUID found for auth_id: {request.auth['client_id']}")
         return []
     
     for client_org in client_orgs:
         # Get the latest report for each organization
-        latest_report = InboxassureReports.objects.filter(
-            client_id=client_uuid,
-            organization_id=client_org.organization.id
-        ).latest('report_datetime')
-        
-        if not latest_report:
+        try:
+            latest_report = InboxassureReports.objects.filter(
+                client_id=client_uuid,
+                organization_id=client_org.organization.id
+            ).latest('report_datetime')
+            logger.info(f"Found latest report for organization {client_org.organization.name}")
+        except InboxassureReports.DoesNotExist:
+            logger.warning(f"No reports found for organization {client_org.organization.name}")
             continue
         
         # Get provider performance data
@@ -168,6 +189,7 @@ def get_provider_performance(request):
             avg_google_good=Avg('google_good_percent'),
             avg_outlook_good=Avg('outlook_good_percent')
         )
+        logger.info(f"Found {len(providers)} providers for organization {client_org.organization.name}")
         
         for provider in providers:
             result.append(
