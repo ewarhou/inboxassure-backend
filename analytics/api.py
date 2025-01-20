@@ -4,9 +4,7 @@ from ninja import Router
 from ninja.security import HttpBearer
 from django.db.models import Avg
 from django.utils import timezone
-from inboxassure_reports.models import InboxassureReports
-from provider_performance.models import ProviderPerformance
-from client_organizations.models import ClientOrganizations
+from .models import InboxassureReports, ProviderPerformance, ClientOrganizations, InboxassureOrganizations
 from pydantic import BaseModel
 
 router = Router()
