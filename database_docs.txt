@@ -251,3 +251,97 @@ If you need to establish this relationship, you'd need to:
 
 First check if the auth_user table exists
 Then potentially add a foreign key from inboxassure_clients to auth_user
+
+Best Practices for Database Operations
+====================================
+
+1. UUID Handling
+---------------
+```python
+# Always format UUIDs properly
+client_uuid = str(uuid.UUID(raw_uuid))  # Ensures proper UUID format with dashes
+```
+
+2. Raw SQL vs ORM
+----------------
+```python
+# Use Raw SQL when precise control is needed (especially with UUIDs)
+with connection.cursor() as cursor:
+    query = """
+        SELECT id, name 
+        FROM table 
+        WHERE uuid_field = %s
+    """
+    cursor.execute(query, [str(uuid_value)])
+    rows = cursor.fetchall()
+
+# Use Django ORM for simpler queries
+Model.objects.filter(simple_field="value")
+```
+
+3. Debugging Database Issues
+--------------------------
+```python
+# Print SQL queries
+print(f"Query: {str(queryset.query)}")  # For ORM
+print(f"Executing query: {query} with params: {params}")  # For Raw SQL
+
+# Print results count
+print(f"Found {len(results)} records")
+
+# Print actual data
+for row in results:
+    print(f"  - ID: {row.id}, Value: {row.value}")
+```
+
+4. Joins and Relations
+--------------------
+```python
+# Use select_related() for foreign keys to reduce queries
+queryset = Model.objects.select_related('foreign_key').filter(...)
+
+# Raw SQL for complex joins
+query = """
+    SELECT a.*, b.* 
+    FROM table_a a
+    JOIN table_b b ON a.id = b.a_id
+    WHERE a.client_id = %s
+"""
+```
+
+5. Error Prevention
+-----------------
+```python
+# Always validate UUIDs
+try:
+    uuid_obj = uuid.UUID(uuid_string)
+except ValueError:
+    print("Invalid UUID format")
+
+# Check for empty results
+if not results:
+    print("❌ No data found")
+    return []
+```
+
+Common Issues to Watch For:
+-------------------------
+- UUID formatting problems (missing dashes)
+- Empty results without clear reasons
+- Hard-to-debug database queries
+- Performance issues with multiple queries
+- Data type mismatches between Python and Database
+
+When to Use Raw SQL vs ORM:
+-------------------------
+- Use Raw SQL when:
+  * Working with UUIDs
+  * Need precise control over the query
+  * Complex joins or aggregations
+  * Performance is critical
+
+- Use Django ORM when:
+  * Simple CRUD operations
+  * Basic filtering and sorting
+  * Working with simple relationships
+  * Quick prototyping
