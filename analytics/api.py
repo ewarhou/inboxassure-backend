@@ -69,13 +69,13 @@ def get_sending_power(request):
     for client_org in client_orgs:
         reports = InboxassureReports.objects.filter(
             client_id=int(request.auth['client_id']),
-            organization_id=client_org.organization_id
+            organization_id=client_org.organization.id
         ).order_by('report_datetime')
         
         for report in reports:
             result.append(
                 SendingPowerResponse(
-                    organization_id=str(client_org.organization_id),
+                    organization_id=str(client_org.organization.id),
                     organization_name=client_org.organization.name,
                     datetime=report.report_datetime,
                     sending_power=report.sending_power
@@ -93,13 +93,13 @@ def get_account_performance(request):
     for client_org in client_orgs:
         reports = InboxassureReports.objects.filter(
             client_id=int(request.auth['client_id']),
-            organization_id=client_org.organization_id
+            organization_id=client_org.organization.id
         ).order_by('report_datetime')
         
         for report in reports:
             result.append(
                 AccountPerformanceResponse(
-                    organization_id=str(client_org.organization_id),
+                    organization_id=str(client_org.organization.id),
                     organization_name=client_org.organization.name,
                     date=report.report_datetime,
                     google_good=report.google_good,
@@ -122,7 +122,7 @@ def get_provider_performance(request):
         # Get the latest report for each organization
         latest_report = InboxassureReports.objects.filter(
             client_id=int(request.auth['client_id']),
-            organization_id=client_org.organization_id
+            organization_id=client_org.organization.id
         ).latest('report_datetime')
         
         if not latest_report:
@@ -142,7 +142,7 @@ def get_provider_performance(request):
         for provider in providers:
             result.append(
                 ProviderPerformanceResponse(
-                    organization_id=str(client_org.organization_id),
+                    organization_id=str(client_org.organization.id),
                     organization_name=client_org.organization.name,
                     provider=provider['provider'],
                     reply_rate=round(provider['avg_reply_rate'] or 0, 2),

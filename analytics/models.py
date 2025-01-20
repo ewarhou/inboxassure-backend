@@ -1,6 +1,26 @@
 from django.db import models
 import uuid
 
+class InboxassureOrganizations(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'inboxassure_organizations'
+        ordering = ['-created_at']
+
+class ClientOrganizations(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    client_id = models.IntegerField()
+    organization = models.ForeignKey(InboxassureOrganizations, on_delete=models.CASCADE, db_column='organization_id')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'client_organizations'
+        ordering = ['-created_at']
+
 class InboxassureReports(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     client_id = models.IntegerField()
@@ -36,24 +56,4 @@ class ProviderPerformance(models.Model):
 
     class Meta:
         db_table = 'provider_performance'
-        ordering = ['-created_at']
-
-class ClientOrganizations(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    client_id = models.IntegerField()
-    organization_id = models.UUIDField()
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        db_table = 'client_organizations'
-        ordering = ['-created_at']
-
-class InboxassureOrganizations(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        db_table = 'inboxassure_organizations'
         ordering = ['-created_at'] 
