@@ -103,7 +103,9 @@ def get_sending_power(request):
         logger.warning(f"No client UUID found for auth_id: {request.auth['client_id']}")
         return []
     
-    client_orgs = ClientOrganizations.objects.filter(client_id=client_uuid)
+    # Convert string UUID to UUID object
+    client_uuid_obj = uuid.UUID(client_uuid)
+    client_orgs = ClientOrganizations.objects.filter(client_id=client_uuid_obj)
     org_count = client_orgs.count()
     logger.info(f"Found {org_count} organizations for client {client_uuid}")
     
@@ -114,8 +116,9 @@ def get_sending_power(request):
     result = []
     for client_org in client_orgs:
         logger.info(f"Processing organization: {client_org.organization.id} ({client_org.organization.name})")
+        # Convert string UUID to UUID object for reports query
         reports = InboxassureReports.objects.filter(
-            client_id=client_uuid,
+            client_id=client_uuid_obj,
             organization_id=client_org.organization.id
         ).order_by('report_datetime')
         report_count = reports.count()
@@ -148,13 +151,15 @@ def get_account_performance(request):
         logger.warning(f"No client UUID found for auth_id: {request.auth['client_id']}")
         return []
     
-    client_orgs = ClientOrganizations.objects.filter(client_id=client_uuid)
+    # Convert string UUID to UUID object
+    client_uuid_obj = uuid.UUID(client_uuid)
+    client_orgs = ClientOrganizations.objects.filter(client_id=client_uuid_obj)
     logger.info(f"Found {client_orgs.count()} organizations for client {client_uuid}")
     result = []
     
     for client_org in client_orgs:
         reports = InboxassureReports.objects.filter(
-            client_id=client_uuid,
+            client_id=client_uuid_obj,
             organization_id=client_org.organization.id
         ).order_by('report_datetime')
         logger.info(f"Found {reports.count()} reports for organization {client_org.organization.name}")
@@ -185,7 +190,9 @@ def get_provider_performance(request):
         logger.warning(f"No client UUID found for auth_id: {request.auth['client_id']}")
         return []
     
-    client_orgs = ClientOrganizations.objects.filter(client_id=client_uuid)
+    # Convert string UUID to UUID object
+    client_uuid_obj = uuid.UUID(client_uuid)
+    client_orgs = ClientOrganizations.objects.filter(client_id=client_uuid_obj)
     logger.info(f"Found {client_orgs.count()} organizations for client {client_uuid}")
     result = []
     
@@ -193,7 +200,7 @@ def get_provider_performance(request):
         # Get the latest report for each organization
         try:
             latest_report = InboxassureReports.objects.filter(
-                client_id=client_uuid,
+                client_id=client_uuid_obj,
                 organization_id=client_org.organization.id
             ).latest('report_datetime')
             logger.info(f"Found latest report for organization {client_org.organization.name}")
