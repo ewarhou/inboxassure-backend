@@ -106,30 +106,35 @@ def get_sending_power(request):
     # Convert string UUID to UUID object
     client_uuid_obj = uuid.UUID(client_uuid)
     
-    # Get all reports for this client
-    reports = InboxassureReports.objects.filter(
-        client_id=client_uuid_obj,
-        organization_id=uuid.UUID("d9749aa5-84a6-4e56-9ff1-08d6f9de1d20")  # hardcoded for testing
-    ).order_by('report_datetime')
-    
-    report_count = reports.count()
-    logger.info(f"Found {report_count} reports for client {client_uuid}")
-    
-    if report_count == 0:
-        logger.warning(f"No reports found for client {client_uuid}")
+    # Get organizations for this client
+    organizations = get_client_organizations(client_uuid_obj)
+    if not organizations:
+        logger.warning(f"No organizations found for client {client_uuid}")
         return []
+        
+    logger.info(f"Found {len(organizations)} organizations for client {client_uuid}")
     
     result = []
-    for report in reports:
-        logger.info(f"Adding report {report.id} with sending_power: {report.sending_power}")
-        result.append(
-            SendingPowerResponse(
-                organization_id=str(report.organization_id),
-                organization_name="sales society",  # hardcoded for testing
-                datetime=report.report_datetime,
-                sending_power=report.sending_power
+    for org in organizations:
+        # Get all reports for this organization
+        reports = InboxassureReports.objects.filter(
+            client_id=client_uuid_obj,
+            organization_id=org.id
+        ).order_by('report_datetime')
+        
+        report_count = reports.count()
+        logger.info(f"Found {report_count} reports for organization {org.id}")
+        
+        for report in reports:
+            logger.info(f"Adding report {report.id} with sending_power: {report.sending_power}")
+            result.append(
+                SendingPowerResponse(
+                    organization_id=str(report.organization_id),
+                    organization_name=org.name,
+                    datetime=report.report_datetime,
+                    sending_power=report.sending_power
+                )
             )
-        )
     
     logger.info(f"Returning {len(result)} total reports")
     return result
@@ -146,32 +151,37 @@ def get_account_performance(request):
     # Convert string UUID to UUID object
     client_uuid_obj = uuid.UUID(client_uuid)
     
-    # Get all reports for this client
-    reports = InboxassureReports.objects.filter(
-        client_id=client_uuid_obj,
-        organization_id=uuid.UUID("d9749aa5-84a6-4e56-9ff1-08d6f9de1d20")  # hardcoded for testing
-    ).order_by('report_datetime')
-    
-    report_count = reports.count()
-    logger.info(f"Found {report_count} reports for client {client_uuid}")
-    
-    if report_count == 0:
-        logger.warning(f"No reports found for client {client_uuid}")
+    # Get organizations for this client
+    organizations = get_client_organizations(client_uuid_obj)
+    if not organizations:
+        logger.warning(f"No organizations found for client {client_uuid}")
         return []
+        
+    logger.info(f"Found {len(organizations)} organizations for client {client_uuid}")
     
     result = []
-    for report in reports:
-        result.append(
-            AccountPerformanceResponse(
-                organization_id=str(report.organization_id),
-                organization_name="sales society",  # hardcoded for testing
-                date=report.report_datetime,
-                google_good=report.google_good,
-                google_bad=report.google_bad,
-                outlook_good=report.outlook_good,
-                outlook_bad=report.outlook_bad
+    for org in organizations:
+        # Get all reports for this organization
+        reports = InboxassureReports.objects.filter(
+            client_id=client_uuid_obj,
+            organization_id=org.id
+        ).order_by('report_datetime')
+        
+        report_count = reports.count()
+        logger.info(f"Found {report_count} reports for organization {org.id}")
+        
+        for report in reports:
+            result.append(
+                AccountPerformanceResponse(
+                    organization_id=str(report.organization_id),
+                    organization_name=org.name,
+                    date=report.report_datetime,
+                    google_good=report.google_good,
+                    google_bad=report.google_bad,
+                    outlook_good=report.outlook_good,
+                    outlook_bad=report.outlook_bad
+                )
             )
-        )
     
     return result
 
@@ -189,45 +199,54 @@ def get_provider_performance(request):
     # Convert string UUID to UUID object
     client_uuid_obj = uuid.UUID(client_uuid)
     
-    # Get the latest report for the organization
-    try:
-        latest_report = InboxassureReports.objects.filter(
-            client_id=client_uuid_obj,
-            organization_id=uuid.UUID("d9749aa5-84a6-4e56-9ff1-08d6f9de1d20")  # hardcoded for testing
-        ).latest('report_datetime')
-        logger.info(f"Found latest report for organization")
-    except InboxassureReports.DoesNotExist:
-        logger.warning(f"No reports found for organization")
+    # Get organizations for this client
+    organizations = get_client_organizations(client_uuid_obj)
+    if not organizations:
+        logger.warning(f"No organizations found for client {client_uuid}")
         return []
-    
-    # Get provider performance data
-    providers = ProviderPerformance.objects.filter(
-        report_id=latest_report.id,
-        created_at__gte=two_weeks_ago
-    ).values('provider').annotate(
-        avg_reply_rate=Avg('reply_rate'),
-        avg_bounce_rate=Avg('bounce_rate'),
-        avg_google_good=Avg('google_good_percent'),
-        avg_outlook_good=Avg('outlook_good_percent')
-    )
-    logger.info(f"Found {len(providers)} providers")
+        
+    logger.info(f"Found {len(organizations)} organizations for client {client_uuid}")
     
     result = []
-    for provider in providers:
-        result.append(
-            ProviderPerformanceResponse(
-                organization_id=str(latest_report.organization_id),
-                organization_name="sales society",  # hardcoded for testing
-                provider=provider['provider'],
-                reply_rate=round(provider['avg_reply_rate'] or 0, 2),
-                bounce_rate=round(provider['avg_bounce_rate'] or 0, 2),
-                google_score=round(provider['avg_google_good'] or 0, 2),
-                outlook_score=round(provider['avg_outlook_good'] or 0, 2),
-                overall_score=round(
-                    ((provider['avg_google_good'] or 0) + 
-                     (provider['avg_outlook_good'] or 0)) / 2, 2
+    for org in organizations:
+        # Get the latest report for the organization
+        try:
+            latest_report = InboxassureReports.objects.filter(
+                client_id=client_uuid_obj,
+                organization_id=org.id
+            ).latest('report_datetime')
+            logger.info(f"Found latest report for organization {org.id}")
+        except InboxassureReports.DoesNotExist:
+            logger.warning(f"No reports found for organization {org.id}")
+            continue
+        
+        # Get provider performance data
+        providers = ProviderPerformance.objects.filter(
+            report_id=latest_report.id,
+            created_at__gte=two_weeks_ago
+        ).values('provider').annotate(
+            avg_reply_rate=Avg('reply_rate'),
+            avg_bounce_rate=Avg('bounce_rate'),
+            avg_google_good=Avg('google_good_percent'),
+            avg_outlook_good=Avg('outlook_good_percent')
+        )
+        logger.info(f"Found {len(providers)} providers for organization {org.id}")
+        
+        for provider in providers:
+            result.append(
+                ProviderPerformanceResponse(
+                    organization_id=str(latest_report.organization_id),
+                    organization_name=org.name,
+                    provider=provider['provider'],
+                    reply_rate=round(provider['avg_reply_rate'] or 0, 2),
+                    bounce_rate=round(provider['avg_bounce_rate'] or 0, 2),
+                    google_score=round(provider['avg_google_good'] or 0, 2),
+                    outlook_score=round(provider['avg_outlook_good'] or 0, 2),
+                    overall_score=round(
+                        ((provider['avg_google_good'] or 0) + 
+                         (provider['avg_outlook_good'] or 0)) / 2, 2
+                    )
                 )
             )
-        )
     
     return result 
