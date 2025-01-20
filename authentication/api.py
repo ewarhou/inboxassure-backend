@@ -141,7 +141,7 @@ def request_password_reset(request, data: PasswordResetRequestSchema):
         token = PasswordResetToken.objects.create(user=user)
         
         # Create reset link
-        reset_link = f"http://inboxassure.online/reset-password?token={token.token}"
+        reset_link = f"https://inboxassure.online/reset-password?token={token.token}"
         
         # Send email
         email_body = f"""

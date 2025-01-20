@@ -1,7 +1,7 @@
 InboxAssure API Documentation
 =========================
 
-Base URL: http://inboxassure-backend.imnodev.com/api
+Base URL: https://inboxassure-backend.imnodev.com/api
 
 Authentication
 -------------
@@ -153,7 +153,7 @@ Notes:
 Notes:
 - The reset token is valid for 1 hour after creation
 - The token can only be used once
-- The reset link format is: `http://inboxassure.online/reset-password?token={token}`
+- The reset link format is: `https://inboxassure.online/reset-password?token={token}`
 
 Mock Data for UI Development
 ===========================
@@ -241,7 +241,7 @@ Valid token for testing:
 "550e8400-e29b-41d4-a716-446655440000"
 
 Mock reset link:
-http://inboxassure.online/reset-password?token=550e8400-e29b-41d4-a716-446655440000
+https://inboxassure.online/reset-password?token=550e8400-e29b-41d4-a716-446655440000
 
 10. Mock Token Verification
 ---------------------------
