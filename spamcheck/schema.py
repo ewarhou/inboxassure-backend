@@ -16,4 +16,15 @@ class CreateSpamcheckSchema(Schema):
     subject: str = Field(..., description="Email subject template")
     body: str = Field(..., description="Email body template")
     scheduled_at: datetime = Field(..., description="When to run the spamcheck")
+    recurring_days: Optional[int] = Field(None, description="Number of days for recurring checks")
+
+class UpdateSpamcheckSchema(Schema):
+    name: Optional[str] = Field(None, description="Name of the spamcheck")
+    accounts: Optional[List[str]] = Field(None, description="List of email accounts to check")
+    open_tracking: Optional[bool] = Field(None, description="Whether to track email opens")
+    link_tracking: Optional[bool] = Field(None, description="Whether to track link clicks")
+    text_only: Optional[bool] = Field(None, description="Whether to send text-only emails")
+    subject: Optional[str] = Field(None, description="Email subject template")
+    body: Optional[str] = Field(None, description="Email body template")
+    scheduled_at: Optional[datetime] = Field(None, description="When to run the spamcheck")
     recurring_days: Optional[int] = Field(None, description="Number of days for recurring checks") 
