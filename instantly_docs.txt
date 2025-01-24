@@ -1,0 +1,62 @@
+# InboxAssure API Documentation
+
+## Authentication
+For non-authenticated endpoints, you need to provide the following headers:
+
+1. `Cookie`: Authentication token
+   - Location: Found in `user_settings` table
+   - Field: `instantly_user_token`
+   - Format: Raw token value
+   - Relationship: Associated with the user's account
+
+2. `X-Org-Auth`: Organization authentication token
+   - Location: Found in `user_instantly` table
+   - Field: `instantly_organization_token`
+   - Format: Raw token value
+   - Relationship: Links to the organization(s) the user has access to
+
+## Example Headers
+```
+Cookie: your_instantly_user_token_here
+X-Org-Auth: your_instantly_organization_token_here
+```
+
+## Note
+- Both headers are required for non-authenticated endpoints
+- Tokens must be valid and active
+- Missing or invalid tokens will result in authentication errors
+- One user can belong to multiple organizations
+
+## Error Responses
+Common authentication errors:
+
+1. Missing Token
+```json
+{
+    "detail": "Authentication credentials were not provided."
+}
+```
+
+2. Invalid Token
+```json
+{
+    "detail": "Invalid token."
+}
+```
+
+3. Expired Token
+```json
+{
+    "detail": "Token has expired."
+}
+```
+
+4. Organization Access Denied
+```json
+{
+    "detail": "You don't have access to this organization."
+}
+```
+
+---
+## Endpoints Documentation 

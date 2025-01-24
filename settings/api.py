@@ -290,16 +290,27 @@ def check_instantly_status(request: HttpRequest, payload: CheckInstantlyStatusSc
             settings.save()
             return 200, {"status": False, "message": "Failed to get session token"}
         
+        # Get user details to store user ID
+        headers = {
+            'Cookie': f'__session={session_token}',
+            'Content-Type': 'application/json'
+        }
+        user_details_response = requests.get('https://app.instantly.ai/api/user/user_details', headers=headers)
+        print("\n2.1 User Details Response:")
+        print(f"Status Code: {user_details_response.status_code}")
+        print(f"Response Body: {user_details_response.text}")
+        
+        if user_details_response.status_code == 200:
+            user_details = user_details_response.json()
+            settings.instantly_user_id = user_details.get('id')
+            print(f"\n2.2 Stored User ID: {settings.instantly_user_id}")
+        
         # Store the session token
         settings.instantly_user_token = session_token
         settings.instantly_status = True
         settings.save()
         
         # Fetch organizations using session token
-        headers = {
-            'Cookie': f'__session={session_token}',
-            'Content-Type': 'application/json'
-        }
         orgs_response = requests.get('https://app.instantly.ai/api/organization/user', headers=headers)
         print("\n3. Organizations Response:")
         print(f"Status Code: {orgs_response.status_code}")

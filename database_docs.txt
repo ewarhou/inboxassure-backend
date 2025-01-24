@@ -345,3 +345,68 @@ When to Use Raw SQL vs ORM:
   * Basic filtering and sorting
   * Working with simple relationships
   * Quick prototyping
+
+# InboxAssure Database Documentation
+
+## Tables Overview
+
+### 1. user_settings
+Stores user-specific settings and API credentials.
+
+| Column Name                | Type          | Nullable | Description                                        |
+|---------------------------|---------------|----------|----------------------------------------------------|
+| id                        | BigInt        | No       | Primary key                                        |
+| user_id                   | BigInt        | No       | Foreign key to auth_user table                     |
+| instantly_api_key         | Varchar(255)  | Yes      | API key for Instantly service                      |
+| instantly_editor_email    | Email         | Yes      | Email for Instantly editor account                 |
+| instantly_editor_password | Varchar(255)  | Yes      | Password for Instantly editor account              |
+| bison_base_url           | URL           | Yes      | Base URL for Bison service (default: app.orbitmailboost.com) |
+| emailguard_api_key       | Varchar(255)  | Yes      | API key for EmailGuard service                     |
+| instantly_user_token     | Text          | Yes      | Session token for Instantly user                   |
+| instantly_status         | Boolean       | Yes      | Status of Instantly connection (default: False)    |
+| emailguard_status        | Boolean       | Yes      | Status of EmailGuard connection (default: False)   |
+| last_token_refresh       | DateTime      | Yes      | Timestamp of last token refresh                    |
+| created_at               | DateTime      | No       | Record creation timestamp                          |
+| updated_at               | DateTime      | No       | Record last update timestamp                       |
+
+### 2. user_bison
+Stores Bison organization configurations for users.
+
+| Column Name                  | Type          | Nullable | Description                                      |
+|-----------------------------|---------------|-----------|--------------------------------------------------|
+| id                          | BigInt        | No       | Primary key                                      |
+| user_id                     | BigInt        | No       | Foreign key to auth_user table                   |
+| bison_organization_name     | Varchar(255)  | No       | Name of the Bison organization                   |
+| bison_organization_api_key  | Varchar(255)  | No       | API key for the Bison organization              |
+| bison_organization_status   | Boolean       | Yes      | Status of organization connection (default: False)|
+| created_at                  | DateTime      | No       | Record creation timestamp                        |
+| updated_at                  | DateTime      | No       | Record last update timestamp                     |
+
+### 3. user_instantly
+Stores Instantly organization configurations for users.
+
+| Column Name                    | Type          | Nullable | Description                                    |
+|-------------------------------|---------------|-----------|------------------------------------------------|
+| id                            | BigInt        | No       | Primary key                                    |
+| user_id                       | BigInt        | No       | Foreign key to auth_user table                 |
+| instantly_organization_id     | Varchar(255)  | No       | ID of the Instantly organization              |
+| instantly_organization_name   | Varchar(255)  | No       | Name of the Instantly organization            |
+| instantly_organization_token  | Text          | Yes      | Authentication token for the organization     |
+| instantly_organization_status | Boolean       | Yes      | Status of organization connection (default: False)|
+| last_token_refresh           | DateTime      | Yes      | Timestamp of last token refresh                |
+| created_at                    | DateTime      | No       | Record creation timestamp                      |
+| updated_at                    | DateTime      | No       | Record last update timestamp                   |
+
+## Relationships
+
+1. `user_settings.user_id` → `auth_user.id` (One-to-One)
+2. `user_bison.user_id` → `auth_user.id` (Many-to-One)
+3. `user_instantly.user_id` → `auth_user.id` (Many-to-One)
+
+## Notes
+
+1. All tables use `created_at` and `updated_at` for tracking record timestamps
+2. Boolean fields default to False unless explicitly set
+3. Token-related fields are stored as Text to accommodate varying token lengths
+5. URLs and Email fields have built-in validation
+6. All IDs are BigInt for scalability

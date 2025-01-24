@@ -8,6 +8,7 @@ class UserSettings(models.Model):
     instantly_api_key = models.CharField(max_length=255, null=True, blank=True)
     instantly_editor_email = models.EmailField(null=True, blank=True)
     instantly_editor_password = models.CharField(max_length=255, null=True, blank=True)
+    instantly_user_id = models.CharField(max_length=255, null=True, blank=True)
     bison_base_url = models.URLField(null=True, blank=True)
     emailguard_api_key = models.CharField(max_length=255, null=True, blank=True)
     instantly_user_token = models.TextField(null=True, blank=True)

@@ -4,6 +4,10 @@ You're working on a web application called "InboxAssure", with a frontend develo
 
 You're working on the backend of the application, you're responsible for the API and the database.
 
+If you get "Modules" are not installed, please please activate venv using this : 
+
+source venv/scripts/activate
+
 This is the domain name we're working on : http://inboxassure-backend.imnodev.com
 And here is the droplet credentials : 
     - username : root
