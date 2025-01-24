@@ -176,6 +176,82 @@ def test_update_campaign_options():
         print(f"Response Body: {response.text}")
         print("-" * 80)
 
+def test_update_sequences():
+    credentials = get_credentials()
+    if not credentials:
+        print("No credentials found")
+        return
+    
+    # Use the specific campaign ID
+    campaign_id = "3bfdd2a0-65c4-48c9-90e6-c87a8aa25a50"
+    print(f"Using campaign ID: {campaign_id}")
+    
+    # Headers for the request
+    headers = {
+        'Cookie': credentials['token'],
+        'X-Org-Auth': credentials['org_token'],
+        'X-Org-Id': credentials['org_id'],
+        'Content-Type': 'application/json'
+    }
+    
+    data = {
+        "sequences": [{
+            "steps": [
+                {
+                    "type": "email",
+                    "variants": [
+                        {
+                            "subject": "From Cursor - First Email A",
+                            "body": "<div>Hello&nbsp;from&nbsp;cursor&nbsp;-&nbsp;First&nbsp;variant&nbsp;A</div>"
+                        },
+                        {
+                            "subject": "From Cursor - First Email B",
+                            "body": "<div>Hello&nbsp;from&nbsp;cursor&nbsp;-&nbsp;First&nbsp;variant&nbsp;B</div>"
+                        }
+                    ]
+                },
+                {
+                    "type": "email",
+                    "variants": [
+                        {
+                            "subject": "From Cursor - Follow Up",
+                            "body": "<div>This&nbsp;is&nbsp;a&nbsp;follow-up&nbsp;from&nbsp;cursor</div>"
+                        }
+                    ]
+                },
+                {
+                    "type": "email",
+                    "variants": [
+                        {
+                            "subject": "From Cursor - Final Email A",
+                            "body": "<div>Final&nbsp;message&nbsp;from&nbsp;cursor&nbsp;-&nbsp;Variant&nbsp;A</div>"
+                        },
+                        {
+                            "subject": "From Cursor - Final Email B",
+                            "body": "<div>Final&nbsp;message&nbsp;from&nbsp;cursor&nbsp;-&nbsp;Variant&nbsp;B</div>"
+                        }
+                    ]
+                }
+            ]
+        }],
+        "campaignID": campaign_id,
+        "orgID": credentials['org_id']
+    }
+    
+    # Test update sequences endpoint
+    url = "https://app.instantly.ai/api/campaign/update/sequences"
+    
+    print("\nTesting sequence update:")
+    print(f"Headers: {headers}")
+    print(f"Data: {data}\n")
+    
+    response = requests.post(url, headers=headers, json=data)
+    print(f"Response Status: {response.status_code}")
+    print(f"Response Headers: {dict(response.headers)}")
+    print(f"Response Body: {response.text}")
+    print("-" * 80)
+
 if __name__ == "__main__":
     # test_campaign_data()
-    test_update_campaign_options() 
+    # test_update_campaign_options()
+    test_update_sequences() 
