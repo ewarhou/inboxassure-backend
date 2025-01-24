@@ -461,3 +461,54 @@ Content-Type: application/json
 - The `search` parameter performs a text search across account fields
 - Results are paginated using `limit` and `skip` parameters
 
+### Update Account
+**Endpoint:** POST /api/v1/account/update
+
+**Description:** Updates an email account's settings including daily limit, sending gap, and warmup limit.
+
+**Request Headers:**
+```
+Cookie: __session=<session_token>
+X-Org-Auth: <org_auth_token>
+X-Org-Id: <org_id>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+    "email": "string", // Required - Email address of the account to update
+    "daily_limit": "string", // Optional - Daily sending limit (must be a string)
+    "sending_gap": "string", // Optional - Gap between sends in seconds
+    "warmup_limit": "string" // Optional - Warmup limit for the account
+}
+```
+
+**Success Response (200):**
+```json
+{
+    "status": "success"
+}
+```
+
+**Error Responses:**
+1. Invalid/Non-existent Email (200):
+```json
+{
+    "error": "Error UA404 - Please contact support"
+}
+```
+
+2. Missing Email (200):
+```json
+{
+    "error": "Error UA404 - Please contact support"
+}
+```
+
+Notes:
+- All numeric values must be sent as strings
+- Only the email field is required
+- Invalid formats for daily_limit or warmup_limit are accepted but may not be applied correctly
+- The API returns 200 status code even for error cases, check response body for error messages
+

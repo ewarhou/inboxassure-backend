@@ -318,8 +318,80 @@ def test_list_accounts():
         print(f"Response Body: {response.text}")
         print("-" * 80)
 
+def test_update_account():
+    credentials = get_credentials()
+    if not credentials:
+        print("No credentials found")
+        return
+    
+    print("\nTesting Update Account endpoint:")
+    
+    # Headers for the request
+    headers = {
+        'Cookie': credentials['token'],
+        'X-Org-Auth': credentials['org_token'],
+        'X-Org-Id': credentials['org_id'],
+        'Content-Type': 'application/json'
+    }
+    
+    # Test cases
+    test_cases = [
+        {
+            "name": "Valid update",
+            "data": {
+                "email": "a.addertongue@dosohq.com",
+                "daily_limit": "1000",
+                "sending_gap": "0",
+                "warmup_limit": "25"
+            }
+        },
+        {
+            "name": "Invalid email",
+            "data": {
+                "email": "nonexistent@dosohq.com",
+                "daily_limit": "1000"
+            }
+        },
+        {
+            "name": "Missing email",
+            "data": {
+                "daily_limit": "1000",
+                "sending_gap": "0"
+            }
+        },
+        {
+            "name": "Invalid daily limit format",
+            "data": {
+                "email": "a.addertongue@dosohq.com",
+                "daily_limit": -1000
+            }
+        },
+        {
+            "name": "Invalid warmup limit format",
+            "data": {
+                "email": "a.addertongue@dosohq.com",
+                "warmup_limit": "invalid"
+            }
+        }
+    ]
+    
+    # Test update account endpoint
+    url = "https://app.instantly.ai/backend/api/v1/account/update"
+    
+    for test_case in test_cases:
+        print(f"\nTesting {test_case['name']}:")
+        print(f"Headers: {headers}")
+        print(f"Data: {test_case['data']}\n")
+        
+        response = requests.post(url, headers=headers, json=test_case['data'])
+        print(f"Response Status: {response.status_code}")
+        print(f"Response Headers: {dict(response.headers)}")
+        print(f"Response Body: {response.text}")
+        print("-" * 80)
+
 if __name__ == "__main__":
     # test_campaign_data()
     # test_update_campaign_options()
     # test_update_sequences()
-    test_list_accounts() 
+    # test_list_accounts()
+    test_update_account() 
