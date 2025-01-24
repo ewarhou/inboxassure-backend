@@ -44,3 +44,6 @@ Always update dependencies if needed in requirements.txt before committing and p
         "SSH_KEY_PATH": "~/.ssh/inboxassure"
     }
 }
+
+Always push to the main branch. then use the deploy.sh script to deploy to the server.
+DO NOT change the nginx.conf file, it's already configured and working.
