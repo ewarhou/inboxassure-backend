@@ -132,14 +132,17 @@ Columns:
 
 id (BigInt, PK): Auto-generated unique identifier
 user_id (BigInt, FK): Reference to auth_user
-organization_id (BigInt, FK): Reference to user_instantly
+user_organization_id (BigInt, FK): Reference to user_instantly
 options_id (BigInt, FK, nullable): Reference to user_spamcheck_campaign_instantly_options
-name (varchar): Name of the spamcheck
+name (varchar): Name of the spamcheck (unique within user and organization)
 scheduled_at (timestamp): When the spamcheck is scheduled to run
 recurring_days (integer, nullable): Number of days for recurring checks
 status (varchar): Current status (draft, in_progress, generating_reports, completed, failed)
 created_at (timestamp): Creation timestamp
 updated_at (timestamp): Last update timestamp
+
+Constraints:
+- Unique together: [user_id, user_organization_id, name]
 
 Example Row:
 jsonCopy{
@@ -230,6 +233,12 @@ Common Patterns:
 - Status fields use predefined choices
 - Foreign keys use appropriate ON DELETE behaviors
 - Nullable fields are used for optional relationships
+
+Key Constraints:
+- Spamcheck names must be unique within a user and organization combination
+- Options are linked one-to-one with spamchecks
+- Campaigns must reference valid accounts and spamchecks
+- All foreign key relationships maintain referential integrity
 
 Detailed Database Structure
 Tables and Their Columns

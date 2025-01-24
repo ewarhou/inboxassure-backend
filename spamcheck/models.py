@@ -26,8 +26,8 @@ class UserSpamcheckCampaignOptions(models.Model):
 class UserSpamcheck(models.Model):
     id = models.BigAutoField(primary_key=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='spamchecks')
-    organization = models.ForeignKey('settings.UserInstantly', on_delete=models.CASCADE)
-    options = models.OneToOneField(UserSpamcheckCampaignOptions, on_delete=models.SET_NULL, null=True, blank=True, related_name='spamcheck_instance')
+    user_organization = models.ForeignKey('settings.UserInstantly', on_delete=models.CASCADE, db_column='user_organization_id', null=True)
+    options = models.OneToOneField('UserSpamcheckCampaignOptions', on_delete=models.SET_NULL, null=True, blank=True, related_name='spamcheck_instance')
     name = models.CharField(max_length=255)
     scheduled_at = models.DateTimeField()  # Launch date and time
     recurring_days = models.IntegerField(null=True, blank=True)  # Number of days for recurring checks, null for one-time
@@ -46,6 +46,7 @@ class UserSpamcheck(models.Model):
         verbose_name = 'User Spamcheck'
         verbose_name_plural = 'User Spamchecks'
         ordering = ['-created_at']
+        unique_together = ['user', 'user_organization', 'name']
 
     def __str__(self):
         return f"{self.name} - {self.user.email}"
