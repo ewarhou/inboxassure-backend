@@ -126,20 +126,110 @@ jsonCopy{
   "reply_rate": 0.6,
   "bounce_rate": 0.45
 }
-Common Patterns
+7. user_spamcheck_instantly
+Manages spamcheck configurations and status.
+Columns:
 
-Primary Keys: All tables use UUID with auto-generation
-Timestamps: All tables track creation time
-Foreign Keys: Used for maintaining referential integrity
-Default Values: Numeric columns often default to 0
-Nullable Fields: Used for optional data points
+id (BigInt, PK): Auto-generated unique identifier
+user_id (BigInt, FK): Reference to auth_user
+organization_id (BigInt, FK): Reference to user_instantly
+options_id (BigInt, FK, nullable): Reference to user_spamcheck_campaign_instantly_options
+name (varchar): Name of the spamcheck
+scheduled_at (timestamp): When the spamcheck is scheduled to run
+recurring_days (integer, nullable): Number of days for recurring checks
+status (varchar): Current status (draft, in_progress, generating_reports, completed, failed)
+created_at (timestamp): Creation timestamp
+updated_at (timestamp): Last update timestamp
 
-Relationships
+Example Row:
+jsonCopy{
+  "id": 1,
+  "name": "Weekly Spam Check",
+  "scheduled_at": "2024-03-20T10:00:00Z",
+  "recurring_days": 7,
+  "status": "draft"
+}
 
-One client can belong to multiple organizations (M:N through client_organizations)
-Each report is associated with one client and one organization
-Provider performance metrics are linked to specific reports
-Account results are linked to specific reports
+8. user_spamcheck_campaign_instantly_options
+Stores campaign configuration options for spamchecks.
+Columns:
+
+id (BigInt, PK): Auto-generated unique identifier
+spamcheck_id (BigInt, FK): Reference to user_spamcheck_instantly
+open_tracking (boolean): Whether to track email opens
+link_tracking (boolean): Whether to track link clicks
+text_only (boolean): Whether to send text-only emails
+subject (varchar): Email subject template
+body (text): Email body template
+created_at (timestamp): Creation timestamp
+updated_at (timestamp): Last update timestamp
+
+Example Row:
+jsonCopy{
+  "id": 1,
+  "open_tracking": true,
+  "link_tracking": true,
+  "text_only": false,
+  "subject": "Test Email Subject",
+  "body": "This is a test email body"
+}
+
+9. user_spamcheck_accounts_instantly
+Manages email accounts for spamchecks.
+Columns:
+
+id (BigInt, PK): Auto-generated unique identifier
+user_id (BigInt, FK): Reference to auth_user
+organization_id (BigInt, FK): Reference to user_instantly
+spamcheck_id (BigInt, FK): Reference to user_spamcheck_instantly
+email_account (varchar, nullable): Email account to use
+created_at (timestamp): Creation timestamp
+updated_at (timestamp): Last update timestamp
+
+Example Row:
+jsonCopy{
+  "id": 1,
+  "email_account": "test@example.com",
+  "created_at": "2024-03-20T09:00:00Z"
+}
+
+10. user_spamcheck_campaigns_instantly
+Tracks individual campaigns within a spamcheck.
+Columns:
+
+id (BigInt, PK): Auto-generated unique identifier
+user_id (BigInt, FK): Reference to auth_user
+spamcheck_id (BigInt, FK): Reference to user_spamcheck_instantly
+organization_id (BigInt, FK): Reference to user_instantly
+account_id (BigInt, FK, nullable): Reference to user_spamcheck_accounts_instantly
+instantly_campaign_id (varchar): ID from Instantly service
+emailguard_tag (varchar): Tag for EmailGuard tracking
+created_at (timestamp): Creation timestamp
+updated_at (timestamp): Last update timestamp
+
+Example Row:
+jsonCopy{
+  "id": 1,
+  "instantly_campaign_id": "camp_123456",
+  "emailguard_tag": "tag_123456",
+  "created_at": "2024-03-20T09:30:00Z"
+}
+
+Relationships:
+- user_spamcheck_instantly.options_id → user_spamcheck_campaign_instantly_options.id (One-to-One)
+- user_spamcheck_accounts_instantly.spamcheck_id → user_spamcheck_instantly.id (Many-to-One)
+- user_spamcheck_campaigns_instantly.spamcheck_id → user_spamcheck_instantly.id (Many-to-One)
+- user_spamcheck_campaigns_instantly.account_id → user_spamcheck_accounts_instantly.id (Many-to-One)
+- All tables have user_id linking to auth_user (Many-to-One)
+- All tables have organization_id linking to user_instantly (Many-to-One)
+
+Common Patterns:
+- All tables use BigInt for primary keys with auto-generation
+- All tables track creation and update timestamps
+- All tables have user and organization references
+- Status fields use predefined choices
+- Foreign keys use appropriate ON DELETE behaviors
+- Nullable fields are used for optional relationships
 
 Detailed Database Structure
 Tables and Their Columns
