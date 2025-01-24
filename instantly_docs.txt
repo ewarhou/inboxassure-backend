@@ -195,3 +195,86 @@ Content-Type: application/json
 }
 ```
 
+### 3. Update Campaign Options
+**Endpoint:** POST /api/campaign/update/options
+
+**Description:** Updates the options and settings for a specific campaign.
+
+**Request Headers:**
+```
+Cookie: __session=<instantly_user_token>
+X-Org-Auth: <instantly_organization_token>
+X-Org-Id: <organization_id>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+    "campaignID": "string",         // Required: UUID of the campaign
+    "orgID": "string",             // Required: UUID of the organization
+    "emailList": ["string"],       // Optional: Array of email addresses
+    "openTracking": boolean,       // Optional: Enable/disable open tracking
+    "linkTracking": boolean,       // Optional: Enable/disable link tracking
+    "stopOnReply": boolean,        // Optional: Stop campaign on reply
+    "stopOnAutoReply": boolean,    // Optional: Stop campaign on auto-reply
+    "textOnly": boolean,           // Optional: Send text-only emails
+    "dailyLimit": number,          // Optional: Daily sending limit
+    "emailGap": number,           // Optional: Gap between emails in seconds
+    "emailTagList": ["string"]    // Optional: Array of tag UUIDs to associate with the campaign
+}
+```
+
+**Success Response (200):**
+```json
+{
+    "status": "success"
+}
+```
+
+**Error Responses:**
+
+1. Access Denied (403):
+```json
+{
+    "error": "Access Denied: No access to this campaign"
+}
+```
+
+2. Invalid UUID Format (500):
+```json
+{
+    "statusCode": 500,
+    "code": "22P02",
+    "error": "Internal Server Error",
+    "message": "invalid input syntax for type uuid: \"invalid-uuid\""
+}
+```
+
+3. Invalid Organization ID (500):
+```json
+{
+    "statusCode": 500,
+    "code": "22P02",
+    "error": "Internal Server Error",
+    "message": "invalid input syntax for type uuid: \"invalid-org-id\""
+}
+```
+
+4. Invalid Tag ID Format (500):
+```json
+{
+    "statusCode": 500,
+    "code": "22P02",
+    "error": "Internal Server Error",
+    "message": "invalid input syntax for type uuid: \"invalid-tag-id\""
+}
+```
+
+5. Missing Required Fields (403):
+```json
+{
+    "error": "Access Denied: No access to this campaign"
+}
+```
+
