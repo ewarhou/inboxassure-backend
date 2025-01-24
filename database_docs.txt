@@ -360,6 +360,7 @@ Stores user-specific settings and API credentials.
 | instantly_api_key         | Varchar(255)  | Yes      | API key for Instantly service                      |
 | instantly_editor_email    | Email         | Yes      | Email for Instantly editor account                 |
 | instantly_editor_password | Varchar(255)  | Yes      | Password for Instantly editor account              |
+| instantly_user_id         | Varchar(255)  | Yes      | User ID from Instantly API (UUID format)           |
 | bison_base_url           | URL           | Yes      | Base URL for Bison service (default: app.orbitmailboost.com) |
 | emailguard_api_key       | Varchar(255)  | Yes      | API key for EmailGuard service                     |
 | instantly_user_token     | Text          | Yes      | Session token for Instantly user                   |
