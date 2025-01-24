@@ -251,7 +251,75 @@ def test_update_sequences():
     print(f"Response Body: {response.text}")
     print("-" * 80)
 
+def test_list_accounts():
+    credentials = get_credentials()
+    if not credentials:
+        print("No credentials found")
+        return
+    
+    print("\nTesting List Accounts endpoint:")
+    
+    # Headers for the request
+    headers = {
+        'Cookie': credentials['token'],
+        'X-Org-Auth': credentials['org_token'],
+        'X-Org-Id': credentials['org_id'],
+        'Content-Type': 'application/json'
+    }
+    
+    # Test cases with different parameters
+    test_cases = [
+        {
+            "name": "Basic list with default parameters",
+            "data": {
+                "limit": 10,
+                "skip": 0
+            }
+        },
+        {
+            "name": "List with search query",
+            "data": {
+                "search": "test",
+                "limit": 10,
+                "skip": 0
+            }
+        },
+        {
+            "name": "List with tags included",
+            "data": {
+                "limit": 10,
+                "skip": 0,
+                "include_tags": True
+            }
+        },
+        {
+            "name": "List with filter",
+            "data": {
+                "limit": 10,
+                "skip": 0,
+                "filter": {
+                    "status": "active"
+                }
+            }
+        }
+    ]
+    
+    # Test list accounts endpoint
+    url = "https://app.instantly.ai/backend/api/v1/account/list"
+    
+    for test_case in test_cases:
+        print(f"\nTesting {test_case['name']}:")
+        print(f"Headers: {headers}")
+        print(f"Data: {test_case['data']}\n")
+        
+        response = requests.post(url, headers=headers, json=test_case['data'])
+        print(f"Response Status: {response.status_code}")
+        print(f"Response Headers: {dict(response.headers)}")
+        print(f"Response Body: {response.text}")
+        print("-" * 80)
+
 if __name__ == "__main__":
     # test_campaign_data()
     # test_update_campaign_options()
-    test_update_sequences() 
+    # test_update_sequences()
+    test_list_accounts() 

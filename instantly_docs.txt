@@ -380,3 +380,84 @@ Content-Type: application/json
 - The structure must be followed exactly as shown
 - Empty sequences array will result in an error
 
+### List Accounts
+**Endpoint:** POST /api/v1/account/list
+
+**Description:** Retrieves a list of accounts with optional filtering, search, and tag inclusion.
+
+**Request Headers:**
+```
+Cookie: __session=<instantly_user_token>
+X-Org-Auth: <instantly_organization_token>
+X-Org-Id: <organization_id>
+Content-Type: application/json
+```
+
+**Request Body Parameters:**
+```json
+{
+  "search": "string (optional)",
+  "limit": "number (optional, default: 10)",
+  "skip": "number (optional, default: 0)",
+  "include_tags": "boolean (optional)",
+  "filter": {
+    "status": "number (optional, 1 for active)"
+  }
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "accounts": [{
+    "email": "string",
+    "timestamp_created": "string (ISO date)",
+    "timestamp_updated": "string (ISO date)",
+    "payload": {
+      "name": {
+        "last": "string",
+        "first": "string"
+      },
+      "warmup": {
+        "limit": "string",
+        "advanced": {
+          "warm_ctd": "boolean",
+          "open_rate": "number",
+          "random_range": {
+            "max": "string",
+            "min": "number"
+          },
+          "weekday_only": "boolean",
+          "important_rate": "number",
+          "read_emulation": "boolean",
+          "spam_save_rate": "number"
+        },
+        "increment": "string",
+        "reply_rate": "string"
+      },
+      "provider": "string",
+      "daily_limit": "string",
+      "sending_gap": "string",
+      "enable_slow_ramp": "boolean"
+    },
+    "organization": "string (UUID)",
+    "status": "number",
+    "warmup_status": "number",
+    "provider_code": "number",
+    "stat_warmup_score": "number",
+    "tags": [{
+      "id": "string (UUID)",
+      "label": "string",
+      "description": "string",
+      "resource_id": "string"
+    }]
+  }]
+}
+```
+
+**Notes:**
+- The `include_tags` parameter will include tag information in the response if set to true
+- The `filter` object can be used to filter accounts by status (1 for active)
+- The `search` parameter performs a text search across account fields
+- Results are paginated using `limit` and `skip` parameters
+
