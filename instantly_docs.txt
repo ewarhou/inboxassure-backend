@@ -17,7 +17,7 @@ For non-authenticated endpoints, you need to provide the following headers:
 
 ## Example Headers
 ```
-Cookie: your_instantly_user_token_here
+Cookie: __session=your_instantly_user_token_here
 X-Org-Auth: your_instantly_organization_token_here
 ```
 
@@ -60,3 +60,138 @@ Common authentication errors:
 
 ---
 ## Endpoints Documentation 
+
+### 1. Create Campaign
+**Endpoint:** POST /backend/api/v1/campaign/create
+
+**Description:** Creates a new campaign in Instantly.ai
+
+**Request Headers:**
+```
+Cookie: __session=<instantly_user_token>
+X-Org-Auth: <instantly_organization_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+    "name": "string",     // Required: Name of the campaign
+    "user_id": "string"   // Required: UUID of the user creating the campaign
+}
+```
+
+**Success Response (200):**
+```json
+{
+    "id": "uuid",                     // Campaign ID
+    "timestamp_created": "datetime",  // ISO format
+    "timestamp_updated": "datetime",  // ISO format
+    "payload": {
+        "name": "string",            // Campaign name
+        "added_by": "uuid",          // User ID who added
+        "updated_by": "uuid"         // User ID who last updated
+    },
+    "organization": "uuid",          // Organization ID
+    "status": 0,                     // Campaign status
+    "timestamp_leads_updated": "datetime",
+    "pl_value": 1000,
+    "campaign_schedule": null,
+    "is_evergreen": null,
+    "created_by": "uuid",            // User ID who created
+    "owned_by": "uuid"              // User ID who owns
+}
+```
+
+**Error Responses:**
+
+1. Missing Required Field (400):
+```json
+{
+    "error": "Could not create campaign - invalid name"
+}
+```
+
+2. Invalid User ID (500):
+```json
+{
+    "error": "Could not create campaign - please try again"
+}
+```
+
+3. Malformed UUID (500):
+```json
+{
+    "error": "Could not create campaign - please try again"
+}
+```
+
+### 2. Get Campaign Data
+**Endpoint:** POST /api/campaign/get_campaign_data
+
+**Description:** Retrieves detailed information about a specific campaign.
+
+**Request Headers:**
+```
+Cookie: __session=<instantly_user_token>
+X-Org-Auth: <instantly_organization_token>
+X-Org-Id: <organization_id>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+    "campaignID": "string"  // Required: UUID of the campaign
+}
+```
+
+**Success Response (200):**
+```json
+{
+    "campaign": {
+        "payload": {
+            "name": "string",            // Campaign name
+            "added_by": "uuid",          // User ID who added the campaign
+            "updated_by": "uuid"         // User ID who last updated the campaign
+        },
+        "status": 0,                     // Campaign status
+        "pl_value": 1000,               // Pipeline value
+        "campaign_schedule": null,       // Campaign schedule information
+        "timestamp_created": "datetime", // ISO format creation timestamp
+        "owned_by": "uuid",             // User ID who owns the campaign
+        "not_sending_status": null      // Status when campaign is not sending
+    }
+}
+```
+
+**Error Responses:**
+
+1. Access Denied (403):
+```json
+{
+    "error": "Access Denied: No access to this campaign"
+}
+```
+
+2. Invalid Campaign ID (404):
+```json
+{
+    "error": "Campaign not found"
+}
+```
+
+3. Missing Required Headers (401):
+```json
+{
+    "error": "Missing required headers"
+}
+```
+
+4. Invalid Organization ID (403):
+```json
+{
+    "error": "Invalid organization ID"
+}
+```
+
