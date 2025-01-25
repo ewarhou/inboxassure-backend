@@ -110,24 +110,59 @@ def check_instantly_api_key(request: HttpRequest, org_id: int):
         instantly_org = get_object_or_404(UserInstantly, user=request.auth, id=org_id)
         
         if not instantly_org.instantly_api_key:
+            print("❌ API key not configured for this organization")
             return 200, {"status": False, "message": "API key not configured for this organization"}
         
-        # Check API Key
-        print("\n=== Instantly API Key Check ===")
-        url = f"https://api.instantly.ai/api/v1/authenticate?api_key={instantly_org.instantly_api_key}"
-        api_response = requests.get(url)
-        print("\nAPI Key Response:")
-        print(f"Status Code: {api_response.status_code}")
-        print(f"Response Body: {api_response.text}")
+        # Check API Key using accounts endpoint
+        print("\n🔐 === Instantly API Key Check ===")
+        print(f"🏢 Organization: {instantly_org.instantly_organization_name}")
+        print(f"🔑 Using API Key: {instantly_org.instantly_api_key}")
+        
+        headers = {
+            'Authorization': f'Bearer {instantly_org.instantly_api_key}',
+            'Content-Type': 'application/json'
+        }
+        
+        url = 'https://api.instantly.ai/api/v2/accounts?limit=1'
+        print(f"\n📡 Calling: {url}")
+        print(f"📤 Request Headers: {headers}")
+        
+        api_response = requests.get(url, headers=headers)
+        print(f"\n📥 Response Status: {api_response.status_code}")
+        print(f"📄 Response Body: {api_response.text}")
         
         status = api_response.status_code == 200
         instantly_org.instantly_organization_status = status
         instantly_org.save()
         
-        message = "API key is valid" if status else "API key is invalid"
+        if status:
+            print("✅ API key is valid")
+            message = "API key is valid"
+        else:
+            print("❌ API key is invalid")
+            if api_response.status_code == 401:
+                message = "Invalid API key"
+            elif api_response.status_code == 403:
+                message = "API key does not have required permissions"
+            else:
+                message = f"API key check failed with status code: {api_response.status_code}"
+        
         return 200, {"status": status, "message": message}
+        
+    except UserInstantly.DoesNotExist:
+        print("❌ Organization not found")
+        return 404, {"detail": "Organization not found"}
+        
+    except requests.RequestException as e:
+        print(f"❌ Request failed: {str(e)}")
+        instantly_org.instantly_organization_status = False
+        instantly_org.save()
+        return 400, {"detail": f"Failed to connect to Instantly API: {str(e)}"}
+        
     except Exception as e:
-        print(f"\nError: {str(e)}")
+        print(f"❌ Unexpected error: {str(e)}")
+        instantly_org.instantly_organization_status = False
+        instantly_org.save()
         return 400, {"detail": str(e)}
 
 @router.get("/check-instantly-status", auth=AuthBearer(), response={200: InstantlyStatusResponseSchema, 400: ErrorResponseSchema})
@@ -136,9 +171,11 @@ def check_instantly_status(request: HttpRequest):
         try:
             settings = UserSettings.objects.get(user=request.auth)
         except UserSettings.DoesNotExist:
+            print("❌ User settings not found")
             return 404, {"detail": "User settings not found"}
         
         if not settings.instantly_editor_email or not settings.instantly_editor_password:
+            print("❌ Editor account credentials not configured")
             return 200, {
                 "status": False,
                 "message": "Editor account credentials not configured",
@@ -147,19 +184,21 @@ def check_instantly_status(request: HttpRequest):
             }
         
         # Check Editor Account
-        print("\n=== Instantly Editor Account Check ===")
+        print("\n🔐 === Instantly Editor Account Check ===")
+        print(f"📧 Using email: {settings.instantly_editor_email}")
         login_response = requests.post('https://app.instantly.ai/api/auth/login', json={
             'email': settings.instantly_editor_email,
             'password': settings.instantly_editor_password
         })
-        print("\n1. Login Response:")
-        print(f"Status Code: {login_response.status_code}")
-        print(f"Response Body: {login_response.text}")
-        print(f"Cookies: {dict(login_response.cookies)}")
+        print("\n1️⃣ Login Response:")
+        print(f"📡 Status Code: {login_response.status_code}")
+        print(f"📄 Response Body: {login_response.text}")
+        print(f"🍪 Cookies: {dict(login_response.cookies)}")
         
         # Check for invalid credentials
         response_data = login_response.json()
         if response_data.get('error') == 'Invalid credentials':
+            print("❌ Invalid credentials")
             settings.instantly_status = False
             settings.save()
             return 200, {
@@ -170,6 +209,7 @@ def check_instantly_status(request: HttpRequest):
             }
         
         if login_response.status_code != 200 or not login_response.cookies:
+            print("❌ Failed to authenticate")
             settings.instantly_status = False
             settings.save()
             return 200, {
@@ -182,6 +222,7 @@ def check_instantly_status(request: HttpRequest):
         # Get session token
         session_token = login_response.cookies.get('__session')
         if not session_token:
+            print("❌ No session token found")
             settings.instantly_status = False
             settings.save()
             return 200, {
@@ -191,12 +232,17 @@ def check_instantly_status(request: HttpRequest):
                 "organizations": []
             }
         
+        print("✅ Successfully authenticated")
+        
         # Get user details
         headers = {
             'Cookie': f'__session={session_token}',
             'Content-Type': 'application/json'
         }
+        print("\n2️⃣ Getting user details...")
         user_details_response = requests.get('https://app.instantly.ai/api/user/user_details', headers=headers)
+        print(f"📡 Status Code: {user_details_response.status_code}")
+        print(f"📄 Response Body: {user_details_response.text}")
         
         user_id = None
         if user_details_response.status_code == 200:
@@ -205,15 +251,16 @@ def check_instantly_status(request: HttpRequest):
             settings.instantly_user_id = user_id
             settings.instantly_user_token = session_token
             settings.save()
-            print(f"\nStored User ID: {user_id}")
+            print(f"✅ Stored User ID: {user_id}")
         
         # Fetch organizations
+        print("\n3️⃣ Fetching organizations...")
         orgs_response = requests.get('https://app.instantly.ai/api/organization/user', headers=headers)
-        print("\n3. Organizations Response:")
-        print(f"Status Code: {orgs_response.status_code}")
-        print(f"Response Body: {orgs_response.text}")
+        print(f"📡 Status Code: {orgs_response.status_code}")
+        print(f"📄 Response Body: {orgs_response.text}")
         
         if orgs_response.status_code != 200:
+            print("❌ Failed to fetch organizations")
             return 200, {
                 "status": True,
                 "message": "Authenticated but failed to fetch organizations",
@@ -226,19 +273,19 @@ def check_instantly_status(request: HttpRequest):
         
         # Store each organization
         for org in organizations:
-            print(f"\n4. Processing Organization: {org['name']}")
+            print(f"\n4️⃣ Processing Organization: {org['name']}")
             # Get organization token
             auth_response = requests.post(
                 'https://app.instantly.ai/api/organization/auth_workspace',
                 headers=headers,
                 json={'orgID': org['id']}
             )
-            print("\n5. Organization Auth Response:")
-            print(f"Status Code: {auth_response.status_code}")
-            print(f"Response Body: {auth_response.text}")
+            print(f"📡 Organization Auth Status: {auth_response.status_code}")
+            print(f"📄 Organization Auth Response: {auth_response.text}")
             
             if auth_response.status_code == 200:
                 org_token = auth_response.json().get('org_access')
+                print(f"✅ Got organization token for: {org['name']}")
                 
                 # Create or update organization
                 instantly_org, created = UserInstantly.objects.update_or_create(
@@ -250,16 +297,52 @@ def check_instantly_status(request: HttpRequest):
                         'instantly_organization_status': True
                     }
                 )
+                print(f"✅ {'Created' if created else 'Updated'} organization in database: {org['name']}")
+                
+                # Create API key for the organization
+                api_key_headers = {
+                    'Cookie': f'__session={session_token}',
+                    'x-workspace-id': org['id'],
+                    'Content-Type': 'application/json'
+                }
+                
+                api_key_data = {
+                    'name': 'InboxAssure',
+                    'scopes': ['all:all']
+                }
+                
+                print(f"\n5️⃣ Creating API Key for Organization: {org['name']}")
+                print(f"📡 Request Headers: {api_key_headers}")
+                print(f"📄 Request Body: {api_key_data}")
+                
+                api_key_response = requests.post(
+                    'https://app.instantly.ai/backend/api/v2/api-keys',
+                    headers=api_key_headers,
+                    json=api_key_data
+                )
+                print(f"📡 API Key Response Status: {api_key_response.status_code}")
+                print(f"📄 API Key Response Body: {api_key_response.text}")
+                
+                if api_key_response.status_code == 200:
+                    api_key_data = api_key_response.json()
+                    instantly_org.instantly_api_key = api_key_data.get('key')
+                    instantly_org.save()
+                    print(f"✅ API Key created and stored for organization: {org['name']}")
+                else:
+                    print(f"❌ Failed to create API key for organization: {org['name']}")
                 
                 org_list.append({
                     "id": instantly_org.id,  # Our database ID
                     "uuid": org['id'],  # Instantly's organization ID
                     "name": org['name']
                 })
+            else:
+                print(f"❌ Failed to get organization token for: {org['name']}")
         
         settings.instantly_status = True
         settings.save()
         
+        print(f"\n✅ Successfully processed {len(org_list)} organizations")
         return 200, {
             "status": True,
             "message": f"Successfully fetched {len(org_list)} organizations",
@@ -267,7 +350,7 @@ def check_instantly_status(request: HttpRequest):
             "organizations": org_list
         }
     except Exception as e:
-        print(f"\nError: {str(e)}")
+        print(f"\n❌ Error: {str(e)}")
         settings.instantly_status = False
         settings.save()
         return 400, {"detail": str(e)}
