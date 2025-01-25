@@ -638,3 +638,54 @@ Content-Type: application/json
 - All numeric values in the response are integers
 - The blocklist is automatically checked for each lead
 
+### Bulk Update Accounts
+**Endpoint:** POST /backend/api/v1/account/update/bulk
+
+**Description:** Updates multiple email accounts' settings in bulk.
+
+**Request Headers:**
+```
+Cookie: __session=<session_token>
+X-Org-Auth: <org_auth_token>
+X-Org-Id: <org_id>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+    "payload": {
+        "daily_limit": "string"    // Daily sending limit (must be a string)
+    },
+    "emails": ["string"]           // Array of email addresses to update
+}
+```
+
+**Example Request:**
+```json
+{
+    "payload": {
+        "daily_limit": "222"
+    },
+    "emails": [
+        "alice.a@dosolabs.com",
+        "alice.a@dosoteam.com",
+        "alice.addertongue@dosohq.com",
+        "alice.addertongue@dosolabs.com"
+    ]
+}
+```
+
+**Success Response (200):**
+```json
+{
+    "status": "success"
+}
+```
+
+**Notes:**
+- All numeric values must be sent as strings
+- The endpoint updates all specified email accounts with the same settings
+- Non-existent email addresses in the list will be ignored
+- The daily_limit value will be applied to all specified email accounts
+

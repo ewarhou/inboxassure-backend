@@ -533,6 +533,47 @@ def test_add_leads():
         print(f"Response Body: {response.text}")
         print("-" * 80)
 
+def test_bulk_update_accounts():
+    credentials = get_credentials()
+    if not credentials:
+        print("No credentials found")
+        return
+    
+    print("\nTesting Bulk Update Accounts endpoint:")
+    
+    # Headers for the request
+    headers = {
+        'Cookie': credentials['token'],
+        'X-Org-Auth': credentials['org_token'],
+        'X-Org-Id': credentials['org_id'],
+        'Content-Type': 'application/json'
+    }
+    
+    # Test case with simplified payload
+    test_case = {
+        "payload": {
+            "daily_limit": "222"
+        },
+        "emails": [
+            "alice.a@dosolabs.com",
+            "alice.a@dosoteam.com",
+            "alice.addertongue@dosohq.com",
+            "alice.addertongue@dosolabs.com"
+        ]
+    }
+    
+    # Test bulk update endpoint
+    url = "https://app.instantly.ai/backend/api/v1/account/update/bulk"
+    
+    print(f"Headers: {headers}")
+    print(f"Data: {test_case}\n")
+    
+    response = requests.post(url, headers=headers, json=test_case)
+    print(f"Response Status: {response.status_code}")
+    print(f"Response Headers: {dict(response.headers)}")
+    print(f"Response Body: {response.text}")
+    print("-" * 80)
+
 if __name__ == "__main__":
     # test_campaign_data()
     # test_update_campaign_options()
@@ -540,4 +581,5 @@ if __name__ == "__main__":
     # test_list_accounts()
     # test_update_account()
     # test_api_keys()
-    test_add_leads() 
+    # test_add_leads()
+    test_bulk_update_accounts() 
