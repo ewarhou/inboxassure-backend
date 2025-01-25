@@ -3,7 +3,7 @@ from ninja import Router
 from django.shortcuts import get_object_or_404
 from django.http import HttpRequest
 from authentication.authorization import AuthBearer
-from .models import UserSettings, UserBison, UserInstantly
+from .models import UserSettings, UserBison, UserInstantly, UserProfile
 from .schema import (
     InstantlyEditorAccountSchema,
     InstantlyApiKeySchema,
@@ -19,11 +19,14 @@ from .schema import (
     InstantlyOrganizationAuthSchema,
     InstantlyOrganizationDataSchema,
     InstantlyStatusResponseSchema,
-    InstantlyApiKeyCheckResponseSchema
+    InstantlyApiKeyCheckResponseSchema,
+    UpdateProfileSchema
 )
 import requests
+import pytz
 
 router = Router(tags=['Settings'])
+profile_router = Router(tags=['Profile'])
 
 # Instantly Editor Account Endpoints
 @router.post("/add-instantly-editor-account", auth=AuthBearer(), response={200: SuccessResponseSchema, 400: ErrorResponseSchema})
@@ -563,5 +566,31 @@ def list_instantly_organizations(request: HttpRequest):
     try:
         instantly_orgs = UserInstantly.objects.filter(user=request.auth)
         return 200, list(instantly_orgs)
+    except Exception as e:
+        return 400, {"detail": str(e)}
+
+@profile_router.put("/update", auth=AuthBearer(), response={200: SuccessResponseSchema, 400: ErrorResponseSchema})
+def update_profile(request, payload: UpdateProfileSchema):
+    """Update user's profile settings"""
+    try:
+        # Get or create profile
+        profile, created = UserProfile.objects.get_or_create(user=request.auth)
+        
+        # Update timezone if provided
+        if payload.timezone is not None:
+            try:
+                pytz.timezone(payload.timezone)
+                profile.timezone = payload.timezone
+            except pytz.exceptions.UnknownTimeZoneError:
+                return 400, {"detail": f"Invalid timezone: {payload.timezone}"}
+        
+        profile.save()
+        
+        return 200, {
+            "message": "Profile updated successfully",
+            "data": {
+                "timezone": profile.timezone
+            }
+        }
     except Exception as e:
         return 400, {"detail": str(e)} 

@@ -75,4 +75,10 @@ class InstantlyOrganizationDataSchema(Schema):
     name: str
     owner: str
     org_logo_url: Optional[str]
-    org_client_domain: Optional[str] 
+    org_client_domain: Optional[str]
+
+class UpdateTimezoneSchema(Schema):
+    timezone: str
+
+class UpdateProfileSchema(Schema):
+    timezone: Optional[str] = None 

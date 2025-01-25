@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.core.validators import EmailValidator
 import uuid
 
 # Create your models here.
@@ -24,20 +25,21 @@ class UserSpamcheckCampaignOptions(models.Model):
 
 
 class UserSpamcheck(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed')
+    ]
+    
     id = models.BigAutoField(primary_key=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='spamchecks')
     user_organization = models.ForeignKey('settings.UserInstantly', on_delete=models.CASCADE, db_column='user_organization_id', null=True)
     options = models.OneToOneField('UserSpamcheckCampaignOptions', on_delete=models.SET_NULL, null=True, blank=True, related_name='spamcheck_instance')
     name = models.CharField(max_length=255)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     scheduled_at = models.DateTimeField()  # Launch date and time
     recurring_days = models.IntegerField(null=True, blank=True)  # Number of days for recurring checks, null for one-time
-    status = models.CharField(max_length=50, choices=[
-        ('draft', 'Draft'),
-        ('in_progress', 'In Progress'),
-        ('generating_reports', 'Generating Reports'),
-        ('completed', 'Completed'),
-        ('failed', 'Failed')
-    ], default='draft')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -57,9 +59,18 @@ class UserSpamcheckAccounts(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='spamcheck_accounts')
     organization = models.ForeignKey('settings.UserInstantly', on_delete=models.CASCADE)
     spamcheck = models.ForeignKey(UserSpamcheck, on_delete=models.CASCADE, related_name='accounts')
-    email_account = models.CharField(max_length=255, null=True, blank=True)
+    email_account = models.EmailField(max_length=255, validators=[EmailValidator()], null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        if self.email_account:
+            EmailValidator()(self.email_account)
+        super().clean()
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
 
     class Meta:
         db_table = 'user_spamcheck_accounts_instantly'

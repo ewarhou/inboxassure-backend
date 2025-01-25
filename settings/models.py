@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.contrib.auth.models import User
 
 # Create your models here.
 
@@ -61,3 +62,16 @@ class UserInstantly(models.Model):
 
     def __str__(self):
         return f"{self.instantly_organization_name} - {self.user.email}"
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    timezone = models.CharField(max_length=50, default='UTC')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'user_profile'
+
+    def __str__(self):
+        return f"{self.user.username}'s profile"
