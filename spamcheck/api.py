@@ -4,9 +4,11 @@ from django.shortcuts import get_object_or_404
 from django.db import transaction, IntegrityError
 from django.core.exceptions import ObjectDoesNotExist
 from authentication.authorization import AuthBearer
-from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema
-from .models import UserSpamcheck, UserSpamcheckAccounts, UserSpamcheckCampaignOptions
-from settings.models import UserInstantly
+from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema
+from .models import UserSpamcheck, UserSpamcheckAccounts, UserSpamcheckCampaignOptions, UserSpamcheckCampaigns
+from settings.models import UserInstantly, UserSettings
+import requests
+from django.conf import settings
 
 router = Router(tags=["spamcheck"])
 
@@ -278,4 +280,188 @@ def delete_spamcheck_instantly(request, spamcheck_id: int):
         return {
             "success": False,
             "message": f"Error deleting spamcheck: {str(e)}. Please try again or contact support if the issue persists."
+        }
+
+@router.post("/launch-spamcheck-instantly", auth=AuthBearer())
+def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
+    """
+    Launch a spamcheck campaign
+    
+    Steps:
+    1. Update spamcheck status to in_progress
+    2. Create instantly campaign
+    3. Configure campaign options
+    4. Get emailguard tag
+    5. Add email sequence with emailguard tag
+    6. Add leads
+    7. Launch campaign
+    """
+    user = request.auth
+    
+    try:
+        # Get spamcheck and verify ownership
+        spamcheck = UserSpamcheck.objects.select_related(
+            'options', 'user_organization'
+        ).prefetch_related('accounts').get(
+            id=payload.spamcheck_id,
+            user=user
+        )
+        
+        # Check if status allows launch
+        if spamcheck.status != 'draft':
+            return {
+                "success": False,
+                "message": f"Cannot launch spamcheck with status '{spamcheck.status}'. Only draft spamchecks can be launched."
+            }
+            
+        # Get user settings for API keys
+        user_settings = UserSettings.objects.get(user=user)
+        if not user_settings.emailguard_api_key:
+            return {
+                "success": False,
+                "message": "EmailGuard API key not found. Please add your EmailGuard API key in settings."
+            }
+            
+        # Start transaction
+        with transaction.atomic():
+            # 1. Update status to in_progress
+            spamcheck.status = 'in_progress'
+            spamcheck.save()
+            
+            # Get accounts
+            accounts = spamcheck.accounts.all()
+            if not accounts:
+                return {
+                    "success": False,
+                    "message": "No accounts found for this spamcheck."
+                }
+                
+            # For each account
+            for account in accounts:
+                try:
+                    # 2. Create instantly campaign
+                    campaign_name = f"{spamcheck.name} - {account.email_account}"
+                    if payload.is_test:
+                        campaign_name = f"[TEST] {campaign_name}"
+                        
+                    campaign_response = requests.post(
+                        "https://app.instantly.ai/api/v1/campaign/create",
+                        headers={
+                            "Cookie": f"__session={user_settings.instantly_user_token}",
+                            "X-Org-Auth": spamcheck.user_organization.instantly_organization_token,
+                        },
+                        json={
+                            "name": campaign_name,
+                            "user_id": user_settings.instantly_user_id
+                        }
+                    )
+                    campaign_data = campaign_response.json()
+                    
+                    if "error" in campaign_data:
+                        raise Exception(f"Failed to create campaign: {campaign_data['error']}")
+                        
+                    campaign_id = campaign_data["id"]
+                    
+                    # 3. Configure campaign options
+                    options_response = requests.post(
+                        "https://app.instantly.ai/api/campaign/update/options",
+                        headers={
+                            "Cookie": f"__session={user_settings.instantly_user_token}",
+                            "X-Org-Auth": spamcheck.user_organization.instantly_organization_token,
+                            "X-Org-Id": spamcheck.user_organization.instantly_organization_id
+                        },
+                        json={
+                            "campaignID": campaign_id,
+                            "orgID": spamcheck.user_organization.instantly_organization_id,
+                            "emailList": [account.email_account],
+                            "openTracking": spamcheck.options.open_tracking,
+                            "linkTracking": spamcheck.options.link_tracking,
+                            "textOnly": spamcheck.options.text_only,
+                            "dailyLimit": "4" if payload.is_test else "50",
+                            "emailGap": 300
+                        }
+                    )
+                    
+                    if "error" in options_response.json():
+                        raise Exception(f"Failed to configure campaign: {options_response.json()['error']}")
+                    
+                    # 4. Get emailguard tag
+                    emailguard_response = requests.post(
+                        "https://app.emailguard.io/api/v1/inbox-placement-tests",
+                        headers={
+                            "Authorization": f"Bearer {user_settings.emailguard_api_key}",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "name": campaign_name
+                        }
+                    )
+                    
+                    if emailguard_response.status_code != 200:
+                        raise Exception(f"Failed to get EmailGuard tag: {emailguard_response.text}")
+                        
+                    emailguard_tag = emailguard_response.json()["tag"]
+                    
+                    # 5. Add email sequence with emailguard tag
+                    sequence_response = requests.post(
+                        "https://app.instantly.ai/api/campaign/update/sequences",
+                        headers={
+                            "Cookie": f"__session={user_settings.instantly_user_token}",
+                            "X-Org-Auth": spamcheck.user_organization.instantly_organization_token,
+                            "X-Org-Id": spamcheck.user_organization.instantly_organization_id
+                        },
+                        json={
+                            "sequences": [{
+                                "steps": [{
+                                    "type": "email",
+                                    "variants": [{
+                                        "subject": spamcheck.options.subject,
+                                        "body": f"{spamcheck.options.body}\n\n{emailguard_tag}"
+                                    }]
+                                }]
+                            }],
+                            "campaignID": campaign_id,
+                            "orgID": spamcheck.user_organization.instantly_organization_id
+                        }
+                    )
+                    
+                    if "error" in sequence_response.json():
+                        raise Exception(f"Failed to add sequence: {sequence_response.json()['error']}")
+                    
+                    # Store campaign info
+                    UserSpamcheckCampaigns.objects.create(
+                        user=user,
+                        spamcheck=spamcheck,
+                        organization=spamcheck.user_organization,
+                        account_id=account,
+                        instantly_campaign_id=campaign_id,
+                        emailguard_tag=emailguard_tag
+                    )
+                    
+                except Exception as e:
+                    # If any campaign fails, mark spamcheck as failed
+                    spamcheck.status = 'failed'
+                    spamcheck.save()
+                    raise Exception(f"Failed to setup campaign for {account.email_account}: {str(e)}")
+            
+            return {
+                "success": True,
+                "message": "Spamcheck launched successfully",
+                "data": {
+                    "id": spamcheck.id,
+                    "name": spamcheck.name,
+                    "status": spamcheck.status,
+                    "campaigns_count": len(accounts)
+                }
+            }
+            
+    except UserSpamcheck.DoesNotExist:
+        return {
+            "success": False,
+            "message": f"Spamcheck with ID {payload.spamcheck_id} not found or you don't have permission to launch it."
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error launching spamcheck: {str(e)}. Please try again or contact support if the issue persists."
         } 

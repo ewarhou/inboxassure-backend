@@ -8,7 +8,6 @@ class InstantlyEditorAccountSchema(Schema):
 
 class InstantlyApiKeySchema(Schema):
     instantly_api_key: str
-    instantly_user_token: str
 
 class EmailGuardApiKeySchema(Schema):
     emailguard_api_key: str
@@ -16,6 +15,12 @@ class EmailGuardApiKeySchema(Schema):
 class BisonOrganizationSchema(Schema):
     bison_organization_name: str
     bison_organization_api_key: str
+
+class InstantlyStatusResponseSchema(Schema):
+    status: bool
+    message: str
+    editor_account_status: bool
+    api_key_status: bool
 
 class StatusResponseSchema(Schema):
     status: bool
