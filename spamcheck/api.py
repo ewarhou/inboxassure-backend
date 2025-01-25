@@ -299,9 +299,10 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
     user = request.auth
     
     try:
-        # Get spamcheck and verify ownership
+        # Get spamcheck and verify ownership with all necessary relations
         spamcheck = UserSpamcheck.objects.select_related(
-            'options', 'user_organization'
+            'options', 
+            'user_organization'
         ).prefetch_related('accounts').get(
             id=payload.spamcheck_id,
             user=user
@@ -314,12 +315,31 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
                 "message": f"Cannot launch spamcheck with status '{spamcheck.status}'. Only draft spamchecks can be launched."
             }
             
-        # Get user settings for API keys
+        # Get user settings and verify API keys
         user_settings = UserSettings.objects.get(user=user)
         if not user_settings.emailguard_api_key:
             return {
                 "success": False,
                 "message": "EmailGuard API key not found. Please add your EmailGuard API key in settings."
+            }
+            
+        if not user_settings.instantly_user_token or not user_settings.instantly_status:
+            return {
+                "success": False,
+                "message": "Instantly user token not found or inactive. Please reconnect your Instantly account."
+            }
+            
+        # Verify organization status and tokens
+        if not spamcheck.user_organization.instantly_organization_status:
+            return {
+                "success": False,
+                "message": "Selected Instantly organization is not active. Please activate it first."
+            }
+            
+        if not spamcheck.user_organization.instantly_organization_token:
+            return {
+                "success": False,
+                "message": "Organization token not found. Please reconnect the organization."
             }
             
         # Start transaction
@@ -349,6 +369,7 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
                         headers={
                             "Cookie": f"__session={user_settings.instantly_user_token}",
                             "X-Org-Auth": spamcheck.user_organization.instantly_organization_token,
+                            "X-Org-Id": spamcheck.user_organization.instantly_organization_id
                         },
                         json={
                             "name": campaign_name,
@@ -378,7 +399,9 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
                             "linkTracking": spamcheck.options.link_tracking,
                             "textOnly": spamcheck.options.text_only,
                             "dailyLimit": "4" if payload.is_test else "50",
-                            "emailGap": 300
+                            "emailGap": 300,
+                            "stopOnReply": True,
+                            "stopOnAutoReply": True
                         }
                     )
                     

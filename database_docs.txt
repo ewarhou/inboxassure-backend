@@ -456,7 +456,6 @@ Stores user-specific settings and API credentials.
 |---------------------------|---------------|----------|----------------------------------------------------|
 | id                        | BigInt        | No       | Primary key                                        |
 | user_id                   | BigInt        | No       | Foreign key to auth_user table                     |
-| instantly_api_key         | Varchar(255)  | Yes      | API key for Instantly service                      |
 | instantly_editor_email    | Email         | Yes      | Email for Instantly editor account                 |
 | instantly_editor_password | Varchar(255)  | Yes      | Password for Instantly editor account              |
 | instantly_user_id         | Varchar(255)  | Yes      | User ID from Instantly API (UUID format)           |
@@ -489,10 +488,11 @@ Stores Instantly organization configurations for users.
 |-------------------------------|---------------|-----------|------------------------------------------------|
 | id                            | BigInt        | No       | Primary key                                    |
 | user_id                       | BigInt        | No       | Foreign key to auth_user table                 |
-| instantly_organization_id     | Varchar(255)  | No       | ID of the Instantly organization              |
+| instantly_organization_id     | Varchar(255)  | No       | ID of the Instantly organization (UUID)        |
 | instantly_organization_name   | Varchar(255)  | No       | Name of the Instantly organization            |
 | instantly_organization_token  | Text          | Yes      | Authentication token for the organization     |
 | instantly_organization_status | Boolean       | Yes      | Status of organization connection (default: False)|
+| instantly_api_key            | Varchar(255)  | Yes      | API key for the Instantly organization        |
 | last_token_refresh           | DateTime      | Yes      | Timestamp of last token refresh                |
 | created_at                    | DateTime      | No       | Record creation timestamp                      |
 | updated_at                    | DateTime      | No       | Record last update timestamp                   |
@@ -508,5 +508,21 @@ Stores Instantly organization configurations for users.
 1. All tables use `created_at` and `updated_at` for tracking record timestamps
 2. Boolean fields default to False unless explicitly set
 3. Token-related fields are stored as Text to accommodate varying token lengths
+4. API keys and credentials are stored as-is (consider encryption for production)
 5. URLs and Email fields have built-in validation
 6. All IDs are BigInt for scalability
+7. Organization IDs from Instantly are stored in UUID format
+8. Each Instantly organization can have its own API key
+9. User ID from Instantly is stored in UUID format in user_settings
+
+## Recent Changes
+
+1. Moved `instantly_api_key` from `user_settings` to `user_instantly` table
+   - Each organization can now have its own API key
+   - API keys are managed at the organization level
+   - This allows for better organization-specific API access control
+
+2. Added `instantly_user_id` to `user_settings`
+   - Stores the UUID of the user from Instantly's API
+   - Used for tracking and linking user identity across systems
+   - Retrieved during authentication process

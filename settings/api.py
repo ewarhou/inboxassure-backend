@@ -318,39 +318,64 @@ def delete_emailguard_api_key(request: HttpRequest):
         return 400, {"detail": str(e)}
 
 # EmailGuard Status Endpoints
-@router.get("/check-emailguard-status", auth=AuthBearer(), response={200: StatusResponseSchema, 400: ErrorResponseSchema})
-def check_emailguard_status(request: HttpRequest):
+@router.get("/check-emailguard-status", auth=AuthBearer(), response={200: StatusResponseSchema, 400: ErrorResponseSchema, 404: ErrorResponseSchema, 500: ErrorResponseSchema})
+def get_emailguard_status(request: HttpRequest):
+    """
+    Check EmailGuard status by verifying the API key
+    """
     try:
-        try:
-            settings = UserSettings.objects.get(user=request.auth)
-        except UserSettings.DoesNotExist:
-            return 404, {"detail": "User settings not found"}
+        settings = UserSettings.objects.get(user=request.auth)
         
         if not settings.emailguard_api_key:
-            return 200, {"status": False, "message": "EmailGuard API key not configured"}
-        
-        # Call EmailGuard API to check status
+            print("❌ EmailGuard API key not found")
+            return 404, {"detail": "EmailGuard API key not configured"}
+            
+        # Call EmailGuard API to verify the key
         headers = {
-            'Authorization': f'Bearer {settings.emailguard_api_key}'
+            'Authorization': f'Bearer {settings.emailguard_api_key}',
+            'Content-Type': 'application/json'
         }
-        response = requests.get('https://app.emailguard.io/api/v1/workspaces', headers=headers)
         
-        # Print API response for debugging
-        print("\n=== EmailGuard API Response ===")
-        print(f"Status Code: {response.status_code}")
-        print(f"Response Body: {response.text}")
-        print("==============================\n")
+        print("\n🔍 Checking EmailGuard status...")
+        print(f"📡 Calling: https://app.emailguard.io/api/v1/user")
+        print(f"🔑 Using API key: {settings.emailguard_api_key}")
         
-        # Update status based on API response
-        status = response.status_code == 200
-        settings.emailguard_status = status
+        response = requests.get(
+            'https://app.emailguard.io/api/v1/user',
+            headers=headers
+        )
+        
+        print(f"\n📥 Response Status: {response.status_code}")
+        print(f"📄 Response Body: {response.text}")
+        
+        if response.status_code == 200:
+            settings.emailguard_status = True
+            settings.save()
+            return 200, {
+                "status": True,
+                "message": "EmailGuard connection verified successfully",
+                "data": response.json()
+            }
+        else:
+            settings.emailguard_status = False
+            settings.save()
+            return 400, {"detail": "Failed to verify EmailGuard connection"}
+            
+    except UserSettings.DoesNotExist:
+        print("❌ User settings not found")
+        return 404, {"detail": "User settings not found"}
+        
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Request failed: {str(e)}")
+        settings.emailguard_status = False
         settings.save()
+        return 500, {"detail": f"Failed to connect to EmailGuard API: {str(e)}"}
         
-        message = "EmailGuard is active" if status else "EmailGuard is not active"
-        return 200, {"status": status, "message": message}
     except Exception as e:
-        print(f"Error in check_emailguard_status: {str(e)}")
-        return 400, {"detail": str(e)}
+        print(f"❌ Unexpected error: {str(e)}")
+        settings.emailguard_status = False
+        settings.save()
+        return 500, {"detail": f"An unexpected error occurred: {str(e)}"}
 
 # Bison Organization Endpoints
 @router.post("/add-bison-organization", auth=AuthBearer(), response={200: SuccessResponseSchema, 400: ErrorResponseSchema})
