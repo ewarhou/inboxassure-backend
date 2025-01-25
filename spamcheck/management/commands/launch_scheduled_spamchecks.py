@@ -37,8 +37,42 @@ class Command(BaseCommand):
             print(f"Processing account: {account.email_account}")
             print(f"{'='*50}")
 
-            # 1. Get emailguard tag and test emails
-            print("\n[1/3] Getting EmailGuard tag...", flush=True)
+            # 1. Update email account sending limit
+            print("\n[1/5] Updating email account sending limit...", flush=True)
+            print("Calling Instantly API endpoint: POST https://app.instantly.ai/backend/api/v1/account/update/bulk")
+            
+            # Get user settings for authentication
+            user_settings = await asyncio.to_thread(
+                UserSettings.objects.get,
+                user=spamcheck.user
+            )
+            
+            update_limit_data = {
+                "payload": {
+                    "daily_limit": "100"  # Set daily limit to 100
+                },
+                "emails": [account.email_account]
+            }
+            
+            update_limit_response = await self.make_instantly_request(
+                session,
+                'POST',
+                "https://app.instantly.ai/backend/api/v1/account/update/bulk",
+                headers={
+                    "Cookie": f"__session={user_settings.instantly_user_token}",
+                    "X-Org-Auth": spamcheck.user_organization.instantly_organization_token,
+                    "Content-Type": "application/json"
+                },
+                json=update_limit_data
+            )
+            
+            if "error" in update_limit_response:
+                raise Exception(f"Failed to update account limit: {update_limit_response['error']}")
+                
+            print("✓ Account sending limit updated successfully")
+
+            # 2. Get emailguard tag and test emails
+            print("\n[2/5] Getting EmailGuard tag...", flush=True)
             campaign_name = f"{spamcheck.name} - {account.email_account}"
             
             print("Calling EmailGuard API endpoint: POST https://app.emailguard.io/api/v1/inbox-placement-tests")
@@ -70,8 +104,8 @@ class Command(BaseCommand):
             print(f"✓ Got EmailGuard tag: {emailguard_tag}")
             print(f"✓ Got {len(test_emails)} test email addresses")
 
-            # 2. Create campaign with all settings
-            print("\n[2/3] Creating campaign with settings...", flush=True)
+            # 3. Create campaign with all settings
+            print("\n[3/5] Creating campaign with settings...", flush=True)
             print("Calling Instantly API endpoint: POST https://api.instantly.ai/api/v2/campaigns")
             
             # Calculate schedule time based on campaign timezone
@@ -132,7 +166,7 @@ class Command(BaseCommand):
                 "email_gap": 1,
                 "text_only": spamcheck.options.text_only,
                 "email_list": [account.email_account],
-                "daily_limit": 50,
+                "daily_limit": 100,
                 "stop_on_reply": True,
                 "stop_on_auto_reply": True,
                 "link_tracking": spamcheck.options.link_tracking,
@@ -170,8 +204,8 @@ class Command(BaseCommand):
             campaign_id = campaign_data["id"]
             print(f"✓ Campaign created with ID: {campaign_id}")
             
-            # 3. Add leads
-            print("\n[3/4] Adding leads...", flush=True)
+            # 4. Add leads
+            print("\n[4/5] Adding leads...", flush=True)
             print("Calling Instantly API endpoint: POST https://app.instantly.ai/backend/api/v1/lead/add")
             
             leads_data = {
@@ -182,12 +216,6 @@ class Command(BaseCommand):
             }
             
             print(f"Adding {len(test_emails)} leads in bulk")
-            
-            # Get user settings for authentication
-            user_settings = await asyncio.to_thread(
-                UserSettings.objects.get,
-                user=spamcheck.user
-            )
             
             leads_response = await self.make_instantly_request(
                 session,
@@ -206,8 +234,8 @@ class Command(BaseCommand):
                 
             print(f"✓ Successfully added {len(test_emails)} leads in bulk")
             
-            # 4. Launch campaign
-            print("\n[4/4] Launching campaign...", flush=True)
+            # 5. Launch campaign
+            print("\n[5/5] Launching campaign...", flush=True)
             print(f"Calling Instantly API endpoint: POST https://api.instantly.ai/api/v2/campaigns/{campaign_id}/activate")
             
             launch_response = await self.make_instantly_request(
