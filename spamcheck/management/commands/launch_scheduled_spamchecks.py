@@ -37,86 +37,79 @@ class Command(BaseCommand):
             print(f"Processing account: {account.email_account}")
             print(f"{'='*50}")
 
-            # 1. Create instantly campaign
-            print("\n[1/7] Creating campaign...", flush=True)
+            # 1. Get emailguard tag and test emails
+            print("\n[1/3] Getting EmailGuard tag...", flush=True)
             campaign_name = f"{spamcheck.name} - {account.email_account}"
             
-            request_data = {
-                "name": campaign_name,
-                "user_id": user_settings.instantly_user_id
-            }
-            request_headers = {
-                "Cookie": f"__session={user_settings.instantly_user_token}",
-                "X-Org-Auth": spamcheck.user_organization.instantly_organization_token,
-                "Content-Type": "application/json"
-            }
-
-            campaign_data = await self.make_instantly_request(
-                session,
-                'POST',
-                "https://app.instantly.ai/backend/api/v1/campaign/create",
-                headers=request_headers,
-                json=request_data
-            )
-            campaign_id = campaign_data["id"]
-            print(f"✓ Campaign created with ID: {campaign_id}")
-
-            # 2. Configure campaign options
-            print("\n[2/7] Configuring campaign options...", flush=True)
-            options_data = {
-                "campaignID": campaign_id,
-                "orgID": spamcheck.user_organization.instantly_organization_id,
-                "emailList": [account.email_account],
-                "openTracking": spamcheck.options.open_tracking,
-                "linkTracking": spamcheck.options.link_tracking,
-                "textOnly": spamcheck.options.text_only,
-                "dailyLimit": "50",
-                "emailGap": 300,
-                "stopOnReply": True,
-                "stopOnAutoReply": True
-            }
-
-            options_data = await self.make_instantly_request(
-                session,
-                'POST',
-                "https://app.instantly.ai/api/campaign/update/options",
-                headers=request_headers,
-                json=options_data
-            )
-            if "error" in options_data:
-                raise Exception(f"Failed to configure campaign: {options_data['error']}")
-            print("✓ Campaign options configured")
-
-            # 3. Get emailguard tag
-            print("\n[3/7] Getting EmailGuard tag...", flush=True)
+            print("Calling EmailGuard API endpoint: POST https://app.emailguard.io/api/v1/inbox-placement-tests")
             emailguard_headers = {
                 "Authorization": f"Bearer {user_settings.emailguard_api_key}",
                 "Content-Type": "application/json"
             }
-
+            
             emailguard_data = {
                 "name": campaign_name,
                 "type": "inbox_placement"
             }
-
+            print(f"Request Headers: {emailguard_headers}")
+            print(f"Request Data: {emailguard_data}")
+            
             emailguard_data = await self.make_emailguard_request(
                 session,
                 'POST',
                 "https://app.emailguard.io/api/v1/inbox-placement-tests",
                 headers=emailguard_headers,
-                json=emailguard_data,
-                timeout=aiohttp.ClientTimeout(total=30)
+                json=emailguard_data
             )
 
             if "data" not in emailguard_data or "filter_phrase" not in emailguard_data["data"]:
                 raise Exception(f"EmailGuard response missing filter_phrase: {emailguard_data}")
-
+            
             emailguard_tag = emailguard_data["data"]["filter_phrase"]
+            test_emails = emailguard_data["data"]["inbox_placement_test_emails"]
             print(f"✓ Got EmailGuard tag: {emailguard_tag}")
+            print(f"✓ Got {len(test_emails)} test email addresses")
 
-            # 4. Add email sequence with emailguard tag
-            print("\n[4/7] Adding email sequence...", flush=True)
-            sequence_data = {
+            # 2. Create campaign with all settings
+            print("\n[2/3] Creating campaign with settings...", flush=True)
+            print("Calling Instantly API endpoint: POST https://api.instantly.ai/api/v2/campaigns")
+            
+            request_headers = {
+                "Authorization": f"Bearer {spamcheck.user_organization.instantly_api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            request_data = {
+                "name": campaign_name,
+                "campaign_schedule": {
+                    "schedules": [
+                        {
+                            "name": "Default Schedule",
+                            "timing": {
+                                "from": "09:00",
+                                "to": "17:00"
+                            },
+                            "days": {
+                                "0": True,  # Sunday
+                                "1": True,  # Monday
+                                "2": True,  # Tuesday
+                                "3": True,  # Wednesday
+                                "4": True,  # Thursday
+                                "5": True,  # Friday
+                                "6": True   # Saturday
+                            },
+                            "timezone": "Etc/GMT+12"
+                        }
+                    ]
+                },
+                "email_gap": 1,
+                "text_only": spamcheck.options.text_only,
+                "email_list": [account.email_account],
+                "daily_limit": 50,
+                "stop_on_reply": True,
+                "stop_on_auto_reply": True,
+                "link_tracking": spamcheck.options.link_tracking,
+                "open_tracking": spamcheck.options.open_tracking,
                 "sequences": [{
                     "steps": [{
                         "type": "email",
@@ -125,117 +118,62 @@ class Command(BaseCommand):
                             "body": f"{spamcheck.options.body}\n\n{emailguard_tag}"
                         }]
                     }]
-                }],
-                "campaignID": campaign_id,
-                "orgID": spamcheck.user_organization.instantly_organization_id
+                }]
             }
-
-            sequence_data = await self.make_instantly_request(
+            
+            print(f"Request Headers: {request_headers}")
+            print(f"Request Data: {request_data}")
+                
+            campaign_data = await self.make_instantly_request(
                 session,
                 'POST',
-                "https://app.instantly.ai/api/campaign/update/sequences",
+                "https://api.instantly.ai/api/v2/campaigns",
                 headers=request_headers,
-                json=sequence_data
+                json=request_data
             )
-            if "error" in sequence_data:
-                raise Exception(f"Failed to add sequence: {sequence_data['error']}")
-            print("✓ Email sequence added")
-
-            # 5. Add leads (email accounts)
-            print("\n[5/7] Adding leads...", flush=True)
-            test_emails = [{"email": email["email"]} for email in emailguard_data["data"]["inbox_placement_test_emails"]]
-
-            leads_data = {
-                "api_key": spamcheck.user_organization.instantly_api_key,
-                "campaign_id": campaign_id,
-                "skip_if_in_workspace": False,
-                "skip_if_in_campaign": False,
-                "leads": test_emails
-            }
-
-            leads_data = await self.make_instantly_request(
-                session,
-                'POST',
-                "https://api.instantly.ai/api/v1/lead/add",
-                headers={"Content-Type": "application/json"},
-                json=leads_data,
-                timeout=aiohttp.ClientTimeout(total=30)
-            )
-            if "error" in leads_data:
-                raise Exception(f"Failed to add leads: {leads_data['error']}")
-            print(f"✓ Added {len(test_emails)} leads from EmailGuard")
-
-            # 6. Set campaign schedule
-            print("\n[6/7] Setting campaign schedule...", flush=True)
-            detroit_tz = pytz.timezone('America/Detroit')
-            detroit_time = timezone.localtime(timezone.now(), detroit_tz)
-            minutes = detroit_time.minute
-
-            if minutes < 30:
-                start_minutes = "30"
-                start_hour = str(detroit_time.hour).zfill(2)
-            else:
-                start_minutes = "00"
-                start_hour = str((detroit_time.hour + 1) % 24).zfill(2)
-
-            # Calculate end hour (1 hour after start)
-            end_hour = str((int(start_hour) + 1) % 24).zfill(2)
-
-            schedule_data = {
-                "api_key": spamcheck.user_organization.instantly_api_key,
-                "campaign_id": campaign_id,
-                "start_date": detroit_time.strftime("%Y-%m-%d"),
-                "end_date": "2029-06-08",
-                "schedules": [
-                    {
-                        "name": "Everyday",
-                        "days": {
-                            "0": True,  # Sunday
-                            "1": True,  # Monday
-                            "2": True,  # Tuesday
-                            "3": True,  # Wednesday
-                            "4": True,  # Thursday
-                            "5": True,  # Friday
-                            "6": True   # Saturday
-                        },
-                        "timezone": "America/Detroit",
-                        "timing": {
-                            "from": f"{start_hour}:{start_minutes}",
-                            "to": f"{end_hour}:{start_minutes}"  # End 1 hour after start
-                        }
+            
+            print(f"Campaign creation response: {campaign_data}")
+            
+            if not campaign_data or not isinstance(campaign_data, dict):
+                raise Exception(f"Invalid response from campaign creation: {campaign_data}")
+            
+            if 'id' not in campaign_data:
+                raise Exception(f"Campaign ID not found in response: {campaign_data}")
+            
+            campaign_id = campaign_data["id"]
+            print(f"✓ Campaign created with ID: {campaign_id}")
+            
+            # 3. Add leads
+            print("\n[3/3] Adding leads...", flush=True)
+            print("Calling Instantly API endpoint: POST https://api.instantly.ai/api/v2/leads")
+            
+            success_count = 0
+            for test_email in test_emails:
+                try:
+                    leads_data = {
+                        "campaign": campaign_id,
+                        "email": test_email["email"]
                     }
-                ]
-            }
-
-            schedule_data = await self.make_instantly_request(
-                session,
-                'POST',
-                "https://api.instantly.ai/api/v1/campaign/set/schedules",
-                headers={"Content-Type": "application/json"},
-                json=schedule_data
-            )
-            if "error" in schedule_data:
-                raise Exception(f"Failed to set schedule: {schedule_data['error']}")
-            print("✓ Campaign schedule set")
-
-            # 7. Launch campaign immediately
-            print("\n[7/7] Launching campaign...", flush=True)
-            launch_data = {
-                "api_key": spamcheck.user_organization.instantly_api_key,
-                "campaign_id": campaign_id
-            }
-
-            launch_data = await self.make_instantly_request(
-                session,
-                'POST',
-                "https://api.instantly.ai/api/v1/campaign/launch",
-                headers={"Content-Type": "application/json"},
-                json=launch_data
-            )
-            if "error" in launch_data:
-                raise Exception(f"Failed to launch campaign: {launch_data['error']}")
-            print("✓ Campaign launched")
-
+                    print(f"Adding lead: {leads_data}")
+                    
+                    await self.make_instantly_request(
+                        session,
+                        'POST',
+                        "https://api.instantly.ai/api/v2/leads",
+                        headers=request_headers,
+                        json=leads_data
+                    )
+                    
+                    success_count += 1
+                    print(f"✓ Added lead: {test_email['email']}")
+                except Exception as e:
+                    print(f"Error adding lead {test_email['email']}: {str(e)}")
+            
+            print(f"✓ Successfully added {success_count} out of {len(test_emails)} leads")
+            
+            if success_count == 0:
+                raise Exception("Failed to add any leads to the campaign")
+            
             # Store campaign info
             print("\nStoring campaign info in database...", flush=True)
             await asyncio.to_thread(
@@ -248,13 +186,13 @@ class Command(BaseCommand):
                 emailguard_tag=emailguard_tag
             )
             print("✓ Campaign info stored")
-
+            
             print(f"\n{'='*50}")
             print(f"Account {account.email_account} processed successfully!")
             print(f"{'='*50}\n")
-
+            
             return True
-
+            
         except Exception as e:
             print(f"Error processing account {account.email_account}: {str(e)}")
             return False

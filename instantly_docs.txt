@@ -571,3 +571,70 @@ Content-Type: application/json
 - The returned API key is Base64 encoded
 - The workspace ID must be provided in the x-workspace-id header
 
+### Add Leads
+**Endpoint:** POST /backend/api/v1/lead/add
+
+**Description:** Adds multiple leads to a campaign with options for verification and duplicate handling.
+
+**Request Headers:**
+```
+Cookie: __session=<session_token>
+X-Org-Auth: <org_auth_token>
+X-Org-Id: <org_id>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+    "leads": [                    // Required: Array of lead objects
+        {
+            "email": "string"     // Required: Email address of the lead
+        }
+    ],
+    "campaign_id": "string",      // Required: UUID of the campaign
+    "newCustomVariables": [],     // Optional: Array of custom variables
+    "newCoreVariables": [],       // Optional: Array of core variables
+    "forLists": false,           // Optional: Whether leads are for lists
+    "verifyLeadsOnImport": false, // Optional: Verify emails during import
+    "skip_if_in_campaign": false, // Optional: Skip if lead exists in campaign
+    "skip_if_in_list": false,    // Optional: Skip if lead exists in list
+    "skip_if_in_workspace": false // Optional: Skip if lead exists in workspace
+}
+```
+
+**Success Response (200):**
+```json
+{
+    "status": "success",
+    "total_sent": number,           // Total number of leads processed
+    "leads_uploaded": number,       // Number of leads successfully uploaded
+    "in_blocklist": number,         // Number of leads in blocklist
+    "blocklist_used": "string",     // UUID of blocklist used
+    "already_in_campaign": number,  // Number of leads already in campaign
+    "skipped_count": number,        // Number of leads skipped
+    "invalid_email_count": number,  // Number of invalid emails
+    "duplicate_email_count": number, // Number of duplicate emails
+    "remaining_in_plan": number,    // Remaining leads in plan
+    "custom_variables": {},         // Custom variables stats
+    "core_variables": {}           // Core variables stats
+}
+```
+
+**Error Responses:**
+
+1. Invalid Campaign ID (500):
+```json
+{
+    "error": "Internal Server Error"
+}
+```
+
+**Notes:**
+- Multiple leads can be added in a single request
+- The API supports email verification during import
+- Skip options help prevent duplicate leads across campaigns, lists, and workspace
+- Response includes detailed statistics about the import process
+- All numeric values in the response are integers
+- The blocklist is automatically checked for each lead
+
