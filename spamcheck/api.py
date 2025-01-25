@@ -11,6 +11,7 @@ import requests
 from django.conf import settings
 from datetime import datetime
 from django.utils import timezone
+import pytz
 
 router = Router(tags=["spamcheck"])
 
@@ -364,8 +365,35 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
                     print(f"Processing account: {account.email_account}")
                     print(f"{'='*50}")
                     
-                    # 1. Get emailguard tag
-                    print("\n[1/3] Getting EmailGuard tag...", flush=True)
+                    # 1. Update email account sending limit
+                    print("\n[1/5] Updating email account sending limit...", flush=True)
+                    print("Calling Instantly API endpoint: POST https://app.instantly.ai/backend/api/v1/account/update/bulk")
+                    
+                    update_limit_data = {
+                        "payload": {
+                            "daily_limit": "100"  # Set daily limit to 100
+                        },
+                        "emails": [account.email_account]
+                    }
+                    
+                    update_limit_response = requests.post(
+                        "https://app.instantly.ai/backend/api/v1/account/update/bulk",
+                        headers={
+                            "Cookie": f"__session={user_settings.instantly_user_token}",
+                            "X-Org-Auth": spamcheck.user_organization.instantly_organization_token,
+                            "Content-Type": "application/json"
+                        },
+                        json=update_limit_data,
+                        timeout=30
+                    )
+                    
+                    if update_limit_response.status_code != 200:
+                        raise Exception(f"Failed to update account limit: {update_limit_response.text}")
+                    
+                    print("✓ Account sending limit updated")
+
+                    # 2. Get emailguard tag
+                    print("\n[2/5] Getting EmailGuard tag...", flush=True)
                     campaign_name = f"{spamcheck.name} - {account.email_account}"
                     if payload.is_test:
                         campaign_name = f"[TEST] {campaign_name}"
@@ -402,14 +430,41 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
                     print(f"✓ Got EmailGuard tag: {emailguard_tag}")
                     print(f"✓ Got {len(test_emails)} test email addresses")
 
-                    # 2. Create campaign with all settings
-                    print("\n[2/3] Creating campaign with settings...", flush=True)
+                    # 3. Create campaign with all settings
+                    print("\n[3/5] Creating campaign with settings...", flush=True)
                     print("Calling Instantly API endpoint: POST https://api.instantly.ai/api/v2/campaigns")
+                    
+                    # Calculate schedule time based on campaign timezone
+                    campaign_tz = pytz.timezone('Etc/GMT+12')
+                    user_timezone = user.profile.timezone if hasattr(user, 'profile') else 'UTC'
+                    user_tz = pytz.timezone(user_timezone)
+                    
+                    # Get current time in user timezone
+                    current_time = timezone.localtime(timezone.now(), user_tz)
+                    
+                    # Convert to campaign timezone
+                    current_time_campaign_tz = current_time.astimezone(campaign_tz)
+                    
+                    # Round to nearest 30 minutes
+                    minutes = current_time_campaign_tz.minute
+                    if minutes < 30:
+                        start_minutes = "30"
+                        start_hour = str(current_time_campaign_tz.hour).zfill(2)
+                    else:
+                        start_minutes = "00"
+                        start_hour = str((current_time_campaign_tz.hour + 1) % 24).zfill(2)
+
+                    # Calculate end hour (1 hour after start)
+                    end_hour = str((int(start_hour) + 1) % 24).zfill(2)
                     
                     request_headers = {
                         "Authorization": f"Bearer {spamcheck.user_organization.instantly_api_key}",
                         "Content-Type": "application/json"
                     }
+                    
+                    print(f"Scheduling campaign in Etc/GMT+12 timezone:")
+                    print(f"Start time: {start_hour}:{start_minutes}")
+                    print(f"End time: {end_hour}:{start_minutes}")
                     
                     request_data = {
                         "name": campaign_name,
@@ -418,18 +473,26 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
                                 {
                                     "name": "Default Schedule",
                                     "timing": {
-                                        "from": "09:00",
-                                        "to": "17:00"
+                                        "from": f"{start_hour}:{start_minutes}",
+                                        "to": f"{end_hour}:{start_minutes}"
                                     },
-                                    "days": {},
-                                    "timezone": "UTC"
+                                    "days": {
+                                        "0": True,  # Sunday
+                                        "1": True,  # Monday
+                                        "2": True,  # Tuesday
+                                        "3": True,  # Wednesday
+                                        "4": True,  # Thursday
+                                        "5": True,  # Friday
+                                        "6": True   # Saturday
+                                    },
+                                    "timezone": "Etc/GMT+12"
                                 }
                             ]
                         },
                         "email_gap": 1,
                         "text_only": spamcheck.options.text_only,
                         "email_list": [account.email_account],
-                        "daily_limit": 4 if payload.is_test else 50,
+                        "daily_limit": 100,
                         "stop_on_reply": True,
                         "stop_on_auto_reply": True,
                         "link_tracking": spamcheck.options.link_tracking,
@@ -459,43 +522,61 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
                         raise Exception(f"Failed to create campaign: {campaign_response.text}")
                     
                     campaign_data = campaign_response.json()
+                    if not campaign_data or not isinstance(campaign_data, dict):
+                        raise Exception(f"Invalid response from campaign creation: {campaign_data}")
+                    
+                    if 'id' not in campaign_data:
+                        raise Exception(f"Campaign ID not found in response: {campaign_data}")
+                    
                     campaign_id = campaign_data["id"]
                     print(f"✓ Campaign created with ID: {campaign_id}")
                     
-                    # 3. Add leads
-                    print("\n[3/3] Adding leads...", flush=True)
-                    print("Calling Instantly API endpoint: POST https://api.instantly.ai/api/v2/leads")
+                    # 4. Add leads
+                    print("\n[4/5] Adding leads...", flush=True)
+                    print("Calling Instantly API endpoint: POST https://app.instantly.ai/backend/api/v1/lead/add")
                     
-                    success_count = 0
-                    for test_email in test_emails:
-                        try:
-                            leads_data = {
-                                "campaign": campaign_id,
-                                "email": test_email["email"]
-                            }
-                            print(f"Adding lead: {leads_data}")
-                            
-                            leads_response = requests.post(
-                                "https://api.instantly.ai/api/v2/leads",
-                                headers=request_headers,
-                                json=leads_data,
-                                timeout=30
-                            )
-                            
-                            if leads_response.status_code == 200:
-                                success_count += 1
-                                print(f"✓ Added lead: {test_email['email']}")
-                            else:
-                                print(f"Warning: Failed to add lead {test_email['email']}: {leads_response.text}")
-                        except Exception as e:
-                            print(f"Error adding lead {test_email['email']}: {str(e)}")
+                    leads_data = {
+                        "campaign_id": campaign_id,
+                        "skip_if_in_workspace": False,
+                        "skip_if_in_campaign": False,
+                        "leads": [{"email": email["email"]} for email in test_emails]
+                    }
                     
-                    print(f"✓ Successfully added {success_count} out of {len(test_emails)} leads")
+                    print(f"Adding {len(test_emails)} leads in bulk")
                     
-                    if success_count == 0:
-                        raise Exception("Failed to add any leads to the campaign")
+                    leads_response = requests.post(
+                        "https://app.instantly.ai/backend/api/v1/lead/add",
+                        headers={
+                            "Cookie": f"__session={user_settings.instantly_user_token}",
+                            "X-Org-Auth": spamcheck.user_organization.instantly_organization_token,
+                            "Content-Type": "application/json"
+                        },
+                        json=leads_data,
+                        timeout=30
+                    )
                     
-                    # Store campaign info
+                    if leads_response.status_code != 200:
+                        raise Exception(f"Failed to add leads: {leads_response.text}")
+                    
+                    print(f"✓ Successfully added {len(test_emails)} leads in bulk")
+                    
+                    # 5. Launch campaign
+                    print("\n[5/5] Launching campaign...", flush=True)
+                    print(f"Calling Instantly API endpoint: POST https://api.instantly.ai/api/v2/campaigns/{campaign_id}/activate")
+                    
+                    launch_response = requests.post(
+                        f"https://api.instantly.ai/api/v2/campaigns/{campaign_id}/activate",
+                        headers=request_headers,  # Reuse the Bearer token headers
+                        json={},  # Empty body required
+                        timeout=30
+                    )
+                    
+                    if launch_response.status_code != 200:
+                        raise Exception(f"Failed to launch campaign: {launch_response.text}")
+                    
+                    print("✓ Campaign launched successfully")
+                    
+                    # Store campaign info after successful launch
                     print("\nStoring campaign info in database...", flush=True)
                     UserSpamcheckCampaigns.objects.create(
                         user=spamcheck.user,
@@ -511,11 +592,14 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
                     print(f"Account {account.email_account} processed successfully!")
                     print(f"{'='*50}\n")
                     
-                    return True
-                    
                 except Exception as e:
                     print(f"Error processing account {account.email_account}: {str(e)}")
-                    return False
+                    spamcheck.status = 'failed'
+                    spamcheck.save()
+                    return {
+                        "success": False,
+                        "message": f"Error processing account {account.email_account}: {str(e)}"
+                    }
             
             return {
                 "success": True,
