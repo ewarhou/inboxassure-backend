@@ -5,7 +5,6 @@ from django.conf import settings
 
 class UserSettings(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='settings')
-    instantly_api_key = models.CharField(max_length=255, null=True, blank=True)
     instantly_editor_email = models.EmailField(null=True, blank=True)
     instantly_editor_password = models.CharField(max_length=255, null=True, blank=True)
     instantly_user_id = models.CharField(max_length=255, null=True, blank=True)
@@ -50,6 +49,7 @@ class UserInstantly(models.Model):
     instantly_organization_name = models.CharField(max_length=255)
     instantly_organization_token = models.TextField(null=True, blank=True)
     instantly_organization_status = models.BooleanField(null=True, blank=True, default=False)
+    instantly_api_key = models.CharField(max_length=255, null=True, blank=True)
     last_token_refresh = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

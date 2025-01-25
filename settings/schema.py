@@ -8,6 +8,7 @@ class InstantlyEditorAccountSchema(Schema):
 
 class InstantlyApiKeySchema(Schema):
     instantly_api_key: str
+    organization_id: int
 
 class EmailGuardApiKeySchema(Schema):
     emailguard_api_key: str
@@ -16,11 +17,20 @@ class BisonOrganizationSchema(Schema):
     bison_organization_name: str
     bison_organization_api_key: str
 
+class InstantlyOrganizationInfo(Schema):
+    id: int  # Our database ID
+    uuid: str  # Instantly's organization ID
+    name: str
+
 class InstantlyStatusResponseSchema(Schema):
     status: bool
     message: str
-    editor_account_status: bool
-    api_key_status: bool
+    user_id: Optional[str]
+    organizations: List[InstantlyOrganizationInfo]
+
+class InstantlyApiKeyCheckResponseSchema(Schema):
+    status: bool
+    message: str
 
 class StatusResponseSchema(Schema):
     status: bool

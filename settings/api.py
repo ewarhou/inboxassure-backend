@@ -18,7 +18,8 @@ from .schema import (
     CheckInstantlyStatusSchema,
     InstantlyOrganizationAuthSchema,
     InstantlyOrganizationDataSchema,
-    InstantlyStatusResponseSchema
+    InstantlyStatusResponseSchema,
+    InstantlyApiKeyCheckResponseSchema
 )
 import requests
 
@@ -84,74 +85,188 @@ def delete_instantly_editor_account(request: HttpRequest):
 @router.post("/add-instantly-api-key", auth=AuthBearer(), response={200: SuccessResponseSchema, 400: ErrorResponseSchema})
 def add_instantly_api_key(request: HttpRequest, payload: InstantlyApiKeySchema):
     try:
-        settings, created = UserSettings.objects.get_or_create(user=request.auth)
+        # Get or create the organization
+        instantly_org = get_object_or_404(UserInstantly, user=request.auth, id=payload.organization_id)
+        instantly_org.instantly_api_key = payload.instantly_api_key
+        instantly_org.save()
         
-        # Verify API key by making a test call
+        return 200, {
+            "message": "Instantly API key added successfully",
+            "data": {
+                "organization_id": instantly_org.instantly_organization_id,
+                "organization_name": instantly_org.instantly_organization_name,
+                "instantly_api_key": instantly_org.instantly_api_key
+            }
+        }
+    except Exception as e:
+        return 400, {"detail": str(e)}
+
+@router.get("/check-instantly-api-key/{org_id}", auth=AuthBearer(), response={200: InstantlyApiKeyCheckResponseSchema, 400: ErrorResponseSchema})
+def check_instantly_api_key(request: HttpRequest, org_id: int):
+    try:
+        instantly_org = get_object_or_404(UserInstantly, user=request.auth, id=org_id)
+        
+        if not instantly_org.instantly_api_key:
+            return 200, {"status": False, "message": "API key not configured for this organization"}
+        
+        # Check API Key
+        print("\n=== Instantly API Key Check ===")
+        url = f"https://api.instantly.ai/api/v1/authenticate?api_key={instantly_org.instantly_api_key}"
+        api_response = requests.get(url)
+        print("\nAPI Key Response:")
+        print(f"Status Code: {api_response.status_code}")
+        print(f"Response Body: {api_response.text}")
+        
+        status = api_response.status_code == 200
+        instantly_org.instantly_organization_status = status
+        instantly_org.save()
+        
+        message = "API key is valid" if status else "API key is invalid"
+        return 200, {"status": status, "message": message}
+    except Exception as e:
+        print(f"\nError: {str(e)}")
+        return 400, {"detail": str(e)}
+
+@router.get("/check-instantly-status", auth=AuthBearer(), response={200: InstantlyStatusResponseSchema, 400: ErrorResponseSchema})
+def check_instantly_status(request: HttpRequest):
+    try:
+        try:
+            settings = UserSettings.objects.get(user=request.auth)
+        except UserSettings.DoesNotExist:
+            return 404, {"detail": "User settings not found"}
+        
+        if not settings.instantly_editor_email or not settings.instantly_editor_password:
+            return 200, {
+                "status": False,
+                "message": "Editor account credentials not configured",
+                "user_id": None,
+                "organizations": []
+            }
+        
+        # Check Editor Account
+        print("\n=== Instantly Editor Account Check ===")
+        login_response = requests.post('https://app.instantly.ai/api/auth/login', json={
+            'email': settings.instantly_editor_email,
+            'password': settings.instantly_editor_password
+        })
+        print("\n1. Login Response:")
+        print(f"Status Code: {login_response.status_code}")
+        print(f"Response Body: {login_response.text}")
+        print(f"Cookies: {dict(login_response.cookies)}")
+        
+        # Check for invalid credentials
+        response_data = login_response.json()
+        if response_data.get('error') == 'Invalid credentials':
+            settings.instantly_status = False
+            settings.save()
+            return 200, {
+                "status": False,
+                "message": "Invalid editor account credentials",
+                "user_id": None,
+                "organizations": []
+            }
+        
+        if login_response.status_code != 200 or not login_response.cookies:
+            settings.instantly_status = False
+            settings.save()
+            return 200, {
+                "status": False,
+                "message": "Failed to authenticate with Instantly",
+                "user_id": None,
+                "organizations": []
+            }
+        
+        # Get session token
+        session_token = login_response.cookies.get('__session')
+        if not session_token:
+            settings.instantly_status = False
+            settings.save()
+            return 200, {
+                "status": False,
+                "message": "Failed to get session token",
+                "user_id": None,
+                "organizations": []
+            }
+        
+        # Get user details
         headers = {
-            'Authorization': f'Bearer {payload.instantly_api_key}'
+            'Cookie': f'__session={session_token}',
+            'Content-Type': 'application/json'
         }
-        response = requests.get('https://developer.instantly.ai/_mock/api/v2/api/v2/accounts?limit=1', headers=headers)
+        user_details_response = requests.get('https://app.instantly.ai/api/user/user_details', headers=headers)
         
-        print("\n=== Instantly API Key Verification ===")
-        print(f"Status Code: {response.status_code}")
-        print(f"Response Body: {response.text}")
-        print("===================================\n")
+        user_id = None
+        if user_details_response.status_code == 200:
+            user_details = user_details_response.json()
+            user_id = user_details.get('id')
+            settings.instantly_user_id = user_id
+            settings.instantly_user_token = session_token
+            settings.save()
+            print(f"\nStored User ID: {user_id}")
         
-        if response.status_code != 200:
-            return 400, {
-                "message": "Invalid Instantly API key",
-                "data": {
-                    "error": "API key verification failed"
-                }
+        # Fetch organizations
+        orgs_response = requests.get('https://app.instantly.ai/api/organization/user', headers=headers)
+        print("\n3. Organizations Response:")
+        print(f"Status Code: {orgs_response.status_code}")
+        print(f"Response Body: {orgs_response.text}")
+        
+        if orgs_response.status_code != 200:
+            return 200, {
+                "status": True,
+                "message": "Authenticated but failed to fetch organizations",
+                "user_id": user_id,
+                "organizations": []
             }
         
-        settings.instantly_api_key = payload.instantly_api_key
+        organizations = orgs_response.json()
+        org_list = []
+        
+        # Store each organization
+        for org in organizations:
+            print(f"\n4. Processing Organization: {org['name']}")
+            # Get organization token
+            auth_response = requests.post(
+                'https://app.instantly.ai/api/organization/auth_workspace',
+                headers=headers,
+                json={'orgID': org['id']}
+            )
+            print("\n5. Organization Auth Response:")
+            print(f"Status Code: {auth_response.status_code}")
+            print(f"Response Body: {auth_response.text}")
+            
+            if auth_response.status_code == 200:
+                org_token = auth_response.json().get('org_access')
+                
+                # Create or update organization
+                instantly_org, created = UserInstantly.objects.update_or_create(
+                    user=request.auth,
+                    instantly_organization_id=org['id'],
+                    defaults={
+                        'instantly_organization_name': org['name'],
+                        'instantly_organization_token': org_token,
+                        'instantly_organization_status': True
+                    }
+                )
+                
+                org_list.append({
+                    "id": instantly_org.id,  # Our database ID
+                    "uuid": org['id'],  # Instantly's organization ID
+                    "name": org['name']
+                })
+        
+        settings.instantly_status = True
         settings.save()
         
         return 200, {
-            "message": "Instantly API key added and verified successfully",
-            "data": {
-                "instantly_api_key": settings.instantly_api_key
-            }
+            "status": True,
+            "message": f"Successfully fetched {len(org_list)} organizations",
+            "user_id": user_id,
+            "organizations": org_list
         }
     except Exception as e:
-        return 400, {"detail": str(e)}
-
-@router.put("/update-instantly-api-key", auth=AuthBearer(), response={200: SuccessResponseSchema, 400: ErrorResponseSchema, 404: ErrorResponseSchema})
-def update_instantly_api_key(request: HttpRequest, payload: InstantlyApiKeySchema):
-    try:
-        settings = get_object_or_404(UserSettings, user=request.auth)
-        settings.instantly_api_key = payload.instantly_api_key
-        settings.instantly_user_token = payload.instantly_user_token
+        print(f"\nError: {str(e)}")
+        settings.instantly_status = False
         settings.save()
-        
-        return 200, {
-            "message": "Instantly API key updated successfully",
-            "data": {
-                "instantly_api_key": settings.instantly_api_key,
-                "instantly_user_token": settings.instantly_user_token
-            }
-        }
-    except Exception as e:
-        return 400, {"detail": str(e)}
-
-@router.delete("/delete-instantly-api-key", auth=AuthBearer(), response={200: SuccessResponseSchema, 400: ErrorResponseSchema, 404: ErrorResponseSchema})
-def delete_instantly_api_key(request: HttpRequest):
-    try:
-        settings = get_object_or_404(UserSettings, user=request.auth)
-        settings.instantly_api_key = None
-        settings.instantly_user_token = None
-        settings.instantly_status = False  # Reset status when API key is removed
-        settings.save()
-        
-        # Also reset organization statuses
-        UserInstantly.objects.filter(user=request.auth).update(instantly_organization_status=False)
-        
-        return 200, {
-            "message": "Instantly API key deleted successfully",
-            "data": {}
-        }
-    except Exception as e:
         return 400, {"detail": str(e)}
 
 # EmailGuard API Key Endpoints
@@ -203,34 +318,20 @@ def delete_emailguard_api_key(request: HttpRequest):
         return 400, {"detail": str(e)}
 
 # EmailGuard Status Endpoints
-@router.get("/get-emailguard-status", auth=AuthBearer(), response={200: StatusResponseSchema, 400: ErrorResponseSchema})
-def get_emailguard_status(request: HttpRequest):
+@router.get("/check-emailguard-status", auth=AuthBearer(), response={200: StatusResponseSchema, 400: ErrorResponseSchema})
+def check_emailguard_status(request: HttpRequest):
     try:
         try:
             settings = UserSettings.objects.get(user=request.auth)
         except UserSettings.DoesNotExist:
             return 404, {"detail": "User settings not found"}
         
-        # Return false if no API key is set
         if not settings.emailguard_api_key:
             return 200, {"status": False, "message": "EmailGuard API key not configured"}
         
-        status = settings.emailguard_status or False
-        message = "EmailGuard is active" if status else "EmailGuard is not active"
-        
-        return 200, {"status": status, "message": message}
-    except Exception as e:
-        print(f"Error in get_emailguard_status: {str(e)}")
-        return 400, {"detail": "An unexpected error occurred while checking EmailGuard status"}
-
-@router.post("/check-emailguard-status", auth=AuthBearer(), response={200: StatusResponseSchema, 400: ErrorResponseSchema})
-def check_emailguard_status(request: HttpRequest, payload: CheckEmailGuardStatusSchema):
-    try:
-        settings, created = UserSettings.objects.get_or_create(user=request.auth)
-        
         # Call EmailGuard API to check status
         headers = {
-            'Authorization': f'Bearer {payload.emailguard_api_key}'
+            'Authorization': f'Bearer {settings.emailguard_api_key}'
         }
         response = requests.get('https://app.emailguard.io/api/v1/workspaces', headers=headers)
         
@@ -243,114 +344,12 @@ def check_emailguard_status(request: HttpRequest, payload: CheckEmailGuardStatus
         # Update status based on API response
         status = response.status_code == 200
         settings.emailguard_status = status
-        settings.emailguard_api_key = payload.emailguard_api_key
         settings.save()
         
         message = "EmailGuard is active" if status else "EmailGuard is not active"
         return 200, {"status": status, "message": message}
     except Exception as e:
-        return 400, {"detail": str(e)}
-
-# Instantly Status Endpoints
-@router.get("/get-instantly-status", auth=AuthBearer(), response={200: StatusResponseSchema, 400: ErrorResponseSchema})
-def get_instantly_status(request: HttpRequest):
-    try:
-        try:
-            settings = UserSettings.objects.get(user=request.auth)
-        except UserSettings.DoesNotExist:
-            return 404, {"detail": "User settings not found"}
-        
-        # Return false if credentials are missing
-        if not settings.instantly_editor_email or not settings.instantly_editor_password:
-            return 200, {"status": False, "message": "Instantly credentials not configured"}
-        
-        status = settings.instantly_status or False
-        message = "Instantly is active" if status else "Instantly is not active"
-        
-        return 200, {"status": status, "message": message}
-    except Exception as e:
-        print(f"Error in get_instantly_status: {str(e)}")
-        return 400, {"detail": "An unexpected error occurred while checking Instantly status"}
-
-@router.post("/check-instantly-status", auth=AuthBearer(), response={200: InstantlyStatusResponseSchema, 400: ErrorResponseSchema})
-def check_instantly_status(request: HttpRequest, payload: CheckInstantlyStatusSchema):
-    try:
-        settings, created = UserSettings.objects.get_or_create(user=request.auth)
-        editor_account_status = False
-        api_key_status = False
-        
-        # Check Editor Account
-        print("\n=== Instantly Editor Account Check ===")
-        login_response = requests.post('https://app.instantly.ai/api/auth/login', json={
-            'email': payload.email,
-            'password': payload.password
-        })
-        print("\n1. Login Response:")
-        print(f"Status Code: {login_response.status_code}")
-        print(f"Response Body: {login_response.text}")
-        print(f"Cookies: {dict(login_response.cookies)}")
-        
-        # Check for invalid credentials
-        response_data = login_response.json()
-        if response_data.get('error') == 'Invalid credentials':
-            settings.instantly_status = False
-            settings.save()
-            return 200, {
-                "status": False,
-                "message": "Invalid editor account credentials",
-                "editor_account_status": False,
-                "api_key_status": False
-            }
-        
-        if login_response.status_code == 200 and login_response.cookies:
-            editor_account_status = True
-            session_token = login_response.cookies.get('__session')
-            
-            if session_token:
-                # Get user details
-                headers = {
-                    'Cookie': f'__session={session_token}',
-                    'Content-Type': 'application/json'
-                }
-                user_details_response = requests.get('https://app.instantly.ai/api/user/user_details', headers=headers)
-                
-                if user_details_response.status_code == 200:
-                    user_details = user_details_response.json()
-                    settings.instantly_user_id = user_details.get('id')
-                    settings.instantly_user_token = session_token
-                    settings.instantly_status = True
-                    settings.save()
-        
-        # Check API Key
-        print("\n=== Instantly API Key Check ===")
-        if settings.instantly_api_key:
-            headers = {
-                'Authorization': f'Bearer {settings.instantly_api_key}'
-            }
-            api_response = requests.get('https://developer.instantly.ai/_mock/api/v2/api/v2/accounts?limit=1', headers=headers)
-            print("\n2. API Key Response:")
-            print(f"Status Code: {api_response.status_code}")
-            print(f"Response Body: {api_response.text}")
-            
-            api_key_status = api_response.status_code == 200
-        
-        # Determine overall status and message
-        overall_status = editor_account_status and api_key_status
-        message = "Both editor account and API key are valid" if overall_status else \
-                 "Editor account valid but API key invalid" if editor_account_status else \
-                 "API key valid but editor account invalid" if api_key_status else \
-                 "Both editor account and API key are invalid"
-        
-        return 200, {
-            "status": overall_status,
-            "message": message,
-            "editor_account_status": editor_account_status,
-            "api_key_status": api_key_status
-        }
-    except Exception as e:
-        print(f"\nError: {str(e)}")
-        settings.instantly_status = False
-        settings.save()
+        print(f"Error in check_emailguard_status: {str(e)}")
         return 400, {"detail": str(e)}
 
 # Bison Organization Endpoints
