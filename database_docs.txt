@@ -137,7 +137,7 @@ options_id (BigInt, FK, nullable): Reference to user_spamcheck_campaign_instantl
 name (varchar): Name of the spamcheck (unique within user and organization)
 scheduled_at (timestamp): When the spamcheck is scheduled to run
 recurring_days (integer, nullable): Number of days for recurring checks
-status (varchar): Current status (draft, in_progress, generating_reports, completed, failed)
+status (varchar): Current status (pending, in_progress, completed, failed)
 created_at (timestamp): Creation timestamp
 updated_at (timestamp): Last update timestamp
 
@@ -150,7 +150,7 @@ jsonCopy{
   "name": "Weekly Spam Check",
   "scheduled_at": "2024-03-20T10:00:00Z",
   "recurring_days": 7,
-  "status": "draft"
+  "status": "pending"
 }
 
 8. user_spamcheck_campaign_instantly_options
@@ -207,6 +207,7 @@ organization_id (BigInt, FK): Reference to user_instantly
 account_id (BigInt, FK, nullable): Reference to user_spamcheck_accounts_instantly
 instantly_campaign_id (varchar): ID from Instantly service
 emailguard_tag (varchar): Tag for EmailGuard tracking
+campaign_status (varchar): Current campaign status (active, completed, deleted), default: active
 created_at (timestamp): Creation timestamp
 updated_at (timestamp): Last update timestamp
 
@@ -215,6 +216,7 @@ jsonCopy{
   "id": 1,
   "instantly_campaign_id": "camp_123456",
   "emailguard_tag": "tag_123456",
+  "campaign_status": "active",
   "created_at": "2024-03-20T09:30:00Z"
 }
 
@@ -526,3 +528,22 @@ Stores Instantly organization configurations for users.
    - Stores the UUID of the user from Instantly's API
    - Used for tracking and linking user identity across systems
    - Retrieved during authentication process
+
+11. user_profile
+Manages user profile settings.
+Columns:
+
+id (BigInt, PK): Auto-generated unique identifier
+user_id (BigInt, FK): Reference to auth_user
+timezone (varchar): User's timezone (default: 'UTC')
+created_at (timestamp): Creation timestamp
+updated_at (timestamp): Last update timestamp
+
+Example Row:
+jsonCopy{
+  "id": 1,
+  "user_id": 1,
+  "timezone": "America/New_York",
+  "created_at": "2024-03-20T09:00:00Z",
+  "updated_at": "2024-03-20T09:00:00Z"
+}

@@ -83,6 +83,12 @@ class UserSpamcheckAccounts(models.Model):
 
 
 class UserSpamcheckCampaigns(models.Model):
+    CAMPAIGN_STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+        ('deleted', 'Deleted')
+    ]
+
     id = models.BigAutoField(primary_key=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='spamcheck_campaigns')
     spamcheck = models.ForeignKey(UserSpamcheck, on_delete=models.CASCADE, related_name='campaigns')
@@ -90,6 +96,7 @@ class UserSpamcheckCampaigns(models.Model):
     account_id = models.ForeignKey(UserSpamcheckAccounts, on_delete=models.CASCADE, related_name='campaigns', null=True, blank=True, db_column='account_id')
     instantly_campaign_id = models.CharField(max_length=255)
     emailguard_tag = models.CharField(max_length=255)
+    campaign_status = models.CharField(max_length=20, choices=CAMPAIGN_STATUS_CHOICES, default='active')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
