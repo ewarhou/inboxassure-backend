@@ -286,6 +286,11 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"\nLaunching spamcheck {spamcheck.id} - {spamcheck.name}"))
                 
                 try:
+                    # Set status to in_progress at the beginning
+                    await asyncio.to_thread(
+                        lambda: setattr(spamcheck, 'status', 'in_progress') or spamcheck.save()
+                    )
+
                     # Get user settings
                     user_settings = await asyncio.to_thread(
                         UserSettings.objects.get,
@@ -314,11 +319,7 @@ class Command(BaseCommand):
                         lambda: setattr(spamcheck, 'status', 'failed') or spamcheck.save()
                     )
                     raise Exception("One or more accounts failed to process")
-                elif all(results):
-                    # If all accounts succeeded, mark spamcheck as in_progress
-                    await asyncio.to_thread(
-                        lambda: setattr(spamcheck, 'status', 'in_progress') or spamcheck.save()
-                    )
+                # No need to set in_progress here since we did it at the beginning
 
             else:
                 self.stdout.write(self.style.WARNING(f"Not yet time to launch spamcheck {spamcheck.id}"))

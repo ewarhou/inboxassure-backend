@@ -287,42 +287,41 @@ def delete_spamcheck_instantly(request, spamcheck_id: int):
 @router.post("/launch-spamcheck-instantly", auth=AuthBearer())
 def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
     """
-    Launch a spamcheck campaign
-    
-    Steps:
-    1. Update spamcheck status to in_progress
-    2. Create instantly campaign
-    3. Configure campaign options
-    4. Get emailguard tag
-    5. Add email sequence with emailguard tag
-    6. Add leads
-    7. Launch campaign
+    Launch a spamcheck immediately
     """
     user = request.auth
     
     try:
-        # Get spamcheck and verify ownership with all necessary relations
+        # Get the spamcheck and verify ownership
         spamcheck = UserSpamcheck.objects.select_related(
-            'options', 
+            'options',
             'user_organization'
-        ).prefetch_related('accounts').get(
+        ).get(
             id=payload.spamcheck_id,
             user=user
         )
         
-        # Check if status allows launch
-        if spamcheck.status != 'pending':
+        # Check if status allows launching
+        if spamcheck.status not in ['pending', 'failed', 'completed']:
             return {
                 "success": False,
-                "message": f"Cannot launch spamcheck with status '{spamcheck.status}'. Only pending spamchecks can be launched."
+                "message": f"Cannot launch spamcheck with status '{spamcheck.status}'. Only pending, failed, or completed spamchecks can be launched."
             }
             
-        # Get user settings and verify API keys
-        user_settings = UserSettings.objects.get(user=user)
+        # Get user settings
+        try:
+            user_settings = UserSettings.objects.get(user=user)
+        except UserSettings.DoesNotExist:
+            return {
+                "success": False,
+                "message": "User settings not found. Please configure API keys first."
+            }
+            
+        # Verify user settings and tokens
         if not user_settings.emailguard_api_key:
             return {
                 "success": False,
-                "message": "EmailGuard API key not found. Please add your EmailGuard API key in settings."
+                "message": "EmailGuard API key not found. Please configure it first."
             }
             
         if not user_settings.instantly_user_token or not user_settings.instantly_status:
@@ -344,9 +343,9 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
                 "message": "Organization token not found. Please reconnect the organization."
             }
             
-        # Start transaction
+        # Start transaction and set status to in_progress at the beginning
         with transaction.atomic():
-            # 1. Update status to in_progress
+            # Update status to in_progress before starting
             spamcheck.status = 'in_progress'
             spamcheck.save()
             
