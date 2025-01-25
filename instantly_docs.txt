@@ -512,3 +512,62 @@ Notes:
 - Invalid formats for daily_limit or warmup_limit are accepted but may not be applied correctly
 - The API returns 200 status code even for error cases, check response body for error messages
 
+### Create API Key
+**Endpoint:** POST /backend/api/v2/api-keys
+
+**Description:** Creates a new API key for the specified workspace.
+
+**Request Headers:**
+```
+Cookie: __session=<session_token>
+x-workspace-id: <workspace_uuid>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+    "name": "string",           // Name for the API key (can be empty)
+    "scopes": ["string"]        // Required: Array of scopes, currently supports ["all:all"]
+}
+```
+
+**Success Response (200):**
+```json
+{
+    "name": "string",
+    "scopes": ["string"],
+    "id": "uuid",
+    "key": "string",                // Base64 encoded API key
+    "organization_id": "uuid",
+    "timestamp_created": "string",   // ISO format
+    "timestamp_updated": "string"    // ISO format
+}
+```
+
+**Error Responses:**
+
+1. Missing Scopes (400):
+```json
+{
+    "statusCode": 400,
+    "error": "Bad Request",
+    "message": "body must have required property 'scopes'"
+}
+```
+
+2. Invalid Scope Value (400):
+```json
+{
+    "statusCode": 400,
+    "error": "Bad Request",
+    "message": "body/scopes/0 must be equal to one of the allowed values"
+}
+```
+
+**Notes:**
+- The name field can be empty but must be included
+- Currently only the "all:all" scope is supported
+- The returned API key is Base64 encoded
+- The workspace ID must be provided in the x-workspace-id header
+

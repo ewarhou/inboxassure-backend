@@ -389,9 +389,70 @@ def test_update_account():
         print(f"Response Body: {response.text}")
         print("-" * 80)
 
+def test_api_keys():
+    credentials = get_credentials()
+    if not credentials:
+        print("No credentials found")
+        return
+    
+    print("\nTesting API Keys endpoint:")
+    
+    # Headers for the request
+    headers = {
+        'Cookie': credentials['token'],
+        'x-workspace-id': '460aac1e-e8e5-4431-b449-caa7c5ee1a6d',
+        'Content-Type': 'application/json'
+    }
+    
+    # Test cases
+    test_cases = [
+        {
+            "name": "Create API Key with valid payload",
+            "data": {
+                "name": "Cursor",
+                "scopes": ["all:all"]
+            }
+        },
+        {
+            "name": "Create API Key with empty name",
+            "data": {
+                "name": "",
+                "scopes": ["all:all"]
+            }
+        },
+        {
+            "name": "Create API Key with missing scopes",
+            "data": {
+                "name": "Cursor"
+            }
+        },
+        {
+            "name": "Create API Key with invalid scope",
+            "data": {
+                "name": "Cursor",
+                "scopes": ["invalid:scope"]
+            }
+        }
+    ]
+    
+    # Test API Keys endpoint
+    url = "https://app.instantly.ai/backend/api/v2/api-keys"
+    
+    for test_case in test_cases:
+        print(f"\nTesting {test_case['name']}:")
+        print(f"Headers: {headers}")
+        print(f"Data: {test_case['data']}\n")
+        
+        response = requests.post(url, headers=headers, json=test_case['data'])
+        print(f"Response Status: {response.status_code}")
+        print(f"Response Headers: {dict(response.headers)}")
+        print(f"Response Body: {response.text}")
+        print("-" * 80)
+
 if __name__ == "__main__":
     # test_campaign_data()
     # test_update_campaign_options()
     # test_update_sequences()
     # test_list_accounts()
-    test_update_account() 
+    # test_update_account()
+    test_api_keys() 
