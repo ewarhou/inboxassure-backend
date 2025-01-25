@@ -689,3 +689,73 @@ Content-Type: application/json
 - Non-existent email addresses in the list will be ignored
 - The daily_limit value will be applied to all specified email accounts
 
+### List Campaigns
+**Endpoint:** POST /backend/api/v1/campaign/list
+
+**Description:** Retrieves a list of campaigns with support for pagination, search, filtering, and sorting.
+
+**Request Headers:**
+```
+Cookie: __session=<session_token>
+X-Org-Auth: <org_auth_token>
+X-Org-Id: <org_id>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+    "limit": number,           // Number of campaigns to return (e.g., 20)
+    "skip": number,           // Number of campaigns to skip for pagination (e.g., 0)
+    "search": "string",       // Search term to filter campaigns by name
+    "status": number,         // Campaign status filter (null for all statuses)
+    "include_tags": boolean,  // Whether to include campaign tags in response
+    "tag": string,           // Filter campaigns by tag (null for all tags)
+    "sortColumn": "string",   // Column to sort by (e.g., "timestamp_created")
+    "sortOrder": "string"     // Sort direction ("asc" or "desc")
+}
+```
+
+**Example Request:**
+```json
+{
+    "limit": 20,
+    "skip": 0,
+    "search": "",
+    "status": null,
+    "include_tags": true,
+    "tag": null,
+    "sortColumn": "timestamp_created",
+    "sortOrder": "desc"
+}
+```
+
+**Success Response (200):**
+```json
+[
+    {
+        "id": "string",                    // Campaign UUID
+        "status": number,                  // Campaign status (0: Draft, 1: Active, 2: Paused, 3: Completed)
+        "timestamp_created": "string",     // ISO format creation date
+        "pl_value": number,               // Pipeline value
+        "name": "string",                 // Campaign name
+        "is_evergreen": boolean,          // Whether campaign is evergreen
+        "tags": [                         // Array of campaign tags (if include_tags is true)
+            {
+                "id": "string",           // Tag UUID
+                "name": "string",         // Tag name
+                "color": "string"         // Tag color
+            }
+        ]
+    }
+]
+```
+
+**Notes:**
+- The response is an array of campaign objects
+- Status values: 0 (Draft), 1 (Active), 2 (Paused), 3 (Completed)
+- Set include_tags to true to include campaign tags in the response
+- Results are paginated using limit and skip parameters
+- Use search parameter to filter campaigns by name
+- Sort results using sortColumn and sortOrder parameters
+
