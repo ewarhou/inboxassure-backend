@@ -74,10 +74,37 @@ class Command(BaseCommand):
             print("\n[2/3] Creating campaign with settings...", flush=True)
             print("Calling Instantly API endpoint: POST https://api.instantly.ai/api/v2/campaigns")
             
+            # Calculate schedule time based on campaign timezone
+            campaign_tz = pytz.timezone('Etc/GMT+12')
+            user_timezone = spamcheck.user.profile.timezone if hasattr(spamcheck.user, 'profile') else 'UTC'
+            user_tz = pytz.timezone(user_timezone)
+            
+            # Get current time in user timezone
+            current_time = timezone.localtime(timezone.now(), user_tz)
+            
+            # Convert to campaign timezone
+            current_time_campaign_tz = current_time.astimezone(campaign_tz)
+            
+            # Round to nearest 30 minutes
+            minutes = current_time_campaign_tz.minute
+            if minutes < 30:
+                start_minutes = "30"
+                start_hour = str(current_time_campaign_tz.hour).zfill(2)
+            else:
+                start_minutes = "00"
+                start_hour = str((current_time_campaign_tz.hour + 1) % 24).zfill(2)
+
+            # Calculate end hour (1 hour after start)
+            end_hour = str((int(start_hour) + 1) % 24).zfill(2)
+            
             request_headers = {
                 "Authorization": f"Bearer {spamcheck.user_organization.instantly_api_key}",
                 "Content-Type": "application/json"
             }
+            
+            print(f"Scheduling campaign in Etc/GMT+12 timezone:")
+            print(f"Start time: {start_hour}:{start_minutes}")
+            print(f"End time: {end_hour}:{start_minutes}")
             
             request_data = {
                 "name": campaign_name,
@@ -86,8 +113,8 @@ class Command(BaseCommand):
                         {
                             "name": "Default Schedule",
                             "timing": {
-                                "from": "09:00",
-                                "to": "17:00"
+                                "from": f"{start_hour}:{start_minutes}",
+                                "to": f"{end_hour}:{start_minutes}"
                             },
                             "days": {
                                 "0": True,  # Sunday
@@ -144,37 +171,59 @@ class Command(BaseCommand):
             print(f"✓ Campaign created with ID: {campaign_id}")
             
             # 3. Add leads
-            print("\n[3/3] Adding leads...", flush=True)
-            print("Calling Instantly API endpoint: POST https://api.instantly.ai/api/v2/leads")
+            print("\n[3/4] Adding leads...", flush=True)
+            print("Calling Instantly API endpoint: POST https://app.instantly.ai/backend/api/v1/lead/add")
             
-            success_count = 0
-            for test_email in test_emails:
-                try:
-                    leads_data = {
-                        "campaign": campaign_id,
-                        "email": test_email["email"]
-                    }
-                    print(f"Adding lead: {leads_data}")
-                    
-                    await self.make_instantly_request(
-                        session,
-                        'POST',
-                        "https://api.instantly.ai/api/v2/leads",
-                        headers=request_headers,
-                        json=leads_data
-                    )
-                    
-                    success_count += 1
-                    print(f"✓ Added lead: {test_email['email']}")
-                except Exception as e:
-                    print(f"Error adding lead {test_email['email']}: {str(e)}")
+            leads_data = {
+                "campaign_id": campaign_id,
+                "skip_if_in_workspace": False,
+                "skip_if_in_campaign": False,
+                "leads": [{"email": email["email"]} for email in test_emails]
+            }
             
-            print(f"✓ Successfully added {success_count} out of {len(test_emails)} leads")
+            print(f"Adding {len(test_emails)} leads in bulk")
             
-            if success_count == 0:
-                raise Exception("Failed to add any leads to the campaign")
+            # Get user settings for authentication
+            user_settings = await asyncio.to_thread(
+                UserSettings.objects.get,
+                user=spamcheck.user
+            )
             
-            # Store campaign info
+            leads_response = await self.make_instantly_request(
+                session,
+                'POST',
+                "https://app.instantly.ai/backend/api/v1/lead/add",
+                headers={
+                    "Cookie": f"__session={user_settings.instantly_user_token}",
+                    "X-Org-Auth": spamcheck.user_organization.instantly_organization_token,
+                    "Content-Type": "application/json"
+                },
+                json=leads_data
+            )
+            
+            if "error" in leads_response:
+                raise Exception(f"Failed to add leads: {leads_response['error']}")
+                
+            print(f"✓ Successfully added {len(test_emails)} leads in bulk")
+            
+            # 4. Launch campaign
+            print("\n[4/4] Launching campaign...", flush=True)
+            print(f"Calling Instantly API endpoint: POST https://api.instantly.ai/api/v2/campaigns/{campaign_id}/activate")
+            
+            launch_response = await self.make_instantly_request(
+                session,
+                'POST',
+                f"https://api.instantly.ai/api/v2/campaigns/{campaign_id}/activate",
+                headers=request_headers,  # Reuse the Bearer token headers
+                json={}  # Empty body required
+            )
+            
+            if "error" in launch_response:
+                raise Exception(f"Failed to launch campaign: {launch_response['error']}")
+                
+            print("✓ Campaign launched successfully")
+            
+            # Store campaign info after successful launch
             print("\nStoring campaign info in database...", flush=True)
             await asyncio.to_thread(
                 UserSpamcheckCampaigns.objects.create,
