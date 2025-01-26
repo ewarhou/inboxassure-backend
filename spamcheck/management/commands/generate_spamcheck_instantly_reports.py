@@ -77,24 +77,41 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"Invalid results format. Expected list, got: {type(results)}"))
             return 0.0
 
+        # Filter results for the specific provider
         provider_results = [r for r in results if isinstance(r, dict) and r.get('provider') == provider]
         if not provider_results:
             self.stdout.write(f"No results found for provider: {provider}")
             return 0.0
 
-        inbox_count = sum(1 for r in provider_results if isinstance(r, dict) and r.get('folder', '').lower() == 'inbox')
         total_count = len(provider_results)
         
-        self.stdout.write(f"Provider {provider}:")
-        self.stdout.write(f"- Inbox count: {inbox_count}")
-        self.stdout.write(f"- Total count: {total_count}")
+        # Count emails in inbox, only if they are received
+        inbox_count = sum(1 for r in provider_results if (
+            isinstance(r, dict) and 
+            r.get('status') == 'email_received' and  # Only count if email is received
+            r.get('folder', '').lower() == 'inbox'
+        ))
         
-        # Calculate score as percentage (0-1) with 2 decimal places
-        # Example: 8/8 = 1.00, 4/8 = 0.50, 6/12 = 0.50
+        # Log detailed information
+        self.stdout.write(f"\nProvider {provider} details:")
+        self.stdout.write(f"- Total emails: {total_count}")
+        self.stdout.write(f"- Emails in inbox: {inbox_count}")
+        self.stdout.write("- Status breakdown:")
+        status_count = {}
+        for r in provider_results:
+            status = r.get('status', 'unknown')
+            folder = r.get('folder', 'unknown')
+            key = f"{status} - {folder}"
+            status_count[key] = status_count.get(key, 0) + 1
+        for status, count in status_count.items():
+            self.stdout.write(f"  • {status}: {count}")
+        
+        # Calculate score (0-1) with 2 decimal places
+        # Non-received emails are counted as not in inbox
         score = inbox_count / total_count if total_count > 0 else 0.0
         rounded_score = round(score, 2)
         
-        self.stdout.write(f"- Score: {inbox_count}/{total_count} = {rounded_score}")
+        self.stdout.write(f"Final score: {inbox_count}/{total_count} = {rounded_score}")
         return rounded_score
 
     def parse_conditions(self, conditions_str):
