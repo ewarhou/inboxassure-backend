@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.core.validators import EmailValidator, MinValueValidator, MaxValueValidator
 import uuid
+from django.utils import timezone
 
 # Create your models here.
 
@@ -56,6 +57,11 @@ class UserSpamcheck(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.user.email}"
+
+    def save(self, *args, **kwargs):
+        # Force update of updated_at on every save
+        self.updated_at = timezone.now()
+        super().save(*args, **kwargs)
 
 
 class UserSpamcheckAccounts(models.Model):
