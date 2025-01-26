@@ -75,7 +75,8 @@ def create_spamcheck_instantly(request, payload: CreateSpamcheckSchema):
                 name=payload.name,
                 scheduled_at=payload.scheduled_at,
                 recurring_days=payload.recurring_days,
-                is_domain_based=payload.is_domain_based
+                is_domain_based=payload.is_domain_based,
+                conditions=payload.conditions
             )
             
             # Create spamcheck options with spamcheck reference
