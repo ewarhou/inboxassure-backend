@@ -35,13 +35,14 @@ class UserSpamcheck(models.Model):
     
     id = models.BigAutoField(primary_key=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='spamchecks')
-    user_organization = models.ForeignKey('settings.UserInstantly', on_delete=models.CASCADE, db_column='user_organization_id', null=True)
-    options = models.OneToOneField('UserSpamcheckCampaignOptions', on_delete=models.SET_NULL, null=True, blank=True, related_name='spamcheck_instance')
+    user_organization = models.ForeignKey('settings.UserInstantly', on_delete=models.CASCADE, related_name='spamchecks', null=True)
+    options = models.OneToOneField('UserSpamcheckCampaignOptions', on_delete=models.CASCADE, null=True, blank=True, related_name='spamcheck_instance')
     name = models.CharField(max_length=255)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')
     is_domain_based = models.BooleanField(default=False)
-    scheduled_at = models.DateTimeField()  # Launch date and time
-    recurring_days = models.IntegerField(null=True, blank=True)  # Number of days for recurring checks, null for one-time
+    scheduled_at = models.DateTimeField(null=True, blank=True)
+    recurring_days = models.IntegerField(null=True, blank=True)
+    conditions = models.CharField(max_length=255, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

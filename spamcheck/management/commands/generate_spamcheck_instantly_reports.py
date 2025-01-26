@@ -8,6 +8,7 @@ import asyncio
 from datetime import timedelta
 import json
 from asgiref.sync import sync_to_async
+import re
 
 class Command(BaseCommand):
     help = 'Generate reports for spamchecks in generating_reports status'
@@ -96,6 +97,110 @@ class Command(BaseCommand):
         self.stdout.write(f"- Score: {inbox_count}/{total_count} = {rounded_score}")
         return rounded_score
 
+    def parse_conditions(self, conditions_str):
+        """Parse conditions string into structured format"""
+        if not conditions_str:
+            # Default condition: google>=0.5sending=25/1
+            return {
+                'conditions': [('google', '>=', 0.5)],
+                'sending': (25, 1)
+            }
+
+        # Split into conditions and sending parts
+        parts = conditions_str.split('sending=')
+        if len(parts) != 2:
+            self.stdout.write(self.style.ERROR(f"Invalid conditions format: {conditions_str}"))
+            return None
+
+        conditions_part, sending_part = parts
+
+        # Parse sending limits
+        try:
+            true_limit, false_limit = map(int, sending_part.split('/'))
+        except ValueError:
+            self.stdout.write(self.style.ERROR(f"Invalid sending limits format: {sending_part}"))
+            return None
+
+        # Parse conditions
+        conditions = []
+        condition_parts = conditions_part.split('and') if 'and' in conditions_part else conditions_part.split('or')
+        operator = 'and' if 'and' in conditions_part else 'or'
+
+        pattern = r'(google|outlook)(>=|<=|>|<|=|!=)(\d+\.?\d*)'
+        for part in condition_parts:
+            match = re.match(pattern, part.strip())
+            if not match:
+                self.stdout.write(self.style.ERROR(f"Invalid condition format: {part}"))
+                return None
+            
+            metric, comparison, value = match.groups()
+            conditions.append((metric, comparison, float(value)))
+
+        return {
+            'conditions': conditions,
+            'operator': operator,
+            'sending': (true_limit, false_limit)
+        }
+
+    def evaluate_conditions(self, conditions_data, google_score, outlook_score):
+        """Evaluate conditions and return appropriate sending limit"""
+        if not conditions_data:
+            return 1  # Default to minimum sending limit if conditions are invalid
+
+        conditions = conditions_data['conditions']
+        operator = conditions_data.get('operator', 'and')
+        true_limit, false_limit = conditions_data['sending']
+
+        def evaluate_single_condition(condition):
+            metric, comparison, value = condition
+            score = google_score if metric == 'google' else outlook_score
+
+            if comparison == '>=':
+                return score >= value
+            elif comparison == '<=':
+                return score <= value
+            elif comparison == '>':
+                return score > value
+            elif comparison == '<':
+                return score < value
+            elif comparison == '=':
+                return score == value
+            elif comparison == '!=':
+                return score != value
+            return False
+
+        results = [evaluate_single_condition(condition) for condition in conditions]
+        final_result = all(results) if operator == 'and' else any(results)
+        
+        return true_limit if final_result else false_limit
+
+    async def update_sending_limit(self, session, email, limit, user_settings, organization_token):
+        """Update sending limit for an email account"""
+        url = "https://app.instantly.ai/backend/api/v1/account/update/bulk"
+        headers = {
+            "Cookie": f"__session={user_settings.instantly_user_token}",
+            "X-Org-Auth": organization_token,
+            "Content-Type": "application/json"
+        }
+        data = {
+            "payload": {
+                "daily_limit": str(limit)
+            },
+            "emails": [email]
+        }
+
+        try:
+            async with session.post(url, headers=headers, json=data) as response:
+                if response.status == 200:
+                    self.stdout.write(self.style.SUCCESS(f"Updated sending limit for {email} to {limit}"))
+                    return True
+                else:
+                    self.stdout.write(self.style.ERROR(f"Failed to update sending limit for {email}. Status: {response.status}"))
+                    return False
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"Error updating sending limit for {email}: {str(e)}"))
+            return False
+
     async def process_campaign(self, session, campaign, user_settings):
         """Process a single campaign and generate report"""
         try:
@@ -157,6 +262,21 @@ class Command(BaseCommand):
             )
 
             self.stdout.write(self.style.SUCCESS(f"Created report {report.id} for campaign {campaign.id}"))
+
+            # Parse conditions and update sending limit
+            conditions_data = self.parse_conditions(spamcheck.conditions)
+            if conditions_data:
+                sending_limit = self.evaluate_conditions(conditions_data, google_score, outlook_score)
+                self.stdout.write(f"Evaluated conditions - setting sending limit to: {sending_limit}")
+                
+                # Update sending limit in Instantly
+                await self.update_sending_limit(
+                    session,
+                    email_account,
+                    sending_limit,
+                    user_settings,
+                    organization.instantly_organization_token
+                )
 
             # Get user and organization_id using sync_to_async
             get_user = sync_to_async(lambda: campaign.spamcheck.user)()
