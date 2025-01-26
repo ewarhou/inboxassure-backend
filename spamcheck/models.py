@@ -43,6 +43,7 @@ class UserSpamcheck(models.Model):
     scheduled_at = models.DateTimeField(null=True, blank=True)
     recurring_days = models.IntegerField(null=True, blank=True)
     conditions = models.CharField(max_length=255, null=True, blank=True)
+    reports_waiting_time = models.FloatField(null=True, blank=True, default=1.0, help_text="Time in hours to wait before generating reports (e.g., 0.5 for 30min, 3 for 3h)")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

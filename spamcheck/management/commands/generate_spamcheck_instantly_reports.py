@@ -372,7 +372,6 @@ class Command(BaseCommand):
     async def handle_async(self, *args, **options):
         """Async entry point"""
         now = timezone.now()
-        two_hours_ago = now - timedelta(hours=2)
 
         self.stdout.write(f"\n{'='*50}")
         self.stdout.write(f"Generating reports for spamchecks at {now}")
@@ -381,8 +380,7 @@ class Command(BaseCommand):
         # Get spamchecks that need report generation
         spamchecks = await asyncio.to_thread(
             lambda: list(UserSpamcheck.objects.filter(
-                status='generating_reports',
-                updated_at__lte=two_hours_ago
+                status='generating_reports'
             ).select_related('user'))
         )
 
@@ -407,4 +405,25 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         """Entry point for the command"""
-        asyncio.run(self.handle_async(*args, **options)) 
+        try:
+            # Get spamchecks that need reports generated
+            spamchecks = UserSpamcheck.objects.filter(
+                status='generating_reports'
+            ).exclude(
+                Q(updated_at__gte=timezone.now() - timezone.timedelta(minutes=5))  # Skip if updated in last 5 minutes
+            )
+
+            for spamcheck in spamchecks:
+                # Get waiting time in hours (default 1 hour if not set)
+                waiting_time = spamcheck.reports_waiting_time or 1.0
+                
+                # Check if enough time has passed since last update
+                time_threshold = timezone.now() - timezone.timedelta(hours=waiting_time)
+                if spamcheck.updated_at > time_threshold:
+                    self.stdout.write(f"Skipping spamcheck {spamcheck.id} - Not enough time passed (waiting {waiting_time}h)")
+                    continue
+
+                self.stdout.write(f"Processing spamcheck {spamcheck.id}")
+                asyncio.run(self.handle_async(*args, **options))
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"Error processing spamchecks: {str(e)}")) 

@@ -31,6 +31,7 @@ def create_spamcheck_instantly(request, payload: CreateSpamcheckSchema):
         - body: Email body template
         - scheduled_at: When to run the spamcheck
         - recurring_days: Optional, number of days for recurring checks
+        - reports_waiting_time: Optional, reports waiting time
     """
     user = request.auth
     
@@ -76,7 +77,8 @@ def create_spamcheck_instantly(request, payload: CreateSpamcheckSchema):
                 scheduled_at=payload.scheduled_at,
                 recurring_days=payload.recurring_days,
                 is_domain_based=payload.is_domain_based,
-                conditions=payload.conditions
+                conditions=payload.conditions,
+                reports_waiting_time=payload.reports_waiting_time
             )
             
             # Create spamcheck options with spamcheck reference
