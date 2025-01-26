@@ -97,12 +97,12 @@ class Command(BaseCommand):
                 json=emailguard_data
             )
 
-            if "data" not in emailguard_data or "filter_phrase" not in emailguard_data["data"]:
-                raise Exception(f"EmailGuard response missing filter_phrase: {emailguard_data}")
+            if "data" not in emailguard_data or "uuid" not in emailguard_data["data"]:
+                raise Exception(f"EmailGuard response missing uuid: {emailguard_data}")
             
-            emailguard_tag = emailguard_data["data"]["filter_phrase"]
+            emailguard_tag = emailguard_data["data"]["uuid"]
             test_emails = emailguard_data["data"]["inbox_placement_test_emails"]
-            print(f"✓ Got EmailGuard tag: {emailguard_tag}")
+            print(f"✓ Got EmailGuard tag (UUID): {emailguard_tag}")
             print(f"✓ Got {len(test_emails)} test email addresses")
 
             # 3. Create campaign with all settings
