@@ -9,9 +9,11 @@ from datetime import timedelta
 import json
 from asgiref.sync import sync_to_async
 import re
+import requests
+import logging
 
 class Command(BaseCommand):
-    help = 'Generate reports for spamchecks in generating_reports status'
+    help = 'Generate reports for completed spamchecks'
 
     def __init__(self):
         super().__init__()
@@ -67,152 +69,135 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"Error getting EmailGuard report: {str(e)}"))
             return None
 
-    def calculate_score(self, results, provider):
+    def calculate_score(self, data, provider):
         """Calculate score for a specific provider"""
-        if not results or not isinstance(results, list):
-            self.stdout.write(self.style.ERROR(f"Invalid results format. Expected list, got: {type(results)}"))
+        self.stdout.write(f"\nCalculating score for {provider}:")
+        
+        if not data or 'inbox_placement_test_emails' not in data:
+            self.stdout.write("  No data available")
             return 0.0
-
-        # Filter results for the specific provider
-        provider_results = [r for r in results if isinstance(r, dict) and r.get('provider') == provider]
-        if not provider_results:
-            self.stdout.write(f"No results found for provider: {provider}")
+            
+        emails = data['inbox_placement_test_emails']
+        total_count = len(emails)
+        
+        if total_count == 0:
+            self.stdout.write("  No emails found")
             return 0.0
-
-        total_count = len(provider_results)
+            
+        inbox_count = sum(1 for email in emails 
+                         if email.get('provider') == provider 
+                         and email.get('status') == 'received' 
+                         and email.get('folder', '').lower() == 'inbox')
         
-        # Count emails in inbox, only if they are received
-        inbox_count = sum(1 for r in provider_results if (
-            isinstance(r, dict) and 
-            r.get('status') == 'email_received' and  # Only count if email is received
-            r.get('folder', '').lower() == 'inbox'
-        ))
+        self.stdout.write(f"  Total emails: {total_count}")
+        self.stdout.write(f"  Inbox count: {inbox_count}")
         
-        # Log detailed information
-        self.stdout.write(f"\nProvider {provider} details:")
-        self.stdout.write(f"- Total emails: {total_count}")
-        self.stdout.write(f"- Emails in inbox: {inbox_count}")
-        self.stdout.write("- Status breakdown:")
-        status_count = {}
-        for r in provider_results:
-            status = r.get('status', 'unknown')
-            folder = r.get('folder', 'unknown')
-            key = f"{status} - {folder}"
-            status_count[key] = status_count.get(key, 0) + 1
-        for status, count in status_count.items():
-            self.stdout.write(f"  • {status}: {count}")
-        
-        # Calculate score (0-1) with 2 decimal places
-        # Non-received emails are counted as not in inbox
-        score = inbox_count / total_count if total_count > 0 else 0.0
-        rounded_score = round(score, 2)
-        
-        self.stdout.write(f"Final score: {inbox_count}/{total_count} = {rounded_score}")
-        return rounded_score
+        score = round(inbox_count / total_count, 2)
+        self.stdout.write(f"  Final score: {score}")
+        return score
 
     def parse_conditions(self, conditions_str):
         """Parse conditions string into structured format"""
-        if not conditions_str:
-            # Default condition: google>=0.5sending=25/1
-            return {
-                'conditions': [('google', '>=', 0.5)],
-                'sending': (25, 1)
-            }
-
-        # Split into conditions and sending parts
-        parts = conditions_str.split('sending=')
-        if len(parts) != 2:
-            self.stdout.write(self.style.ERROR(f"Invalid conditions format: {conditions_str}"))
-            return None
-
-        conditions_part, sending_part = parts
-
-        # Parse sending limits
         try:
-            true_limit, false_limit = map(int, sending_part.split('/'))
-        except ValueError:
-            self.stdout.write(self.style.ERROR(f"Invalid sending limits format: {sending_part}"))
-            return None
-
-        # Parse conditions
-        conditions = []
-        condition_parts = conditions_part.split('and') if 'and' in conditions_part else conditions_part.split('or')
-        operator = 'and' if 'and' in conditions_part else 'or'
-
-        pattern = r'(google|outlook)(>=|<=|>|<|=|!=)(\d+\.?\d*)'
-        for part in condition_parts:
-            match = re.match(pattern, part.strip())
-            if not match:
-                self.stdout.write(self.style.ERROR(f"Invalid condition format: {part}"))
+            conditions = []
+            parts = conditions_str.split('sending=')
+            if len(parts) != 2:
                 return None
+                
+            criteria, limits = parts
+            sending_limits = limits.split('/')
+            if len(sending_limits) != 2:
+                return None
+                
+            daily_limit, hourly_limit = map(int, sending_limits)
             
-            metric, comparison, value = match.groups()
-            conditions.append((metric, comparison, float(value)))
-
-        return {
-            'conditions': conditions,
-            'operator': operator,
-            'sending': (true_limit, false_limit)
-        }
-
-    def evaluate_conditions(self, conditions_data, google_score, outlook_score):
-        """Evaluate conditions and return appropriate sending limit"""
-        if not conditions_data:
-            return 1  # Default to minimum sending limit if conditions are invalid
-
-        conditions = conditions_data['conditions']
-        operator = conditions_data.get('operator', 'and')
-        true_limit, false_limit = conditions_data['sending']
-
-        def evaluate_single_condition(condition):
-            metric, comparison, value = condition
-            score = google_score if metric == 'google' else outlook_score
-
-            if comparison == '>=':
-                return score >= value
-            elif comparison == '<=':
-                return score <= value
-            elif comparison == '>':
-                return score > value
-            elif comparison == '<':
-                return score < value
-            elif comparison == '=':
-                return score == value
-            elif comparison == '!=':
-                return score != value
-            return False
-
-        results = [evaluate_single_condition(condition) for condition in conditions]
-        final_result = all(results) if operator == 'and' else any(results)
-        
-        return true_limit if final_result else false_limit
-
-    async def update_sending_limit(self, session, email, limit, user_settings, organization_token):
-        """Update sending limit for an email account"""
-        url = "https://app.instantly.ai/backend/api/v1/account/update/bulk"
-        headers = {
-            "Cookie": f"__session={user_settings.instantly_user_token}",
-            "X-Org-Auth": organization_token,
-            "Content-Type": "application/json"
-        }
-        data = {
-            "payload": {
-                "daily_limit": str(limit)
-            },
-            "emails": [email]
-        }
-
-        try:
-            async with session.post(url, headers=headers, json=data) as response:
-                if response.status == 200:
-                    self.stdout.write(self.style.SUCCESS(f"Updated sending limit for {email} to {limit}"))
-                    return True
-                else:
-                    self.stdout.write(self.style.ERROR(f"Failed to update sending limit for {email}. Status: {response.status}"))
-                    return False
+            # Parse criteria
+            if 'and' in criteria:
+                subcriteria = criteria.split('and')
+                op = 'and'
+            elif 'or' in criteria:
+                subcriteria = criteria.split('or')
+                op = 'or'
+            else:
+                subcriteria = [criteria]
+                op = 'single'
+                
+            for criterion in subcriteria:
+                if '>=' in criterion:
+                    provider, value = criterion.split('>=')
+                    conditions.append({
+                        'provider': provider.strip(),
+                        'operator': '>=',
+                        'value': float(value)
+                    })
+                    
+            return {
+                'operator': op,
+                'conditions': conditions,
+                'daily_limit': daily_limit,
+                'hourly_limit': hourly_limit
+            }
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"Error updating sending limit for {email}: {str(e)}"))
-            return False
+            self.stdout.write(self.style.ERROR(f"Error parsing conditions: {str(e)}"))
+            return None
+
+    def evaluate_conditions(self, spamcheck, google_score, outlook_score):
+        """Evaluate conditions and update sending limits if met"""
+        parsed = self.parse_conditions(spamcheck.conditions)
+        if not parsed:
+            self.stdout.write("  Invalid conditions format")
+            return
+            
+        scores = {'google': google_score, 'outlook': outlook_score}
+        conditions_met = []
+        
+        for condition in parsed['conditions']:
+            provider = condition['provider']
+            if provider not in scores:
+                continue
+                
+            score = scores[provider]
+            met = score >= condition['value']
+            conditions_met.append(met)
+            
+        final_result = all(conditions_met) if parsed['operator'] == 'and' else any(conditions_met)
+        
+        if final_result:
+            self.stdout.write("  Conditions met, updating sending limits")
+            self.update_sending_limit(
+                spamcheck.email_account.id,
+                parsed['daily_limit'],
+                parsed['hourly_limit']
+            )
+        else:
+            self.stdout.write("  Conditions not met")
+
+    def update_sending_limit(self, account_id, daily_limit, hourly_limit):
+        """Update sending limit for an email account"""
+        try:
+            url = "https://app.instantly.ai/api/v1/account/update"
+            headers = {
+                "Content-Type": "application/json",
+                "X-Access-Token": "your_access_token"
+            }
+            data = {
+                "id": account_id,
+                "sending_limit": {
+                    "daily": daily_limit,
+                    "hourly": hourly_limit
+                }
+            }
+            
+            self.stdout.write(f"  Updating sending limits - Daily: {daily_limit}, Hourly: {hourly_limit}")
+            response = requests.post(url, headers=headers, json=data)
+            
+            if response.status_code == 200:
+                self.stdout.write("  Sending limits updated successfully")
+            else:
+                self.stdout.write(self.style.ERROR(f"  Failed to update sending limits: {response.status_code}"))
+                
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"  Error updating sending limits: {str(e)}"))
 
     async def process_campaign(self, session, campaign, user_settings):
         """Process a single campaign and generate report"""
@@ -279,17 +264,7 @@ class Command(BaseCommand):
             # Parse conditions and update sending limit
             conditions_data = self.parse_conditions(spamcheck.conditions)
             if conditions_data:
-                sending_limit = self.evaluate_conditions(conditions_data, google_score, outlook_score)
-                self.stdout.write(f"Evaluated conditions - setting sending limit to: {sending_limit}")
-                
-                # Update sending limit in Instantly
-                await self.update_sending_limit(
-                    session,
-                    email_account,
-                    sending_limit,
-                    user_settings,
-                    organization.instantly_organization_token
-                )
+                self.evaluate_conditions(spamcheck, google_score, outlook_score)
 
             # Get user and organization_id using sync_to_async
             get_user = sync_to_async(lambda: campaign.spamcheck.user)()
@@ -401,25 +376,89 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         """Entry point for the command"""
-        try:
-            # Get spamchecks that need reports generated
-            spamchecks = UserSpamcheck.objects.filter(
-                status='generating_reports'
-            ).exclude(
-                Q(updated_at__gte=timezone.now() - timezone.timedelta(minutes=5))  # Skip if updated in last 5 minutes
-            )
+        self.stdout.write("\n=== Starting Report Generation ===")
+        self.stdout.write(f"Current time: {timezone.now()}")
 
-            for spamcheck in spamchecks:
-                # Get waiting time in hours (default 1 hour if not set)
-                waiting_time = spamcheck.reports_waiting_time or 1.0
+        # Get spamchecks that need reports
+        spamchecks = UserSpamcheck.objects.filter(
+            status='generating_reports'
+        ).prefetch_related('campaigns')
+
+        self.stdout.write(f"\nFound {spamchecks.count()} spamchecks in generating_reports status")
+
+        for spamcheck in spamchecks:
+            self.stdout.write(f"\nProcessing Spamcheck ID: {spamcheck.id}")
+            self.stdout.write(f"Last updated: {spamcheck.updated_at}")
+            
+            # Calculate waiting time
+            waiting_time = spamcheck.reports_waiting_time or 1.0  # Default 1 hour if not set
+            self.stdout.write(f"Waiting time configured: {waiting_time} hours")
+            
+            time_since_update = (timezone.now() - spamcheck.updated_at).total_seconds() / 3600
+            self.stdout.write(f"Time since last update: {time_since_update:.2f} hours")
+
+            if time_since_update < waiting_time:
+                self.stdout.write(f"Not enough time has passed. Skipping...")
+                continue
+
+            self.stdout.write("Enough time has passed. Processing campaigns...")
+            
+            # Process each campaign
+            for campaign in spamcheck.campaigns.all():
+                self.stdout.write(f"\n  Campaign ID: {campaign.id}")
+                self.stdout.write(f"  EmailGuard Tag: {campaign.emailguard_tag}")
                 
-                # Check if enough time has passed since last update
-                time_threshold = timezone.now() - timezone.timedelta(hours=waiting_time)
-                if spamcheck.updated_at > time_threshold:
-                    self.stdout.write(f"Skipping spamcheck {spamcheck.id} - Not enough time passed since last update (waiting {waiting_time}h)")
-                    continue
+                try:
+                    # Call EmailGuard API
+                    url = f"https://app.emailguard.io/api/v1/inbox-placement-tests/{campaign.emailguard_tag}"
+                    headers = {"Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTg1ZjZhNjE2ZjY5MzJiZjc3ZjJiZiIsImlhdCI6MTcwOTc0NzA1MCwiZXhwIjoxNzQxMjgzMDUwfQ.Hs_YZZkKwxqLv7IHs6J8vZVIHGYBGWBtS6emyOhJr8k"}
+                    
+                    self.stdout.write("  Calling EmailGuard API...")
+                    response = requests.get(url, headers=headers)
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        self.stdout.write("  API call successful")
+                        
+                        # Calculate scores
+                        google_score = self.calculate_score(data, 'gmail')
+                        outlook_score = self.calculate_score(data, 'outlook')
+                        
+                        self.stdout.write(f"  Google Score: {google_score}")
+                        self.stdout.write(f"  Outlook Score: {outlook_score}")
+                        
+                        # Create or update report
+                        report, created = UserSpamcheckReport.objects.update_or_create(
+                            spamcheck_instantly=spamcheck,
+                            email_account=campaign.email_account,
+                            defaults={
+                                'google_pro_score': google_score,
+                                'outlook_pro_score': outlook_score,
+                                'report_link': f"https://app.emailguard.io/inbox-placement-tests/{campaign.emailguard_tag}"
+                            }
+                        )
+                        
+                        self.stdout.write(f"  Report {'created' if created else 'updated'} successfully")
+                        
+                        # Update sending limits based on conditions
+                        if spamcheck.conditions:
+                            self.stdout.write(f"  Checking conditions: {spamcheck.conditions}")
+                            self.evaluate_conditions(spamcheck, google_score, outlook_score)
+                        else:
+                            self.stdout.write("  No conditions specified, using default")
+                            if google_score >= 0.5:
+                                self.update_sending_limit(campaign.email_account.id, 25, 1)
+                                self.stdout.write("  Applied default condition: google>=0.5sending=25/1")
+                            
+                    else:
+                        self.stdout.write(self.style.ERROR(f"  API call failed with status {response.status_code}"))
+                        
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(f"  Error processing campaign: {str(e)}"))
 
-                self.stdout.write(f"Processing spamcheck {spamcheck.id} - {waiting_time}h passed since last update")
-                asyncio.run(self.handle_async(*args, **options))
-        except Exception as e:
-            self.stdout.write(self.style.ERROR(f"Error processing spamchecks: {str(e)}")) 
+            # Update spamcheck status to completed
+            spamcheck.status = 'completed'
+            spamcheck.save()
+            self.stdout.write(f"Spamcheck {spamcheck.id} marked as completed")
+
+        self.stdout.write("\n=== Report Generation Complete ===") 

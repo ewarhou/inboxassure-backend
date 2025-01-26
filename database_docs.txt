@@ -138,19 +138,21 @@ name (varchar): Name of the spamcheck (unique within user and organization)
 scheduled_at (timestamp): When the spamcheck is scheduled to run
 recurring_days (integer, nullable): Number of days for recurring checks
 status (varchar): Current status (pending, in_progress, generating_reports, completed, failed)
+is_domain_based (boolean): Whether to filter accounts by domain and use one per domain
+conditions (varchar, nullable): Conditions for sending limit (e.g., 'google>=0.5andoutlook>=0.5sending=10/0')
+reports_waiting_time (float, nullable): Time in hours to wait before generating reports (0 for immediate, 0.5 for 30min, 1 for 1h, etc). Default is 1h
 created_at (timestamp): Creation timestamp
-updated_at (timestamp): Last update timestamp
-
-Constraints:
-- Unique together: [user_id, user_organization_id, name]
+updated_at (timestamp): Last update timestamp (auto-updated on every save)
 
 Example Row:
-jsonCopy{
+{
   "id": 1,
   "name": "Weekly Spam Check",
   "scheduled_at": "2024-03-20T10:00:00Z",
   "recurring_days": 7,
-  "status": "pending"
+  "status": "pending",
+  "conditions": "google>=0.5andoutlook>=0.5sending=10/0",
+  "reports_waiting_time": 1.0
 }
 
 8. user_spamcheck_campaign_instantly_options
@@ -164,11 +166,9 @@ link_tracking (boolean): Whether to track link clicks
 text_only (boolean): Whether to send text-only emails
 subject (varchar): Email subject template
 body (text): Email body template
-created_at (timestamp): Creation timestamp
-updated_at (timestamp): Last update timestamp
 
 Example Row:
-jsonCopy{
+{
   "id": 1,
   "open_tracking": true,
   "link_tracking": true,
@@ -190,7 +190,7 @@ created_at (timestamp): Creation timestamp
 updated_at (timestamp): Last update timestamp
 
 Example Row:
-jsonCopy{
+{
   "id": 1,
   "email_account": "test@example.com",
   "created_at": "2024-03-20T09:00:00Z"
@@ -212,7 +212,7 @@ created_at (timestamp): Creation timestamp
 updated_at (timestamp): Last update timestamp
 
 Example Row:
-jsonCopy{
+{
   "id": 1,
   "instantly_campaign_id": "camp_123456",
   "emailguard_tag": "tag_123456",
@@ -220,17 +220,42 @@ jsonCopy{
   "created_at": "2024-03-20T09:30:00Z"
 }
 
+11. user_spamcheck_reports
+Stores spamcheck report results.
+Columns:
+
+id (UUID, PK): Auto-generated unique identifier
+organization_id (BigInt, FK): Reference to user_instantly
+email_account (varchar): Email account tested
+report_link (URL): Link to detailed report
+google_pro_score (decimal): Google score (0-1, 2 decimal places)
+outlook_pro_score (decimal): Outlook score (0-1, 2 decimal places)
+spamcheck_instantly_id (BigInt, FK, nullable): Reference to user_spamcheck_instantly
+created_at (timestamp): Creation timestamp
+
+Example Row:
+{
+  "id": "uuid-string",
+  "email_account": "test@example.com",
+  "report_link": "https://app.emailguard.io/reports/uuid",
+  "google_pro_score": 0.75,
+  "outlook_pro_score": 0.80,
+  "created_at": "2024-03-20T10:30:00Z"
+}
+
 Relationships:
 - user_spamcheck_instantly.options_id → user_spamcheck_campaign_instantly_options.id (One-to-One)
 - user_spamcheck_accounts_instantly.spamcheck_id → user_spamcheck_instantly.id (Many-to-One)
 - user_spamcheck_campaigns_instantly.spamcheck_id → user_spamcheck_instantly.id (Many-to-One)
 - user_spamcheck_campaigns_instantly.account_id → user_spamcheck_accounts_instantly.id (Many-to-One)
+- user_spamcheck_reports.spamcheck_instantly_id → user_spamcheck_instantly.id (Many-to-One)
 - All tables have user_id linking to auth_user (Many-to-One)
 - All tables have organization_id linking to user_instantly (Many-to-One)
 
 Common Patterns:
-- All tables use BigInt for primary keys with auto-generation
-- All tables track creation and update timestamps
+- All tables use BigInt for primary keys with auto-generation (except reports which use UUID)
+- All tables track creation timestamps
+- Most tables track update timestamps
 - All tables have user and organization references
 - Status fields use predefined choices
 - Foreign keys use appropriate ON DELETE behaviors
@@ -241,6 +266,7 @@ Key Constraints:
 - Options are linked one-to-one with spamchecks
 - Campaigns must reference valid accounts and spamchecks
 - All foreign key relationships maintain referential integrity
+- Score fields are validated to be between 0 and 1 with 2 decimal places
 
 Detailed Database Structure
 Tables and Their Columns
