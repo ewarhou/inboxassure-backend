@@ -2,11 +2,12 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.db.models import Q
 from spamcheck.models import UserSpamcheck, UserSpamcheckCampaigns, UserSpamcheckReport
-from settings.models import UserSettings
+from settings.models import UserSettings, UserInstantly
 import aiohttp
 import asyncio
 from datetime import timedelta
 import json
+from asgiref.sync import sync_to_async
 
 class Command(BaseCommand):
     help = 'Generate reports for spamchecks in generating_reports status'
@@ -14,6 +15,26 @@ class Command(BaseCommand):
     def __init__(self):
         super().__init__()
         self.rate_limit = asyncio.Semaphore(10)  # Rate limit: 10 requests per second
+
+    async def delete_instantly_campaign(self, session, campaign_id, instantly_api_key):
+        """Delete campaign from Instantly"""
+        url = f"https://api.instantly.ai/api/v2/campaigns/{campaign_id}"
+        headers = {
+            "Authorization": f"Bearer {instantly_api_key}"
+        }
+
+        try:
+            self.stdout.write(f"Deleting campaign {campaign_id} from Instantly")
+            async with session.delete(url, headers=headers) as response:
+                if response.status == 200:
+                    self.stdout.write(self.style.SUCCESS(f"Successfully deleted campaign {campaign_id} from Instantly"))
+                    return True
+                else:
+                    self.stdout.write(self.style.ERROR(f"Failed to delete campaign {campaign_id} from Instantly. Status: {response.status}"))
+                    return False
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"Error deleting campaign {campaign_id} from Instantly: {str(e)}"))
+            return False
 
     async def get_emailguard_report(self, session, emailguard_tag, emailguard_api_key):
         """Get report from EmailGuard API"""
@@ -115,18 +136,51 @@ class Command(BaseCommand):
             self.stdout.write(f"- Google Pro Score: {google_score}")
             self.stdout.write(f"- Outlook Pro Score: {outlook_score}")
 
-            # Create report
-            report = await asyncio.to_thread(
-                UserSpamcheckReport.objects.create,
-                organization=campaign.organization,
-                email_account=campaign.account_id.email_account,
+            # Get required properties using sync_to_async
+            get_organization = sync_to_async(lambda: campaign.organization)()
+            get_email_account = sync_to_async(lambda: campaign.account_id.email_account)()
+            get_spamcheck = sync_to_async(lambda: campaign.spamcheck)()
+            
+            organization = await get_organization
+            email_account = await get_email_account
+            spamcheck = await get_spamcheck
+
+            # Create report using sync_to_async
+            create_report = sync_to_async(UserSpamcheckReport.objects.create)
+            report = await create_report(
+                organization=organization,
+                email_account=email_account,
                 report_link=f"https://app.emailguard.io/inbox-placement-tests/{campaign.emailguard_tag}",
                 google_pro_score=google_score,
                 outlook_pro_score=outlook_score,
-                spamcheck_instantly=campaign.spamcheck
+                spamcheck_instantly=spamcheck
             )
 
             self.stdout.write(self.style.SUCCESS(f"Created report {report.id} for campaign {campaign.id}"))
+
+            # Get user and organization_id using sync_to_async
+            get_user = sync_to_async(lambda: campaign.spamcheck.user)()
+            get_org_id = sync_to_async(lambda: campaign.organization.instantly_organization_id)()
+            
+            user = await get_user
+            org_id = await get_org_id
+
+            # Get instantly API key from UserInstantly model using sync_to_async
+            get_user_instantly = sync_to_async(UserInstantly.objects.get)
+            user_instantly = await get_user_instantly(
+                user=user,
+                instantly_organization_id=org_id
+            )
+
+            # Delete campaign from Instantly
+            if await self.delete_instantly_campaign(session, campaign.instantly_campaign_id, user_instantly.instantly_api_key):
+                # Update campaign status to deleted using sync_to_async
+                update_campaign = sync_to_async(lambda: setattr(campaign, 'campaign_status', 'deleted') or campaign.save())
+                await update_campaign()
+                self.stdout.write(self.style.SUCCESS(f"Campaign {campaign.id} status updated to deleted"))
+            else:
+                self.stdout.write(self.style.ERROR(f"Failed to delete campaign {campaign.id} from Instantly"))
+
             return True
 
         except Exception as e:
