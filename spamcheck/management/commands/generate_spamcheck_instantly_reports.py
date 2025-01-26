@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.db.models import Q
-from spamcheck.models import UserSpamcheck, UserSpamcheckCampaigns, UserSpamcheckReport
+from spamcheck.models import UserSpamcheck, UserSpamcheckCampaigns, UserSpamcheckReport, UserSpamcheckAccounts
 from settings.models import UserSettings, UserInstantly
 import aiohttp
 import asyncio
@@ -11,6 +11,7 @@ from asgiref.sync import sync_to_async
 import re
 import requests
 import logging
+from collections import defaultdict
 
 class Command(BaseCommand):
     help = 'Generate reports for completed spamchecks'
@@ -141,7 +142,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"Error parsing conditions: {str(e)}"))
             return None
 
-    def evaluate_conditions(self, spamcheck, google_score, outlook_score):
+    def evaluate_conditions(self, spamcheck, google_score, outlook_score, email_account):
         """Evaluate conditions and update sending limits if met"""
         parsed = self.parse_conditions(spamcheck.conditions)
         if not parsed:
@@ -165,14 +166,14 @@ class Command(BaseCommand):
         if final_result:
             self.stdout.write("  Conditions met, updating sending limits")
             self.update_sending_limit(
-                spamcheck.email_account.id,
+                email_account,
                 parsed['daily_limit'],
                 parsed['hourly_limit']
             )
         else:
             self.stdout.write("  Conditions not met")
 
-    def update_sending_limit(self, account_id, daily_limit, hourly_limit):
+    def update_sending_limit(self, email_account, daily_limit, hourly_limit):
         """Update sending limit for an email account"""
         try:
             url = "https://app.instantly.ai/api/v1/account/update"
@@ -181,7 +182,7 @@ class Command(BaseCommand):
                 "X-Access-Token": "your_access_token"
             }
             data = {
-                "id": account_id,
+                "id": email_account,
                 "sending_limit": {
                     "daily": daily_limit,
                     "hourly": hourly_limit
@@ -264,7 +265,7 @@ class Command(BaseCommand):
             # Parse conditions and update sending limit
             conditions_data = self.parse_conditions(spamcheck.conditions)
             if conditions_data:
-                self.evaluate_conditions(spamcheck, google_score, outlook_score)
+                self.evaluate_conditions(spamcheck, google_score, outlook_score, email_account)
 
             # Get user and organization_id using sync_to_async
             get_user = sync_to_async(lambda: campaign.spamcheck.user)()
@@ -319,6 +320,9 @@ class Command(BaseCommand):
                 self.stdout.write(f"No completed campaigns found for spamcheck {spamcheck.id}")
                 return False
 
+            # Store domain scores if is_domain_based is True
+            domain_scores = defaultdict(list)  # {domain: [(google_score, outlook_score, report_link), ...]}
+            
             # Process all campaigns
             results = await asyncio.gather(*[
                 self.process_campaign(session, campaign, user_settings)
@@ -331,6 +335,57 @@ class Command(BaseCommand):
                     lambda: setattr(spamcheck, 'status', 'completed') or spamcheck.save()
                 )
                 self.stdout.write(self.style.SUCCESS(f"Spamcheck {spamcheck.id} marked as completed"))
+
+                # Process domain-based scores for unused accounts
+                if spamcheck.is_domain_based and domain_scores:
+                    self.stdout.write("\nProcessing domain-based scores for unused accounts...")
+                    
+                    # Get all accounts for this spamcheck
+                    all_accounts = spamcheck.accounts.all()
+                    processed_accounts = set(campaign.account_id.email_account for campaign in spamcheck.campaigns.all())
+                    
+                    for account in all_accounts:
+                        if account.email_account not in processed_accounts:
+                            try:
+                                domain = account.email_account.split('@')[1]
+                                if domain in domain_scores:
+                                    # Calculate average scores for the domain
+                                    avg_google = sum(score[0] for score in domain_scores[domain]) / len(domain_scores[domain])
+                                    avg_outlook = sum(score[1] for score in domain_scores[domain]) / len(domain_scores[domain])
+                                    report_link = domain_scores[domain][0][2]  # Use first report link
+                                    
+                                    self.stdout.write(f"\n  Processing unused account: {account.email_account}")
+                                    self.stdout.write(f"  Using domain {domain} average scores:")
+                                    self.stdout.write(f"  - Google Score: {avg_google}")
+                                    self.stdout.write(f"  - Outlook Score: {avg_outlook}")
+                                    
+                                    # Create report for unused account
+                                    report, created = UserSpamcheckReport.objects.update_or_create(
+                                        spamcheck_instantly=spamcheck,
+                                        email_account=account.email_account,
+                                        defaults={
+                                            'organization': spamcheck.user_organization,
+                                            'google_pro_score': avg_google,
+                                            'outlook_pro_score': avg_outlook,
+                                            'report_link': report_link
+                                        }
+                                    )
+                                    
+                                    self.stdout.write(f"  Report {'created' if created else 'updated'} successfully")
+                                    
+                                    # Update sending limits based on conditions
+                                    if spamcheck.conditions:
+                                        self.stdout.write(f"  Checking conditions: {spamcheck.conditions}")
+                                        self.evaluate_conditions(spamcheck, avg_google, avg_outlook, account.email_account)
+                                    else:
+                                        self.stdout.write("  No conditions specified, using default")
+                                        if avg_google >= 0.5:
+                                            self.update_sending_limit(account.email_account, 25, 1)
+                                            self.stdout.write("  Applied default condition: google>=0.5sending=25/1")
+                                            
+                            except Exception as e:
+                                self.stdout.write(self.style.ERROR(f"  Error processing unused account {account.email_account}: {str(e)}"))
+
                 return True
             else:
                 self.stdout.write(self.style.ERROR(f"Some campaigns failed for spamcheck {spamcheck.id}"))
@@ -382,7 +437,7 @@ class Command(BaseCommand):
         # Get spamchecks that need reports
         spamchecks = UserSpamcheck.objects.filter(
             status='generating_reports'
-        ).prefetch_related('campaigns')
+        ).prefetch_related('campaigns', 'accounts')
 
         self.stdout.write(f"\nFound {spamchecks.count()} spamchecks in generating_reports status")
 
@@ -402,6 +457,9 @@ class Command(BaseCommand):
                 continue
 
             self.stdout.write("Enough time has passed. Processing campaigns...")
+            
+            # Store domain scores if is_domain_based is True
+            domain_scores = defaultdict(list)  # {domain: [(google_score, outlook_score, report_link), ...]}
             
             # Process each campaign
             for campaign in spamcheck.campaigns.all():
@@ -430,8 +488,9 @@ class Command(BaseCommand):
                         # Create or update report
                         report, created = UserSpamcheckReport.objects.update_or_create(
                             spamcheck_instantly=spamcheck,
-                            email_account=campaign.email_account,
+                            email_account=campaign.account_id.email_account,
                             defaults={
+                                'organization': spamcheck.user_organization,
                                 'google_pro_score': google_score,
                                 'outlook_pro_score': outlook_score,
                                 'report_link': f"https://app.emailguard.io/inbox-placement-tests/{campaign.emailguard_tag}"
@@ -440,14 +499,24 @@ class Command(BaseCommand):
                         
                         self.stdout.write(f"  Report {'created' if created else 'updated'} successfully")
                         
+                        # Store domain scores if is_domain_based is True
+                        if spamcheck.is_domain_based and campaign.account_id and campaign.account_id.email_account:
+                            domain = campaign.account_id.email_account.split('@')[1]
+                            domain_scores[domain].append((
+                                google_score,
+                                outlook_score,
+                                f"https://app.emailguard.io/inbox-placement-tests/{campaign.emailguard_tag}"
+                            ))
+                            self.stdout.write(f"  Stored scores for domain {domain}")
+                        
                         # Update sending limits based on conditions
                         if spamcheck.conditions:
                             self.stdout.write(f"  Checking conditions: {spamcheck.conditions}")
-                            self.evaluate_conditions(spamcheck, google_score, outlook_score)
+                            self.evaluate_conditions(spamcheck, google_score, outlook_score, campaign.account_id.email_account)
                         else:
                             self.stdout.write("  No conditions specified, using default")
                             if google_score >= 0.5:
-                                self.update_sending_limit(campaign.email_account.id, 25, 1)
+                                self.update_sending_limit(campaign.account_id.email_account, 25, 1)
                                 self.stdout.write("  Applied default condition: google>=0.5sending=25/1")
                             
                     else:
@@ -455,6 +524,56 @@ class Command(BaseCommand):
                         
                 except Exception as e:
                     self.stdout.write(self.style.ERROR(f"  Error processing campaign: {str(e)}"))
+
+            # Process domain-based scores for unused accounts
+            if spamcheck.is_domain_based and domain_scores:
+                self.stdout.write("\nProcessing domain-based scores for unused accounts...")
+                
+                # Get all accounts for this spamcheck
+                all_accounts = spamcheck.accounts.all()
+                processed_accounts = set(campaign.account_id.email_account for campaign in spamcheck.campaigns.all())
+                
+                for account in all_accounts:
+                    if account.email_account not in processed_accounts:
+                        try:
+                            domain = account.email_account.split('@')[1]
+                            if domain in domain_scores:
+                                # Calculate average scores for the domain
+                                avg_google = sum(score[0] for score in domain_scores[domain]) / len(domain_scores[domain])
+                                avg_outlook = sum(score[1] for score in domain_scores[domain]) / len(domain_scores[domain])
+                                report_link = domain_scores[domain][0][2]  # Use first report link
+                                
+                                self.stdout.write(f"\n  Processing unused account: {account.email_account}")
+                                self.stdout.write(f"  Using domain {domain} average scores:")
+                                self.stdout.write(f"  - Google Score: {avg_google}")
+                                self.stdout.write(f"  - Outlook Score: {avg_outlook}")
+                                
+                                # Create report for unused account
+                                report, created = UserSpamcheckReport.objects.update_or_create(
+                                    spamcheck_instantly=spamcheck,
+                                    email_account=account.email_account,
+                                    defaults={
+                                        'organization': spamcheck.user_organization,
+                                        'google_pro_score': avg_google,
+                                        'outlook_pro_score': avg_outlook,
+                                        'report_link': report_link
+                                    }
+                                )
+                                
+                                self.stdout.write(f"  Report {'created' if created else 'updated'} successfully")
+                                
+                                # Update sending limits based on conditions
+                                if spamcheck.conditions:
+                                    self.stdout.write(f"  Checking conditions: {spamcheck.conditions}")
+                                    self.evaluate_conditions(spamcheck, avg_google, avg_outlook, account.email_account)
+                                else:
+                                    self.stdout.write("  No conditions specified, using default")
+                                    if avg_google >= 0.5:
+                                        self.update_sending_limit(account.email_account, 25, 1)
+                                        self.stdout.write("  Applied default condition: google>=0.5sending=25/1")
+                                        
+                        except Exception as e:
+                            self.stdout.write(self.style.ERROR(f"  Error processing unused account {account.email_account}: {str(e)}"))
 
             # Update spamcheck status to completed
             spamcheck.status = 'completed'
