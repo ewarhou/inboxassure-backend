@@ -6,6 +6,7 @@ from settings.models import UserProfile, UserSettings
 import asyncio
 import aiohttp
 import json
+import random
 
 class Command(BaseCommand):
     help = 'Launch scheduled spamchecks that are due'
@@ -324,14 +325,19 @@ class Command(BaseCommand):
                 if spamcheck.is_domain_based:
                     self.stdout.write("\nFiltering accounts by domain...")
                     domain_accounts = {}
+                    
+                    # Group accounts by domain
+                    domain_groups = {}
                     for account in accounts:
                         domain = account.email_account.split('@')[1]
-                        if domain not in domain_accounts:
-                            domain_accounts[domain] = account
+                        if domain not in domain_groups:
+                            domain_groups[domain] = []
+                        domain_groups[domain].append(account)
                     
-                    # Convert back to list
-                    accounts = list(domain_accounts.values())
-                    self.stdout.write(f"Selected {len(accounts)} accounts (one per domain):")
+                    # Randomly select one account per domain
+                    accounts = [random.choice(accounts_list) for accounts_list in domain_groups.values()]
+                    
+                    self.stdout.write(f"Selected {len(accounts)} accounts (one randomly per domain):")
                     for account in accounts:
                         self.stdout.write(f"  - {account.email_account}")
 
