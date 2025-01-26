@@ -5,7 +5,7 @@ from django.db import transaction, IntegrityError
 from django.core.exceptions import ObjectDoesNotExist
 from authentication.authorization import AuthBearer
 from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema
-from .models import UserSpamcheck, UserSpamcheckAccounts, UserSpamcheckCampaignOptions, UserSpamcheckCampaigns
+from .models import UserSpamcheck, UserSpamcheckAccounts, UserSpamcheckCampaignOptions, UserSpamcheckCampaigns, UserSpamcheckReport
 from settings.models import UserInstantly, UserSettings
 import requests
 from django.conf import settings
@@ -622,4 +622,69 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
         return {
             "success": False,
             "message": f"Error launching spamcheck: {str(e)}. Please try again or contact support if the issue persists."
+        }
+
+@router.post("/clear-organization-spamchecks/{organization_id}", auth=AuthBearer())
+def clear_organization_spamchecks(request, organization_id: int):
+    """
+    Clear all spamchecks for a specific organization
+    
+    Parameters:
+        - organization_id: ID of the organization to clear spamchecks for
+    """
+    user = request.auth
+    
+    try:
+        # Get the organization and verify ownership
+        organization = UserInstantly.objects.get(
+            id=organization_id,
+            user=user
+        )
+        
+        # Get all spamchecks for this organization
+        spamchecks = UserSpamcheck.objects.filter(
+            user=user,
+            user_organization=organization
+        )
+        
+        if not spamchecks.exists():
+            return {
+                "success": False,
+                "message": f"No spamchecks found for organization {organization.instantly_organization_name}"
+            }
+        
+        with transaction.atomic():
+            # First update all spamchecks to failed status
+            spamchecks.update(status='failed')
+            
+            # Get all spamcheck IDs
+            spamcheck_ids = list(spamchecks.values_list('id', flat=True))
+            
+            # Update reports to remove spamcheck reference
+            UserSpamcheckReport.objects.filter(
+                spamcheck_instantly__in=spamcheck_ids
+            ).update(spamcheck_instantly=None)
+            
+            # Delete all spamchecks
+            spamchecks.delete()
+            
+            return {
+                "success": True,
+                "message": f"Successfully cleared {len(spamcheck_ids)} spamchecks for organization {organization.instantly_organization_name}",
+                "data": {
+                    "organization_id": organization_id,
+                    "organization_name": organization.instantly_organization_name,
+                    "spamchecks_cleared": len(spamcheck_ids)
+                }
+            }
+            
+    except UserInstantly.DoesNotExist:
+        return {
+            "success": False,
+            "message": f"Organization with ID {organization_id} not found or you don't have permission to access it."
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error clearing spamchecks: {str(e)}. Please try again or contact support if the issue persists."
         } 
