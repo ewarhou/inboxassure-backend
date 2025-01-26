@@ -102,7 +102,9 @@ class Command(BaseCommand):
             
             emailguard_tag = emailguard_data["data"]["uuid"]
             test_emails = emailguard_data["data"]["inbox_placement_test_emails"]
+            filter_phrase = emailguard_data["data"]["filter_phrase"]  # Get the filter phrase
             print(f"✓ Got EmailGuard tag (UUID): {emailguard_tag}")
+            print(f"✓ Got filter phrase: {filter_phrase}")
             print(f"✓ Got {len(test_emails)} test email addresses")
 
             # 3. Create campaign with all settings
@@ -177,7 +179,7 @@ class Command(BaseCommand):
                         "type": "email",
                         "variants": [{
                             "subject": spamcheck.options.subject,
-                            "body": f"{spamcheck.options.body}\n\n{emailguard_tag}"
+                            "body": f"{spamcheck.options.body}\n\n{filter_phrase}"  # Use filter_phrase instead of UUID
                         }]
                     }]
                 }]
