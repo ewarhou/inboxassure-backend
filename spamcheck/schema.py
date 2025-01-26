@@ -19,7 +19,7 @@ class CreateSpamcheckSchema(Schema):
     recurring_days: Optional[int] = Field(None, description="Number of days for recurring checks")
     is_domain_based: bool = Field(default=False, description="Whether to filter accounts by domain and use one per domain")
     conditions: Optional[str] = Field(None, description="Conditions for sending limit (e.g., 'google>=0.5andoutlook>=0.5sending=10/0')")
-    reports_waiting_time: Optional[float] = Field(None, description="Time in hours to wait before generating reports (e.g., 0.5 for 30min, 3 for 3h). Default is 1h")
+    reports_waiting_time: Optional[float] = Field(None, description="Time in hours to wait before generating reports (0 for immediate, 0.5 for 30min, 1 for 1h, etc). Default is 1h")
 
 class UpdateSpamcheckSchema(Schema):
     name: Optional[str] = Field(None, description="Name of the spamcheck")
@@ -32,7 +32,7 @@ class UpdateSpamcheckSchema(Schema):
     scheduled_at: Optional[datetime] = Field(None, description="When to run the spamcheck")
     recurring_days: Optional[int] = Field(None, description="Number of days for recurring checks")
     conditions: Optional[str] = Field(None, description="Conditions for sending limit (e.g., 'google>=0.5andoutlook>=0.5sending=10/0')")
-    reports_waiting_time: Optional[float] = Field(None, description="Time in hours to wait before generating reports (e.g., 0.5 for 30min, 3 for 3h). Default is 1h")
+    reports_waiting_time: Optional[float] = Field(None, description="Time in hours to wait before generating reports (0 for immediate, 0.5 for 30min, 1 for 1h, etc). Default is 1h")
 
 class LaunchSpamcheckSchema(Schema):
     spamcheck_id: int = Field(..., description="ID of the spamcheck to launch")
