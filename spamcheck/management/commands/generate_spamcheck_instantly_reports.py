@@ -39,18 +39,14 @@ class Command(BaseCommand):
 
     async def get_emailguard_report(self, session, emailguard_tag, emailguard_api_key):
         """Get report from EmailGuard API"""
-        url = "https://n8n.findymail.app/webhook/emailguard"
+        url = f"https://app.emailguard.io/api/v1/inbox-placement-tests/{emailguard_tag}"
         headers = {
-            "Content-Type": "application/json"
-        }
-        data = {
-            "URL": f"https://app.emailguard.io/api/v1/inbox-placement-tests/{emailguard_tag}",
-            "Emailguard Token": emailguard_api_key
+            "Authorization": f"Bearer {emailguard_api_key}"
         }
 
         try:
-            self.stdout.write(f"Making request to {url} with data: {data}")
-            async with session.post(url, headers=headers, json=data) as response:
+            self.stdout.write(f"Making request to {url}")
+            async with session.get(url, headers=headers) as response:
                 if response.status != 200:
                     raise Exception(f"EmailGuard API error: {response.status}")
                 
@@ -420,10 +416,10 @@ class Command(BaseCommand):
                 # Check if enough time has passed since last update
                 time_threshold = timezone.now() - timezone.timedelta(hours=waiting_time)
                 if spamcheck.updated_at > time_threshold:
-                    self.stdout.write(f"Skipping spamcheck {spamcheck.id} - Not enough time passed (waiting {waiting_time}h)")
+                    self.stdout.write(f"Skipping spamcheck {spamcheck.id} - Not enough time passed since last update (waiting {waiting_time}h)")
                     continue
 
-                self.stdout.write(f"Processing spamcheck {spamcheck.id}")
+                self.stdout.write(f"Processing spamcheck {spamcheck.id} - {waiting_time}h passed since last update")
                 asyncio.run(self.handle_async(*args, **options))
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Error processing spamchecks: {str(e)}")) 
