@@ -17,6 +17,7 @@ class CreateSpamcheckSchema(Schema):
     body: str = Field(..., description="Email body template")
     scheduled_at: datetime = Field(..., description="When to run the spamcheck")
     recurring_days: Optional[int] = Field(None, description="Number of days for recurring checks")
+    is_domain_based: bool = Field(default=False, description="Whether to filter accounts by domain and use one per domain")
 
 class UpdateSpamcheckSchema(Schema):
     name: Optional[str] = Field(None, description="Name of the spamcheck")

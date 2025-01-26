@@ -291,6 +291,7 @@ class Command(BaseCommand):
             self.stdout.write(f"Scheduled Time: {scheduled_time}")
             self.stdout.write(f"Current Time: {current_time}")
             self.stdout.write(f"Should Launch: {scheduled_time <= current_time}")
+            self.stdout.write(f"Is Domain Based: {spamcheck.is_domain_based}")
             self.stdout.write(f"Options:")
             self.stdout.write(f"  - Subject: {spamcheck.options.subject if spamcheck.options else 'No options set'}")
             self.stdout.write(f"  - Open Tracking: {spamcheck.options.open_tracking if spamcheck.options else 'N/A'}")
@@ -318,6 +319,21 @@ class Command(BaseCommand):
                 accounts = await asyncio.to_thread(lambda: list(spamcheck.accounts.all()))
                 if not accounts:
                     raise Exception("No accounts found for this spamcheck.")
+
+                # If domain-based, filter accounts to one per domain
+                if spamcheck.is_domain_based:
+                    self.stdout.write("\nFiltering accounts by domain...")
+                    domain_accounts = {}
+                    for account in accounts:
+                        domain = account.email_account.split('@')[1]
+                        if domain not in domain_accounts:
+                            domain_accounts[domain] = account
+                    
+                    # Convert back to list
+                    accounts = list(domain_accounts.values())
+                    self.stdout.write(f"Selected {len(accounts)} accounts (one per domain):")
+                    for account in accounts:
+                        self.stdout.write(f"  - {account.email_account}")
 
                 # Process all accounts in parallel
                 async with aiohttp.ClientSession() as session:

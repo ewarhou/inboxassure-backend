@@ -38,6 +38,7 @@ class UserSpamcheck(models.Model):
     options = models.OneToOneField('UserSpamcheckCampaignOptions', on_delete=models.SET_NULL, null=True, blank=True, related_name='spamcheck_instance')
     name = models.CharField(max_length=255)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    is_domain_based = models.BooleanField(default=False)
     scheduled_at = models.DateTimeField()  # Launch date and time
     recurring_days = models.IntegerField(null=True, blank=True)  # Number of days for recurring checks, null for one-time
     created_at = models.DateTimeField(auto_now_add=True)
