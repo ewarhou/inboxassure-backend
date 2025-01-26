@@ -137,7 +137,7 @@ options_id (BigInt, FK, nullable): Reference to user_spamcheck_campaign_instantl
 name (varchar): Name of the spamcheck (unique within user and organization)
 scheduled_at (timestamp): When the spamcheck is scheduled to run
 recurring_days (integer, nullable): Number of days for recurring checks
-status (varchar): Current status (pending, in_progress, completed, failed)
+status (varchar): Current status (pending, in_progress, generating_reports, completed, failed)
 created_at (timestamp): Creation timestamp
 updated_at (timestamp): Last update timestamp
 

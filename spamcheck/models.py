@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-from django.core.validators import EmailValidator
+from django.core.validators import EmailValidator, MinValueValidator, MaxValueValidator
 import uuid
 
 # Create your models here.
@@ -28,6 +28,7 @@ class UserSpamcheck(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('in_progress', 'In Progress'),
+        ('generating_reports', 'Generating Reports'),
         ('completed', 'Completed'),
         ('failed', 'Failed')
     ]
@@ -109,3 +110,39 @@ class UserSpamcheckCampaigns(models.Model):
 
     def __str__(self):
         return f"{self.spamcheck.name} - {self.account_id.email_account if self.account_id else 'No Account'}"
+
+
+class UserSpamcheckReport(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        'settings.UserInstantly',
+        on_delete=models.CASCADE,
+        related_name='spamcheck_reports'
+    )
+    email_account = models.EmailField()
+    report_link = models.URLField()
+    google_pro_score = models.DecimalField(
+        max_digits=3,
+        decimal_places=1,
+        validators=[MinValueValidator(0), MaxValueValidator(4)]
+    )
+    outlook_pro_score = models.DecimalField(
+        max_digits=3,
+        decimal_places=1,
+        validators=[MinValueValidator(0), MaxValueValidator(4)]
+    )
+    spamcheck_instantly = models.ForeignKey(
+        'UserSpamcheck',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reports'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'user_spamcheck_reports'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Spam Check Report for {self.email_account}"
