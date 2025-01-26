@@ -72,30 +72,35 @@ class Command(BaseCommand):
 
     def calculate_score(self, data, provider):
         """Calculate score for a specific provider"""
-        self.stdout.write(f"\nCalculating score for {provider}:")
-        
-        if not data or 'inbox_placement_test_emails' not in data:
-            self.stdout.write("  No data available")
-            return 0.0
+        try:
+            self.stdout.write(f"\nCalculating score for {provider}:")
             
-        emails = data['inbox_placement_test_emails']
-        total_count = len(emails)
-        
-        if total_count == 0:
-            self.stdout.write("  No emails found")
-            return 0.0
+            # Get emails from the correct path in response
+            emails = data['data']['inbox_placement_test_emails']
             
-        inbox_count = sum(1 for email in emails 
-                         if email.get('provider') == provider 
-                         and email.get('status') == 'received' 
-                         and email.get('folder', '').lower() == 'inbox')
-        
-        self.stdout.write(f"  Total emails: {total_count}")
-        self.stdout.write(f"  Inbox count: {inbox_count}")
-        
-        score = round(inbox_count / total_count, 2)
-        self.stdout.write(f"  Final score: {score}")
-        return score
+            # Filter emails for the specific provider
+            provider_emails = [
+                email for email in emails 
+                if email['provider'] == provider and email['status'] == 'email_received'
+            ]
+            
+            total_emails = len([e for e in emails if e['provider'] == provider])
+            inbox_emails = len([e for e in provider_emails if e['folder'] == 'inbox'])
+            
+            self.stdout.write(f"  Total {provider} emails: {total_emails}")
+            self.stdout.write(f"  Emails in inbox: {inbox_emails}")
+            
+            if total_emails == 0:
+                self.stdout.write(f"  No emails found for {provider}")
+                return 0.0
+                
+            score = round(inbox_emails / total_emails, 2)
+            self.stdout.write(f"  Score: {score} ({inbox_emails}/{total_emails})")
+            return score
+            
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"  Error calculating {provider} score: {str(e)}"))
+            return 0.0
 
     def parse_conditions(self, conditions_str):
         """Parse conditions string into structured format"""
@@ -162,136 +167,141 @@ class Command(BaseCommand):
             conditions_met.append(met)
             
         final_result = all(conditions_met) if parsed['operator'] == 'and' else any(conditions_met)
+        self.conditions_met = final_result  # Store the result
         
         if final_result:
             self.stdout.write("  Conditions met, updating sending limits")
             self.update_sending_limit(
-                email_account,
-                parsed['daily_limit'],
-                parsed['hourly_limit']
+                spamcheck.user_organization,  # First argument should be user_organization
+                email_account,                # Second argument is email_account
+                parsed['daily_limit']         # Third argument is daily_limit
             )
         else:
             self.stdout.write("  Conditions not met")
 
-    def update_sending_limit(self, email_account, daily_limit, hourly_limit):
-        """Update sending limit for an email account"""
+    def update_sending_limit(self, user_organization, email_accounts, daily_limit):
+        """Update sending limit for email accounts."""
+        url = "https://app.instantly.ai/backend/api/v1/account/update/bulk"
+        
+        # Get user settings to get the session token
+        user_settings = UserSettings.objects.get(user=user_organization.user)
+        
+        headers = {
+            "Cookie": f"__session={user_settings.instantly_user_token}",
+            "X-Org-Auth": user_organization.instantly_organization_token,
+            "X-Org-Id": user_organization.instantly_organization_id,
+            "Content-Type": "application/json"
+        }
+        
+        # Handle both single email and list of emails
+        emails = [email_accounts] if isinstance(email_accounts, str) else email_accounts
+        
+        data = {
+            "payload": {
+                "daily_limit": str(daily_limit)
+            },
+            "emails": emails
+        }
+        
+        self.stdout.write(f"Updating sending limit for {len(emails)} account(s) to {daily_limit}...")
+        self.stdout.write(f"Headers: {json.dumps({k:v for k,v in headers.items() if k != 'Cookie'}, indent=2)}")
+        self.stdout.write(f"Data: {json.dumps(data, indent=2)}")
+        
         try:
-            url = "https://app.instantly.ai/api/v1/account/update"
-            headers = {
-                "Content-Type": "application/json",
-                "X-Access-Token": "your_access_token"
-            }
-            data = {
-                "id": email_account,
-                "sending_limit": {
-                    "daily": daily_limit,
-                    "hourly": hourly_limit
-                }
-            }
-            
-            self.stdout.write(f"  Updating sending limits - Daily: {daily_limit}, Hourly: {hourly_limit}")
             response = requests.post(url, headers=headers, json=data)
-            
-            if response.status_code == 200:
-                self.stdout.write("  Sending limits updated successfully")
-            else:
-                self.stdout.write(self.style.ERROR(f"  Failed to update sending limits: {response.status_code}"))
-                
-        except Exception as e:
-            self.stdout.write(self.style.ERROR(f"  Error updating sending limits: {str(e)}"))
+            response.raise_for_status()
+            self.stdout.write(self.style.SUCCESS(f"✓ Sending limit updated successfully to {daily_limit}"))
+        except requests.exceptions.RequestException as e:
+            self.stdout.write(self.style.ERROR(f"✗ Failed to update sending limit: {str(e)}"))
+            if hasattr(e.response, 'text'):
+                self.stdout.write(self.style.ERROR(f"Response: {e.response.text}"))
 
     async def process_campaign(self, session, campaign, user_settings):
         """Process a single campaign and generate report"""
         try:
-            self.stdout.write(f"\nProcessing campaign {campaign.id} with tag {campaign.emailguard_tag}")
+            self.stdout.write(f"\n=== Calling EmailGuard API ===")
+            url = f"https://app.emailguard.io/api/v1/inbox-placement-tests/{campaign.emailguard_tag}"
+            self.stdout.write(f"Endpoint: {url}")
+            self.stdout.write(f"Method: GET")
             
-            # Get report from EmailGuard
-            report_data = await self.get_emailguard_report(
-                session,
-                campaign.emailguard_tag,
-                user_settings.emailguard_api_key
-            )
+            headers = {
+                "Authorization": f"Bearer {user_settings.emailguard_api_key}"
+            }
+            self.stdout.write(f"Request Headers: {json.dumps(headers, indent=2)}")
             
-            if not report_data:
-                self.stdout.write(self.style.ERROR(f"No report data for campaign {campaign.id}"))
-                return False
-
-            # Check response structure
-            if not isinstance(report_data, dict):
-                self.stdout.write(self.style.ERROR(f"Invalid response format. Expected dict, got: {type(report_data)}"))
-                return False
-
-            # Get results from the correct path in response
-            data = report_data.get('data', {})
-            if not isinstance(data, dict):
-                self.stdout.write(self.style.ERROR(f"Invalid data format. Expected dict, got: {type(data)}"))
-                return False
-
-            results = data.get('inbox_placement_test_emails', [])
-            if not isinstance(results, list):
-                self.stdout.write(self.style.ERROR(f"Invalid test emails format. Expected list, got: {type(results)}"))
-                return False
+            response = requests.get(url, headers=headers)
+            self.stdout.write(f"Response Status: {response.status_code}")
+            if response.status_code == 200:
+                data = response.json()
+                self.stdout.write("  API call successful")
+                self.stdout.write(f"  Raw EmailGuard Response: {json.dumps(data, indent=2)}")
 
             # Calculate scores
-            google_score = self.calculate_score(results, 'Google')
-            outlook_score = self.calculate_score(results, 'Microsoft')
+            google_score = self.calculate_score(data, 'Google')
+            outlook_score = self.calculate_score(data, 'Microsoft')
 
-            self.stdout.write(f"Scores calculated:")
-            self.stdout.write(f"- Google Pro Score: {google_score}")
-            self.stdout.write(f"- Outlook Pro Score: {outlook_score}")
-
-            # Get required properties using sync_to_async
-            get_organization = sync_to_async(lambda: campaign.organization)()
-            get_email_account = sync_to_async(lambda: campaign.account_id.email_account)()
-            get_spamcheck = sync_to_async(lambda: campaign.spamcheck)()
+            self.stdout.write(f"  Google Score: {google_score}")
+            self.stdout.write(f"  Outlook Score: {outlook_score}")
             
-            organization = await get_organization
-            email_account = await get_email_account
-            spamcheck = await get_spamcheck
-
-            # Create report using sync_to_async
-            create_report = sync_to_async(UserSpamcheckReport.objects.create)
-            report = await create_report(
-                organization=organization,
-                email_account=email_account,
-                report_link=f"https://app.emailguard.io/inbox-placement-tests/{campaign.emailguard_tag}",
-                google_pro_score=google_score,
-                outlook_pro_score=outlook_score,
-                spamcheck_instantly=spamcheck
+            # Create or update report
+            report, created = UserSpamcheckReport.objects.update_or_create(
+                spamcheck_instantly=campaign.spamcheck,
+                email_account=campaign.account_id.email_account,
+                defaults={
+                    'organization': campaign.organization,
+                    'google_pro_score': google_score,
+                    'outlook_pro_score': outlook_score,
+                    'report_link': f"https://app.emailguard.io/inbox-placement-tests/{campaign.emailguard_tag}"
+                }
             )
-
-            self.stdout.write(self.style.SUCCESS(f"Created report {report.id} for campaign {campaign.id}"))
-
-            # Parse conditions and update sending limit
-            conditions_data = self.parse_conditions(spamcheck.conditions)
-            if conditions_data:
-                self.evaluate_conditions(spamcheck, google_score, outlook_score, email_account)
-
-            # Get user and organization_id using sync_to_async
-            get_user = sync_to_async(lambda: campaign.spamcheck.user)()
-            get_org_id = sync_to_async(lambda: campaign.organization.instantly_organization_id)()
             
-            user = await get_user
-            org_id = await get_org_id
-
-            # Get instantly API key from UserInstantly model using sync_to_async
-            get_user_instantly = sync_to_async(UserInstantly.objects.get)
-            user_instantly = await get_user_instantly(
-                user=user,
-                instantly_organization_id=org_id
-            )
-
-            # Delete campaign from Instantly
-            if await self.delete_instantly_campaign(session, campaign.instantly_campaign_id, user_instantly.instantly_api_key):
-                # Update campaign status to deleted using sync_to_async
-                update_campaign = sync_to_async(lambda: setattr(campaign, 'campaign_status', 'deleted') or campaign.save())
-                await update_campaign()
-                self.stdout.write(self.style.SUCCESS(f"Campaign {campaign.id} status updated to deleted"))
+            self.stdout.write(f"  Report {'created' if created else 'updated'} successfully")
+            
+            # Store domain scores if is_domain_based is True
+            if campaign.spamcheck.is_domain_based and campaign.account_id and campaign.account_id.email_account:
+                domain = campaign.account_id.email_account.split('@')[1]
+                campaign.spamcheck.domain_scores[domain].append((
+                    google_score,
+                    outlook_score,
+                    f"https://app.emailguard.io/inbox-placement-tests/{campaign.emailguard_tag}"
+                ))
+                self.stdout.write(f"  Stored scores for domain {domain}")
+            
+            # Update sending limits based on conditions
+            if campaign.spamcheck.conditions:
+                self.stdout.write(f"  Checking conditions: {campaign.spamcheck.conditions}")
+                self.evaluate_conditions(campaign.spamcheck, google_score, outlook_score, campaign.account_id.email_account)
             else:
-                self.stdout.write(self.style.ERROR(f"Failed to delete campaign {campaign.id} from Instantly"))
+                self.stdout.write("  No conditions specified, using default")
+                if google_score >= 0.5:
+                    self.update_sending_limit(campaign.organization, campaign.account_id.email_account, 25)
+                    self.stdout.write("  Applied default condition: google>=0.5sending=25/1")
 
+            # Delete campaign from Instantly after processing
+            try:
+                # Get API key from user_instantly
+                user_instantly = UserInstantly.objects.get(
+                    user=campaign.spamcheck.user,
+                    instantly_organization_id=campaign.spamcheck.user_organization.instantly_organization_id
+                )
+                delete_url = f"https://api.instantly.ai/api/v2/campaigns/{campaign.instantly_campaign_id}"
+                delete_headers = {
+                    "Authorization": f"Bearer {user_instantly.instantly_api_key}"
+                }
+                self.stdout.write(f"  Deleting campaign {campaign.instantly_campaign_id} from Instantly...")
+                delete_response = requests.delete(delete_url, headers=delete_headers)
+                if delete_response.status_code == 200:
+                    campaign.campaign_status = 'deleted'
+                    campaign.save()
+                    self.stdout.write(self.style.SUCCESS(f"  ✓ Campaign {campaign.instantly_campaign_id} deleted successfully"))
+                else:
+                    self.stdout.write(self.style.ERROR(f"  ✗ Failed to delete campaign: {delete_response.text}"))
+            except UserInstantly.DoesNotExist:
+                self.stdout.write(self.style.ERROR(f"  ✗ No API key found for organization"))
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"  ✗ Error deleting campaign: {str(e)}"))
+            
             return True
-
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Error processing campaign {campaign.id}: {str(e)}"))
             self.stdout.write(self.style.ERROR(f"Full error details: {e.__class__.__name__}: {str(e)}"))
@@ -322,7 +332,7 @@ class Command(BaseCommand):
 
             # Store domain scores if is_domain_based is True
             domain_scores = defaultdict(list)  # {domain: [(google_score, outlook_score, report_link), ...]}
-            
+
             # Process all campaigns
             results = await asyncio.gather(*[
                 self.process_campaign(session, campaign, user_settings)
@@ -344,48 +354,53 @@ class Command(BaseCommand):
                     all_accounts = spamcheck.accounts.all()
                     processed_accounts = set(campaign.account_id.email_account for campaign in spamcheck.campaigns.all())
                     
+                    # Group unused accounts by domain
+                    unused_accounts_by_domain = defaultdict(list)
                     for account in all_accounts:
                         if account.email_account not in processed_accounts:
-                            try:
-                                domain = account.email_account.split('@')[1]
-                                if domain in domain_scores:
-                                    # Calculate average scores for the domain
-                                    avg_google = sum(score[0] for score in domain_scores[domain]) / len(domain_scores[domain])
-                                    avg_outlook = sum(score[1] for score in domain_scores[domain]) / len(domain_scores[domain])
-                                    report_link = domain_scores[domain][0][2]  # Use first report link
-                                    
-                                    self.stdout.write(f"\n  Processing unused account: {account.email_account}")
-                                    self.stdout.write(f"  Using domain {domain} average scores:")
-                                    self.stdout.write(f"  - Google Score: {avg_google}")
-                                    self.stdout.write(f"  - Outlook Score: {avg_outlook}")
-                                    
-                                    # Create report for unused account
-                                    report, created = UserSpamcheckReport.objects.update_or_create(
-                                        spamcheck_instantly=spamcheck,
-                                        email_account=account.email_account,
-                                        defaults={
-                                            'organization': spamcheck.user_organization,
-                                            'google_pro_score': avg_google,
-                                            'outlook_pro_score': avg_outlook,
-                                            'report_link': report_link
-                                        }
-                                    )
-                                    
-                                    self.stdout.write(f"  Report {'created' if created else 'updated'} successfully")
-                                    
-                                    # Update sending limits based on conditions
-                                    if spamcheck.conditions:
-                                        self.stdout.write(f"  Checking conditions: {spamcheck.conditions}")
-                                        self.evaluate_conditions(spamcheck, avg_google, avg_outlook, account.email_account)
-                                    else:
-                                        self.stdout.write("  No conditions specified, using default")
-                                        if avg_google >= 0.5:
-                                            self.update_sending_limit(account.email_account, 25, 1)
-                                            self.stdout.write("  Applied default condition: google>=0.5sending=25/1")
-                                            
-                            except Exception as e:
-                                self.stdout.write(self.style.ERROR(f"  Error processing unused account {account.email_account}: {str(e)}"))
-
+                            domain = account.email_account.split('@')[1]
+                            if domain in domain_scores:
+                                unused_accounts_by_domain[domain].append(account.email_account)
+                    
+                    # Process each domain's accounts in bulk
+                    for domain, accounts in unused_accounts_by_domain.items():
+                        self.stdout.write(f"\n  Processing {len(accounts)} unused accounts for domain {domain}")
+                        
+                        # Create reports for all accounts in this domain
+                        google_score = domain_scores[domain][0][0]  # Use first score from domain
+                        outlook_score = domain_scores[domain][0][1]
+                        report_link = domain_scores[domain][0][2]
+                        
+                        # Bulk create reports
+                        reports_to_create = []
+                        for email in accounts:
+                            reports_to_create.append(
+                                UserSpamcheckReport(
+                                    spamcheck_instantly=spamcheck,
+                                    email_account=email,
+                                    organization=spamcheck.user_organization,
+                                    google_pro_score=google_score,
+                                    outlook_pro_score=outlook_score,
+                                    report_link=report_link
+                                )
+                            )
+                        
+                        # Bulk create reports
+                        UserSpamcheckReport.objects.bulk_create(reports_to_create)
+                        self.stdout.write(f"  Created {len(reports_to_create)} reports for domain {domain}")
+                        
+                        # If conditions were met for the original account, update all accounts in bulk
+                        if self.conditions_met:  # Use the stored result from evaluate_conditions
+                            daily_limit = self.parse_conditions(spamcheck.conditions)['daily_limit']
+                            self.stdout.write(f"  Updating sending limits for all accounts to {daily_limit}...")
+                            
+                            # Update all accounts in one request
+                            self.update_sending_limit(
+                                spamcheck.user_organization,
+                                accounts,  # Pass the full list of emails
+                                daily_limit
+                            )
+                            
                 return True
             else:
                 self.stdout.write(self.style.ERROR(f"Some campaigns failed for spamcheck {spamcheck.id}"))
@@ -433,6 +448,11 @@ class Command(BaseCommand):
         """Entry point for the command"""
         self.stdout.write("\n=== Starting Report Generation ===")
         self.stdout.write(f"Current time: {timezone.now()}")
+        self.stdout.write("\nAPI Endpoints being used:")
+        self.stdout.write("1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}")
+        self.stdout.write("2. Instantly Update Account: POST https://app.instantly.ai/backend/api/v1/account/update/bulk")
+        self.stdout.write("3. Instantly Delete Campaign: DELETE https://api.instantly.ai/api/v2/campaigns/{id}")
+        self.stdout.write("---\n")
 
         # Get spamchecks that need reports
         spamchecks = UserSpamcheck.objects.filter(
@@ -446,7 +466,7 @@ class Command(BaseCommand):
             self.stdout.write(f"Last updated: {spamcheck.updated_at}")
             
             # Calculate waiting time
-            waiting_time = spamcheck.reports_waiting_time or 1.0  # Default 1 hour if not set
+            waiting_time = spamcheck.reports_waiting_time if spamcheck.reports_waiting_time is not None else 1.0  # Default 1h only if not provided
             self.stdout.write(f"Waiting time configured: {waiting_time} hours")
             
             time_since_update = (timezone.now() - spamcheck.updated_at).total_seconds() / 3600
@@ -461,15 +481,22 @@ class Command(BaseCommand):
             # Store domain scores if is_domain_based is True
             domain_scores = defaultdict(list)  # {domain: [(google_score, outlook_score, report_link), ...]}
             
+            all_reports_generated = True  # Track if all reports were generated successfully
+            
             # Process each campaign
             for campaign in spamcheck.campaigns.all():
                 self.stdout.write(f"\n  Campaign ID: {campaign.id}")
                 self.stdout.write(f"  EmailGuard Tag: {campaign.emailguard_tag}")
                 
                 try:
+                    # Get user settings first
+                    user_settings = UserSettings.objects.get(user=spamcheck.user)
+                    
                     # Call EmailGuard API
                     url = f"https://app.emailguard.io/api/v1/inbox-placement-tests/{campaign.emailguard_tag}"
-                    headers = {"Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTg1ZjZhNjE2ZjY5MzJiZjc3ZjJiZiIsImlhdCI6MTcwOTc0NzA1MCwiZXhwIjoxNzQxMjgzMDUwfQ.Hs_YZZkKwxqLv7IHs6J8vZVIHGYBGWBtS6emyOhJr8k"}
+                    headers = {
+                        "Authorization": f"Bearer {user_settings.emailguard_api_key}"
+                    }
                     
                     self.stdout.write("  Calling EmailGuard API...")
                     response = requests.get(url, headers=headers)
@@ -477,10 +504,11 @@ class Command(BaseCommand):
                     if response.status_code == 200:
                         data = response.json()
                         self.stdout.write("  API call successful")
+                        self.stdout.write(f"  Raw EmailGuard Response: {json.dumps(data, indent=2)}")
                         
                         # Calculate scores
-                        google_score = self.calculate_score(data, 'gmail')
-                        outlook_score = self.calculate_score(data, 'outlook')
+                        google_score = self.calculate_score(data, 'Google')
+                        outlook_score = self.calculate_score(data, 'Microsoft')
                         
                         self.stdout.write(f"  Google Score: {google_score}")
                         self.stdout.write(f"  Outlook Score: {outlook_score}")
@@ -516,68 +544,108 @@ class Command(BaseCommand):
                         else:
                             self.stdout.write("  No conditions specified, using default")
                             if google_score >= 0.5:
-                                self.update_sending_limit(campaign.account_id.email_account, 25, 1)
+                                self.update_sending_limit(spamcheck.user_organization, campaign.account_id.email_account, 25)
                                 self.stdout.write("  Applied default condition: google>=0.5sending=25/1")
+
+                        # Delete campaign from Instantly after processing
+                        try:
+                            # Get API key from user_instantly
+                            user_instantly = UserInstantly.objects.get(
+                                user=spamcheck.user,
+                                instantly_organization_id=spamcheck.user_organization.instantly_organization_id
+                            )
+                            delete_url = f"https://api.instantly.ai/api/v2/campaigns/{campaign.instantly_campaign_id}"
+                            delete_headers = {
+                                "Authorization": f"Bearer {user_instantly.instantly_api_key}"
+                            }
+                            self.stdout.write(f"  Deleting campaign {campaign.instantly_campaign_id} from Instantly...")
+                            delete_response = requests.delete(delete_url, headers=delete_headers)
+                            if delete_response.status_code == 200:
+                                campaign.campaign_status = 'deleted'
+                                campaign.save()
+                                self.stdout.write(self.style.SUCCESS(f"  ✓ Campaign {campaign.instantly_campaign_id} deleted successfully"))
+                            else:
+                                self.stdout.write(self.style.ERROR(f"  ✗ Failed to delete campaign: {delete_response.text}"))
+                        except UserInstantly.DoesNotExist:
+                            self.stdout.write(self.style.ERROR(f"  ✗ No API key found for organization"))
+                        except Exception as e:
+                            self.stdout.write(self.style.ERROR(f"  ✗ Error deleting campaign: {str(e)}"))
                             
                     else:
+                        all_reports_generated = False
                         self.stdout.write(self.style.ERROR(f"  API call failed with status {response.status_code}"))
+                        continue
                         
                 except Exception as e:
+                    all_reports_generated = False
                     self.stdout.write(self.style.ERROR(f"  Error processing campaign: {str(e)}"))
+                    continue
 
             # Process domain-based scores for unused accounts
             if spamcheck.is_domain_based and domain_scores:
-                self.stdout.write("\nProcessing domain-based scores for unused accounts...")
-                
-                # Get all accounts for this spamcheck
-                all_accounts = spamcheck.accounts.all()
-                processed_accounts = set(campaign.account_id.email_account for campaign in spamcheck.campaigns.all())
-                
-                for account in all_accounts:
-                    if account.email_account not in processed_accounts:
-                        try:
+                try:
+                    self.stdout.write("\nProcessing domain-based scores for unused accounts...")
+                    
+                    # Get all accounts for this spamcheck
+                    all_accounts = spamcheck.accounts.all()
+                    processed_accounts = set(campaign.account_id.email_account for campaign in spamcheck.campaigns.all())
+                    
+                    # Group unused accounts by domain
+                    unused_accounts_by_domain = defaultdict(list)
+                    for account in all_accounts:
+                        if account.email_account not in processed_accounts:
                             domain = account.email_account.split('@')[1]
                             if domain in domain_scores:
-                                # Calculate average scores for the domain
-                                avg_google = sum(score[0] for score in domain_scores[domain]) / len(domain_scores[domain])
-                                avg_outlook = sum(score[1] for score in domain_scores[domain]) / len(domain_scores[domain])
-                                report_link = domain_scores[domain][0][2]  # Use first report link
-                                
-                                self.stdout.write(f"\n  Processing unused account: {account.email_account}")
-                                self.stdout.write(f"  Using domain {domain} average scores:")
-                                self.stdout.write(f"  - Google Score: {avg_google}")
-                                self.stdout.write(f"  - Outlook Score: {avg_outlook}")
-                                
-                                # Create report for unused account
-                                report, created = UserSpamcheckReport.objects.update_or_create(
+                                unused_accounts_by_domain[domain].append(account.email_account)
+                    
+                    # Process each domain's accounts in bulk
+                    for domain, accounts in unused_accounts_by_domain.items():
+                        self.stdout.write(f"\n  Processing {len(accounts)} unused accounts for domain {domain}")
+                        
+                        # Create reports for all accounts in this domain
+                        google_score = domain_scores[domain][0][0]  # Use first score from domain
+                        outlook_score = domain_scores[domain][0][1]
+                        report_link = domain_scores[domain][0][2]
+                        
+                        # Bulk create reports
+                        reports_to_create = []
+                        for email in accounts:
+                            reports_to_create.append(
+                                UserSpamcheckReport(
                                     spamcheck_instantly=spamcheck,
-                                    email_account=account.email_account,
-                                    defaults={
-                                        'organization': spamcheck.user_organization,
-                                        'google_pro_score': avg_google,
-                                        'outlook_pro_score': avg_outlook,
-                                        'report_link': report_link
-                                    }
+                                    email_account=email,
+                                    organization=spamcheck.user_organization,
+                                    google_pro_score=google_score,
+                                    outlook_pro_score=outlook_score,
+                                    report_link=report_link
                                 )
-                                
-                                self.stdout.write(f"  Report {'created' if created else 'updated'} successfully")
-                                
-                                # Update sending limits based on conditions
-                                if spamcheck.conditions:
-                                    self.stdout.write(f"  Checking conditions: {spamcheck.conditions}")
-                                    self.evaluate_conditions(spamcheck, avg_google, avg_outlook, account.email_account)
-                                else:
-                                    self.stdout.write("  No conditions specified, using default")
-                                    if avg_google >= 0.5:
-                                        self.update_sending_limit(account.email_account, 25, 1)
-                                        self.stdout.write("  Applied default condition: google>=0.5sending=25/1")
-                                        
-                        except Exception as e:
-                            self.stdout.write(self.style.ERROR(f"  Error processing unused account {account.email_account}: {str(e)}"))
+                            )
+                        
+                        # Bulk create reports
+                        UserSpamcheckReport.objects.bulk_create(reports_to_create)
+                        self.stdout.write(f"  Created {len(reports_to_create)} reports for domain {domain}")
+                        
+                        # If conditions were met for the original account, update all accounts in bulk
+                        if self.conditions_met:  # Use the stored result from evaluate_conditions
+                            daily_limit = self.parse_conditions(spamcheck.conditions)['daily_limit']
+                            self.stdout.write(f"  Updating sending limits for all accounts to {daily_limit}...")
+                            
+                            # Update all accounts in one request
+                            self.update_sending_limit(
+                                spamcheck.user_organization,
+                                accounts,  # Pass the full list of emails
+                                daily_limit
+                            )
+                            
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(f"  Error processing unused accounts: {str(e)}"))
 
-            # Update spamcheck status to completed
-            spamcheck.status = 'completed'
-            spamcheck.save()
-            self.stdout.write(f"Spamcheck {spamcheck.id} marked as completed")
+            # Only update status if all reports were generated successfully
+            if all_reports_generated:
+                spamcheck.status = 'completed'
+                spamcheck.save()
+                self.stdout.write(self.style.SUCCESS(f"All reports generated successfully. Spamcheck {spamcheck.id} marked as completed"))
+            else:
+                self.stdout.write(self.style.WARNING(f"Some reports failed to generate for spamcheck {spamcheck.id}. Status remains as generating_reports"))
 
         self.stdout.write("\n=== Report Generation Complete ===") 

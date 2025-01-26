@@ -639,7 +639,7 @@ Content-Type: application/json
 - The blocklist is automatically checked for each lead
 
 ### Bulk Update Accounts
-**Endpoint:** POST /backend/api/v1/account/update/bulk
+**Endpoint:** POST https://app.instantly.ai/backend/api/v1/account/update/bulk
 
 **Description:** Updates multiple email accounts' settings in bulk.
 
