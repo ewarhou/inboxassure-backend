@@ -31,6 +31,7 @@ Features:
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
+from django.db.models import Q
 from spamcheck.models import UserSpamcheck, UserSpamcheckCampaigns
 from settings.models import UserSettings, UserInstantly
 import aiohttp
