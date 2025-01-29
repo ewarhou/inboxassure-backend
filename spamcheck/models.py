@@ -31,7 +31,8 @@ class UserSpamcheck(models.Model):
         ('in_progress', 'In Progress'),
         ('generating_reports', 'Generating Reports'),
         ('completed', 'Completed'),
-        ('failed', 'Failed')
+        ('failed', 'Failed'),
+        ('paused', 'Paused')
     ]
     
     id = models.BigAutoField(primary_key=True)
