@@ -1,3 +1,43 @@
+"""
+This script contains three main commands for managing spamcheck reports:
+
+1. generate_spamcheck_instantly_reports
+   - Purpose: Generates reports for completed spamchecks by fetching data from EmailGuard API
+   - Flow:
+     a. Finds spamchecks with 'generating_reports' status
+     b. For each spamcheck:
+        - Fetches report from EmailGuard API
+        - Calculates Google and Outlook scores
+        - Creates/updates reports in database
+        - Updates sending limits based on conditions
+        - Deletes processed campaigns from Instantly
+     c. Handles domain-based scoring for unused accounts
+     d. Marks spamcheck as 'completed' when done
+
+2. check_spamcheck_instantly_campaigns_status
+   - Purpose: Checks and updates the status of running campaigns
+   - Flow:
+     a. Finds campaigns in 'in_progress' status
+     b. Checks campaign status in Instantly API
+     c. Updates local status based on Instantly response
+     d. Marks campaigns as 'completed' when done
+
+3. delete_instantly_campaign
+   - Purpose: Deletes a campaign from Instantly after processing
+   - Flow:
+     a. Takes campaign ID and API key
+     b. Sends delete request to Instantly API
+     c. Updates local campaign status to 'deleted'
+     d. Handles errors and retries if needed
+
+The script uses async/await for better performance and includes:
+- Rate limiting (10 requests/second)
+- Error handling and retries
+- Bulk operations for efficiency
+- Domain-based score propagation
+- Condition-based sending limit updates
+"""
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.db.models import Q
@@ -131,11 +171,23 @@ class Command(BaseCommand):
             for criterion in subcriteria:
                 if '>=' in criterion:
                     provider, value = criterion.split('>=')
-                    conditions.append({
-                        'provider': provider.strip(),
-                        'operator': '>=',
-                        'value': float(value)
-                    })
+                    value = float(value)
+                elif '>' in criterion:
+                    provider, value = criterion.split('>')
+                    value = float(value)
+                else:
+                    continue
+
+                # Validate score value is between 0 and 1
+                if value < 0 or value > 1:
+                    self.stdout.write(self.style.WARNING(f"  Invalid score value {value} for {provider}. Score must be between 0 and 1"))
+                    continue
+                    
+                conditions.append({
+                    'provider': provider.strip(),
+                    'operator': '>=' if '>=' in criterion else '>',
+                    'value': value
+                })
                     
             return {
                 'operator': op,
@@ -163,7 +215,7 @@ class Command(BaseCommand):
                 continue
                 
             score = scores[provider]
-            met = score >= condition['value']
+            met = score > condition['value'] if condition['operator'] == '>' else score >= condition['value']
             conditions_met.append(met)
             
         final_result = all(conditions_met) if parsed['operator'] == 'and' else any(conditions_met)
