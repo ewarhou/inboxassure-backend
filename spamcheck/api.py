@@ -690,4 +690,49 @@ def clear_organization_spamchecks(request, organization_id: int):
         return {
             "success": False,
             "message": f"Error clearing spamchecks: {str(e)}. Please try again or contact support if the issue persists."
+        }
+
+@router.post("/toggle-pause/{spamcheck_id}", auth=AuthBearer())
+def toggle_pause_spamcheck(request, spamcheck_id: int):
+    """
+    Toggle spamcheck between paused and pending status.
+    Only works if current status is paused or pending.
+    """
+    user = request.auth
+    
+    try:
+        # Get the spamcheck and verify ownership
+        spamcheck = get_object_or_404(UserSpamcheck, id=spamcheck_id, user=user)
+        
+        # Check if status allows toggling
+        if spamcheck.status not in ['pending', 'paused']:
+            return {
+                "success": False,
+                "message": f"Cannot toggle pause for spamcheck with status '{spamcheck.status}'. Only pending or paused spamchecks can be toggled."
+            }
+        
+        # Toggle status
+        new_status = 'paused' if spamcheck.status == 'pending' else 'pending'
+        spamcheck.status = new_status
+        spamcheck.save()
+        
+        return {
+            "success": True,
+            "message": f"Spamcheck {spamcheck_id} is now {new_status}",
+            "data": {
+                "id": spamcheck.id,
+                "name": spamcheck.name,
+                "status": new_status
+            }
+        }
+        
+    except UserSpamcheck.DoesNotExist:
+        return {
+            "success": False,
+            "message": f"Spamcheck with ID {spamcheck_id} not found or you don't have permission to modify it."
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error toggling spamcheck pause status: {str(e)}"
         } 
