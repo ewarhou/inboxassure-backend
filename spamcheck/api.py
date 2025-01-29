@@ -696,7 +696,7 @@ def clear_organization_spamchecks(request, organization_id: int):
 def toggle_pause_spamcheck(request, spamcheck_id: int):
     """
     Toggle spamcheck between paused and pending status.
-    Only works if current status is paused or pending.
+    Only works if current status is paused, pending, or completed.
     """
     user = request.auth
     
@@ -705,14 +705,14 @@ def toggle_pause_spamcheck(request, spamcheck_id: int):
         spamcheck = get_object_or_404(UserSpamcheck, id=spamcheck_id, user=user)
         
         # Check if status allows toggling
-        if spamcheck.status not in ['pending', 'paused']:
+        if spamcheck.status not in ['pending', 'paused', 'completed']:
             return {
                 "success": False,
-                "message": f"Cannot toggle pause for spamcheck with status '{spamcheck.status}'. Only pending or paused spamchecks can be toggled."
+                "message": f"Cannot toggle pause for spamcheck with status '{spamcheck.status}'. Only pending, paused, or completed spamchecks can be toggled."
             }
         
         # Toggle status
-        new_status = 'paused' if spamcheck.status == 'pending' else 'pending'
+        new_status = 'paused' if spamcheck.status in ['pending', 'completed'] else 'pending'
         spamcheck.status = new_status
         spamcheck.save()
         
