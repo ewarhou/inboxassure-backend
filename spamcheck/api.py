@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404
 from django.db import transaction, IntegrityError
 from django.core.exceptions import ObjectDoesNotExist
 from authentication.authorization import AuthBearer
-from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema
+from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema, ListAccountsRequestSchema, ListAccountsResponseSchema
 from .models import UserSpamcheck, UserSpamcheckAccounts, UserSpamcheckCampaignOptions, UserSpamcheckCampaigns, UserSpamcheckReport
 from settings.models import UserInstantly, UserSettings
 import requests
@@ -735,4 +735,123 @@ def toggle_pause_spamcheck(request, spamcheck_id: int):
         return {
             "success": False,
             "message": f"Error toggling spamcheck pause status: {str(e)}"
+        }
+
+@router.post("/list-accounts", auth=AuthBearer(), response=ListAccountsResponseSchema)
+def list_accounts(
+    request,
+    organization_id: int,
+    payload: ListAccountsRequestSchema
+):
+    """
+    List accounts from Instantly API with filtering options
+    """
+    user = request.auth
+    print("\n=== DEBUG: List Accounts Start ===")
+    print(f"Parameters received:")
+    print(f"- organization_id: {organization_id}")
+    print(f"- search: {payload.search}")
+    print(f"- ignore_tag: {payload.ignore_tag}")
+    print(f"- is_active: {payload.is_active}")
+    print(f"- limit: {payload.limit}")
+    
+    try:
+        # Get the organization and verify ownership
+        print("\nStep 1: Getting organization...")
+        organization = get_object_or_404(UserInstantly, id=organization_id, user=user)
+        print(f"✓ Found organization: {organization.instantly_organization_name}")
+        
+        # Get user settings
+        user_settings = UserSettings.objects.get(user=user)
+        
+        # Prepare request data for Instantly API
+        request_data = {
+            "limit": payload.limit,
+            "include_tags": True  # We need tags for filtering
+        }
+        
+        if payload.search:
+            request_data["search"] = payload.search
+            
+        if payload.is_active:
+            request_data["filter"] = {"status": 1}  # 1 for active accounts in Instantly
+        
+        # Get accounts from Instantly API
+        print("\nStep 2: Fetching accounts from Instantly API...")
+        print(f"Request data: {request_data}")
+        
+        response = requests.post(
+            "https://app.instantly.ai/backend/api/v1/account/list",
+            headers={
+                "Cookie": f"__session={user_settings.instantly_user_token}",
+                "X-Org-Auth": organization.instantly_organization_token,
+                "Content-Type": "application/json"
+            },
+            json=request_data,
+            timeout=30
+        )
+        
+        print(f"\nAPI Response status: {response.status_code}")
+        print("Raw API Response:")
+        print(response.text)  # Print raw response for debugging
+        
+        if response.status_code != 200:
+            print(f"✗ API Error: {response.text}")
+            return {
+                "success": False,
+                "message": "Failed to fetch accounts from Instantly API",
+                "data": {
+                    "organization_id": organization_id,
+                    "organization_name": organization.instantly_organization_name,
+                    "total_accounts": 0,
+                    "accounts": []
+                }
+            }
+            
+        response_data = response.json()
+        accounts = response_data.get("accounts", [])
+        
+        # Extract just the emails and apply filters
+        email_list = []
+        for account in accounts:
+            email = account.get("email")
+            if not email:
+                continue
+                
+            # Skip if account is not active (status != 1)
+            if payload.is_active and account.get("status") != 1:
+                continue
+                
+            # Skip if has ignored tag
+            if payload.ignore_tag:
+                account_tags = [tag.get("label", "").lower() for tag in account.get("tags", [])]
+                if payload.ignore_tag.lower() in account_tags:
+                    continue
+                    
+            email_list.append(email)
+        
+        print(f"\nFinal email list: {email_list}")
+        
+        return {
+            "success": True,
+            "message": "Accounts retrieved successfully",
+            "data": {
+                "organization_id": organization_id,
+                "organization_name": organization.instantly_organization_name,
+                "total_accounts": len(email_list),
+                "accounts": email_list
+            }
+        }
+        
+    except UserInstantly.DoesNotExist:
+        print("✗ Error: Organization not found")
+        return {
+            "success": False,
+            "message": f"Organization with ID {organization_id} not found or you don't have permission to access it."
+        }
+    except Exception as e:
+        print(f"✗ Error: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Error listing accounts: {str(e)}. Please try again or contact support if the issue persists."
         } 

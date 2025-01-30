@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from ninja import Schema, Field
 from uuid import UUID
@@ -36,4 +36,66 @@ class UpdateSpamcheckSchema(Schema):
 
 class LaunchSpamcheckSchema(Schema):
     spamcheck_id: int = Field(..., description="ID of the spamcheck to launch")
-    is_test: bool = Field(default=False, description="Whether this is a test launch") 
+    is_test: bool = Field(default=False, description="Whether this is a test launch")
+
+class AccountPayloadNameSchema(Schema):
+    last: Optional[str]
+    first: Optional[str]
+
+class AccountPayloadWarmupAdvancedSchema(Schema):
+    warm_ctd: Optional[bool] = None
+    open_rate: Optional[float] = None
+    random_range: Optional[Dict[str, Any]] = None
+    weekday_only: Optional[bool] = None
+    important_rate: Optional[float] = None
+    read_emulation: Optional[bool] = None
+    spam_save_rate: Optional[float] = None
+
+class AccountPayloadWarmupSchema(Schema):
+    limit: Optional[str] = None
+    advanced: Optional[AccountPayloadWarmupAdvancedSchema] = None
+    increment: Optional[str] = None
+    reply_rate: Optional[str] = None
+
+class AccountPayloadSchema(Schema):
+    name: Optional[AccountPayloadNameSchema] = None
+    warmup: Optional[AccountPayloadWarmupSchema] = None
+    provider: Optional[str] = None
+    daily_limit: Optional[str] = None
+    sending_gap: Optional[str] = None
+    enable_slow_ramp: Optional[bool] = None
+
+class AccountTagSchema(Schema):
+    id: Optional[str] = None
+    label: Optional[str] = None
+    description: Optional[str] = None
+    resource_id: Optional[str] = None
+
+class AccountSchema(Schema):
+    email: Optional[str] = None
+    timestamp_created: Optional[str] = None
+    timestamp_updated: Optional[str] = None
+    payload: Optional[AccountPayloadSchema] = None
+    organization: Optional[str] = None
+    status: Optional[int] = None
+    warmup_status: Optional[int] = None
+    provider_code: Optional[int] = None
+    stat_warmup_score: Optional[float] = None
+    tags: Optional[List[AccountTagSchema]] = []
+
+class ListAccountsDataSchema(Schema):
+    organization_id: int
+    organization_name: str
+    total_accounts: int
+    accounts: List[str]
+
+class ListAccountsRequestSchema(Schema):
+    search: Optional[str] = Field(None, description="Filter accounts by content")
+    ignore_tag: Optional[str] = Field(None, description="Don't include accounts with this tag title")
+    is_active: Optional[bool] = Field(None, description="Include ONLY active accounts")
+    limit: Optional[int] = Field(10, description="Number of accounts to return")
+
+class ListAccountsResponseSchema(Schema):
+    success: bool
+    message: str
+    data: ListAccountsDataSchema 
