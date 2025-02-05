@@ -204,7 +204,7 @@ class Command(BaseCommand):
         parsed = self.parse_conditions(spamcheck.conditions)
         if not parsed:
             self.stdout.write("  Invalid conditions format")
-            return
+            return False
             
         scores = {'google': google_score, 'outlook': outlook_score}
         conditions_met = []
@@ -224,12 +224,18 @@ class Command(BaseCommand):
         if final_result:
             self.stdout.write("  Conditions met, updating sending limits")
             self.update_sending_limit(
-                spamcheck.user_organization,  # First argument should be user_organization
-                email_account,                # Second argument is email_account
-                parsed['daily_limit']         # Third argument is daily_limit
+                spamcheck.user_organization,
+                email_account,
+                parsed['daily_limit']
             )
         else:
             self.stdout.write("  Conditions not met")
+            
+        return final_result
+
+    def evaluate_default_condition(self, google_score, outlook_score):
+        """Evaluate default condition (google>=0.5)"""
+        return google_score >= 0.5
 
     def update_sending_limit(self, user_organization, email_accounts, daily_limit):
         """Update sending limit for email accounts."""
@@ -303,11 +309,13 @@ class Command(BaseCommand):
                     'organization': campaign.organization,
                     'google_pro_score': google_score,
                     'outlook_pro_score': outlook_score,
-                    'report_link': f"https://app.emailguard.io/inbox-placement-tests/{campaign.emailguard_tag}"
+                    'report_link': f"https://app.emailguard.io/inbox-placement-tests/{campaign.emailguard_tag}",
+                    'is_good': self.evaluate_conditions(campaign.spamcheck, google_score, outlook_score, campaign.account_id.email_account) if campaign.spamcheck.conditions else self.evaluate_default_condition(google_score, outlook_score)
                 }
             )
             
             self.stdout.write(f"  Report {'created' if created else 'updated'} successfully")
+            self.stdout.write(f"  Account status: {'✓ Good' if report.is_good else '✗ Bad'}")
             
             # Store domain scores if is_domain_based is True
             if campaign.spamcheck.is_domain_based and campaign.account_id and campaign.account_id.email_account:
@@ -423,6 +431,9 @@ class Command(BaseCommand):
                         outlook_score = domain_scores[domain][0][1]
                         report_link = domain_scores[domain][0][2]
                         
+                        # Evaluate conditions once for all accounts in this domain
+                        is_good = self.evaluate_conditions(spamcheck, google_score, outlook_score, accounts[0]) if spamcheck.conditions else self.evaluate_default_condition(google_score, outlook_score)
+                        
                         # Bulk create reports
                         reports_to_create = []
                         for email in accounts:
@@ -433,13 +444,15 @@ class Command(BaseCommand):
                                     organization=spamcheck.user_organization,
                                     google_pro_score=google_score,
                                     outlook_pro_score=outlook_score,
-                                    report_link=report_link
+                                    report_link=report_link,
+                                    is_good=is_good
                                 )
                             )
                         
                         # Bulk create reports
                         UserSpamcheckReport.objects.bulk_create(reports_to_create)
                         self.stdout.write(f"  Created {len(reports_to_create)} reports for domain {domain}")
+                        self.stdout.write(f"  Domain status: {'✓ Good' if is_good else '✗ Bad'}")
                         
                         # If conditions were met for the original account, update all accounts in bulk
                         if self.conditions_met:  # Use the stored result from evaluate_conditions
@@ -573,11 +586,13 @@ class Command(BaseCommand):
                                 'organization': spamcheck.user_organization,
                                 'google_pro_score': google_score,
                                 'outlook_pro_score': outlook_score,
-                                'report_link': f"https://app.emailguard.io/inbox-placement-tests/{campaign.emailguard_tag}"
+                                'report_link': f"https://app.emailguard.io/inbox-placement-tests/{campaign.emailguard_tag}",
+                                'is_good': self.evaluate_conditions(spamcheck, google_score, outlook_score, campaign.account_id.email_account) if spamcheck.conditions else self.evaluate_default_condition(google_score, outlook_score)
                             }
                         )
                         
                         self.stdout.write(f"  Report {'created' if created else 'updated'} successfully")
+                        self.stdout.write(f"  Account status: {'✓ Good' if report.is_good else '✗ Bad'}")
                         
                         # Store domain scores if is_domain_based is True
                         if spamcheck.is_domain_based and campaign.account_id and campaign.account_id.email_account:
@@ -659,6 +674,9 @@ class Command(BaseCommand):
                         outlook_score = domain_scores[domain][0][1]
                         report_link = domain_scores[domain][0][2]
                         
+                        # Evaluate conditions once for all accounts in this domain
+                        is_good = self.evaluate_conditions(spamcheck, google_score, outlook_score, accounts[0]) if spamcheck.conditions else self.evaluate_default_condition(google_score, outlook_score)
+                        
                         # Bulk create reports
                         reports_to_create = []
                         for email in accounts:
@@ -669,13 +687,15 @@ class Command(BaseCommand):
                                     organization=spamcheck.user_organization,
                                     google_pro_score=google_score,
                                     outlook_pro_score=outlook_score,
-                                    report_link=report_link
+                                    report_link=report_link,
+                                    is_good=is_good
                                 )
                             )
                         
                         # Bulk create reports
                         UserSpamcheckReport.objects.bulk_create(reports_to_create)
                         self.stdout.write(f"  Created {len(reports_to_create)} reports for domain {domain}")
+                        self.stdout.write(f"  Domain status: {'✓ Good' if is_good else '✗ Bad'}")
                         
                         # If conditions were met for the original account, update all accounts in bulk
                         if self.conditions_met:  # Use the stored result from evaluate_conditions
