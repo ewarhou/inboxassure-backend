@@ -3,7 +3,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('spamcheck', '0011_auto_20240320_1200'),  # Replace with your last migration
+        ('spamcheck', '0011_auto_20240321_1200'),  # This should match your last migration
     ]
 
     operations = [
