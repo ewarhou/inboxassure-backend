@@ -285,7 +285,7 @@ def update_profile(request, data: UpdateProfileSchema):
         return 400, {"message": "Failed to update profile"}
 
 @profile_router.put("/picture", auth=AuthBearer(), response={200: ProfileResponseSchema, 400: ErrorMessage, 422: dict})
-def update_profile_picture(request, file: File[UploadedFile]):
+def update_profile_picture(request, file: UploadedFile = Form(File(...))):
     """Update user's profile picture
     
     Upload a new profile picture. The file must be an image (JPEG, PNG, or GIF) and less than 2.5MB in size.
