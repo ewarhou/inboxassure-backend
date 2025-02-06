@@ -166,13 +166,7 @@ LOGGING = {
 }
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = False  # Disable all origins
-
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:8080",
-    "http://localhost:3000",
-    "https://inboxassure.online",
-]
+CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOW_METHODS = [
     'DELETE',
