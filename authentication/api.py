@@ -284,7 +284,19 @@ def update_profile(request, data: UpdateProfileSchema):
         logger.error(f"Error updating profile: {str(e)}")
         return 400, {"message": "Failed to update profile"}
 
+def patch_put_multipart(view_func):
+    def _wrapped_view(request, *args, **kwargs):
+         if request.method.upper() == 'PUT':
+             original_method = request.method
+             # Change to POST so multipart parser works
+             request.method = 'POST'
+             request._load_post_and_files()
+             request.method = original_method
+         return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
 @profile_router.put("/picture", auth=AuthBearer(), response={200: ProfileResponseSchema, 400: ErrorMessage, 422: dict})
+@patch_put_multipart
 def update_profile_picture(request, file: UploadedFile = File(...)):
     """Update user's profile picture
     
@@ -301,6 +313,9 @@ def update_profile_picture(request, file: UploadedFile = File(...)):
         logger.info(f"- Size: {file.size}")
         logger.info(f"- Content Type: {file.content_type}")
         
+        user = request.auth
+        profile, _ = AuthProfile.objects.get_or_create(user=user)
+        
         # Validate file extension
         if not file.name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
             logger.error(f"Invalid file extension: {file.name}")
@@ -316,9 +331,6 @@ def update_profile_picture(request, file: UploadedFile = File(...)):
         if file.size > max_size:
             logger.error(f"File too large: {file.size} bytes")
             return 400, {"message": f"File size must be less than 2.5MB. Received: {file.size / 1024 / 1024:.2f}MB"}
-        
-        user = request.auth
-        profile, _ = AuthProfile.objects.get_or_create(user=user)
         
         # Delete old profile picture if it exists
         if profile.profile_picture:
