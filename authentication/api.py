@@ -304,7 +304,29 @@ def patch_put_multipart(view_func):
          return view_func(request, *args, **kwargs)
     return _wrapped_view
 
-@profile_router.put("/picture", auth=AuthBearer(), response={200: ProfileResponseSchema, 400: ErrorMessage, 422: dict})
+@profile_router.put("/picture", 
+    auth=AuthBearer(), 
+    response={200: ProfileResponseSchema, 400: ErrorMessage, 422: dict},
+    openapi_extra={
+        'requestBody': {
+            'content': {
+                'multipart/form-data': {
+                    'schema': {
+                        'type': 'object',
+                        'properties': {
+                            'file': {
+                                'type': 'string',
+                                'format': 'binary',
+                                'description': 'Profile picture file (JPG, JPEG, PNG, or GIF, max 2.5MB)'
+                            }
+                        },
+                        'required': ['file']
+                    }
+                }
+            }
+        }
+    }
+)
 @patch_put_multipart
 def update_profile_picture(
     request,
