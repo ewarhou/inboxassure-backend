@@ -99,12 +99,8 @@ def login(request, data: LoginSchema):
     try:
         # Get user by email
         user = User.objects.get(email=data.email)
-        
-        # Log the attempt
-        logger.info(f"Login attempt for email: {data.email}")
-        
-        # Authenticate using email and password
-        authenticated_user = authenticate(request, username=data.email, password=data.password)
+        # Authenticate using username and password
+        authenticated_user = authenticate(username=user.username, password=data.password)
         
         if not authenticated_user:
             logger.warning(f"Failed login attempt for email: {data.email}")

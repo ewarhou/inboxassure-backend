@@ -1,0 +1,484 @@
+# InboxAssure Backend API Documentation
+
+Base URL: http://inboxassure-backend.imnodev.com/api
+
+All authenticated endpoints require Bearer token in the Authorization header:
+```
+Authorization: Bearer <access_token>
+```
+
+## Authentication Endpoints
+
+### Register
+- **URL**: `/auth/register`
+- **Method**: `POST`
+- **Auth**: No
+- **Payload**:
+```json
+{
+    "username": "string",
+    "email": "string",
+    "password": "string",
+    "first_name": "string (optional)",
+    "last_name": "string (optional)"
+}
+```
+- **Response (200)**:
+```json
+{
+    "access_token": "string",
+    "token_type": "bearer"
+}
+```
+
+### Login
+- **URL**: `/auth/login`
+- **Method**: `POST`
+- **Auth**: No
+- **Payload**:
+```json
+{
+    "email": "string",
+    "password": "string"
+}
+```
+- **Response (200)**:
+```json
+{
+    "access_token": "string",
+    "token_type": "bearer"
+}
+```
+
+### Password Reset Request
+- **URL**: `/auth/password-reset-request`
+- **Method**: `POST`
+- **Auth**: No
+- **Payload**:
+```json
+{
+    "email": "string"
+}
+```
+- **Response (200)**:
+```json
+{
+    "message": "Password reset email sent"
+}
+```
+
+### Verify Reset Token
+- **URL**: `/auth/password-reset-verify`
+- **Method**: `POST`
+- **Auth**: No
+- **Payload**:
+```json
+{
+    "token": "string"
+}
+```
+- **Response (200)**:
+```json
+{
+    "valid": true
+}
+```
+
+### Confirm Password Reset
+- **URL**: `/auth/password-reset-confirm`
+- **Method**: `POST`
+- **Auth**: No
+- **Payload**:
+```json
+{
+    "token": "string",
+    "new_password": "string"
+}
+```
+- **Response (200)**:
+```json
+{
+    "message": "Password has been reset successfully"
+}
+```
+
+### Change Password
+- **URL**: `/auth/change-password`
+- **Method**: `POST`
+- **Auth**: Yes
+- **Payload**:
+```json
+{
+    "old_password": "string",
+    "new_password": "string"
+}
+```
+- **Response (200)**:
+```json
+{
+    "message": "Password changed successfully"
+}
+```
+
+## Profile Endpoints
+
+### Get Profile
+- **URL**: `/profile/`
+- **Method**: `GET`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "first_name": "string",
+    "last_name": "string",
+    "email": "string",
+    "profile_picture": "string (URL)",
+    "timezone": "string"
+}
+```
+
+### Update Profile
+- **URL**: `/profile/`
+- **Method**: `PUT`
+- **Auth**: Yes
+- **Payload**:
+```json
+{
+    "first_name": "string (optional)",
+    "last_name": "string (optional)",
+    "timezone": "string (optional)"
+}
+```
+- **Response (200)**:
+```json
+{
+    "first_name": "string",
+    "last_name": "string",
+    "email": "string",
+    "profile_picture": "string (URL)",
+    "timezone": "string"
+}
+```
+
+### Update Profile Picture
+- **URL**: `/profile/picture`
+- **Method**: `PUT`
+- **Auth**: Yes
+- **Payload**: Form Data with 'file' field containing image
+- **Response (200)**:
+```json
+{
+    "first_name": "string",
+    "last_name": "string",
+    "email": "string",
+    "profile_picture": "string (URL)",
+    "timezone": "string"
+}
+```
+
+## Settings Endpoints
+
+### Instantly Editor Account
+
+#### Add Instantly Editor Account
+- **URL**: `/settings/add-instantly-editor-account`
+- **Method**: `POST`
+- **Auth**: Yes
+- **Payload**:
+```json
+{
+    "instantly_editor_email": "string",
+    "instantly_editor_password": "string"
+}
+```
+- **Response (200)**:
+```json
+{
+    "message": "Instantly editor account added successfully",
+    "data": {
+        "instantly_editor_email": "string",
+        "instantly_editor_password": "string"
+    }
+}
+```
+
+#### Update Instantly Editor Account
+- **URL**: `/settings/update-instantly-editor-account`
+- **Method**: `PUT`
+- **Auth**: Yes
+- **Payload**: Same as Add
+- **Response (200)**: Same as Add
+
+#### Delete Instantly Editor Account
+- **URL**: `/settings/delete-instantly-editor-account`
+- **Method**: `DELETE`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "message": "Instantly editor account deleted successfully",
+    "data": {}
+}
+```
+
+### Instantly API Key
+
+#### Add Instantly API Key
+- **URL**: `/settings/add-instantly-api-key`
+- **Method**: `POST`
+- **Auth**: Yes
+- **Payload**:
+```json
+{
+    "organization_id": "integer",
+    "instantly_api_key": "string"
+}
+```
+- **Response (200)**:
+```json
+{
+    "message": "Instantly API key added successfully",
+    "data": {
+        "organization_id": "string",
+        "organization_name": "string",
+        "instantly_api_key": "string"
+    }
+}
+```
+
+#### Check Instantly API Key
+- **URL**: `/settings/check-instantly-api-key/{org_id}`
+- **Method**: `GET`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "status": "boolean",
+    "message": "string"
+}
+```
+
+### EmailGuard API Key
+
+#### Add EmailGuard API Key
+- **URL**: `/settings/add-emailguard-api-key`
+- **Method**: `POST`
+- **Auth**: Yes
+- **Payload**:
+```json
+{
+    "emailguard_api_key": "string"
+}
+```
+- **Response (200)**:
+```json
+{
+    "message": "EmailGuard API key added successfully",
+    "data": {
+        "emailguard_api_key": "string"
+    }
+}
+```
+
+#### Update EmailGuard API Key
+- **URL**: `/settings/update-emailguard-api-key`
+- **Method**: `PUT`
+- **Auth**: Yes
+- **Payload**: Same as Add
+- **Response (200)**: Same as Add
+
+#### Delete EmailGuard API Key
+- **URL**: `/settings/delete-emailguard-api-key`
+- **Method**: `DELETE`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "message": "EmailGuard API key deleted successfully",
+    "data": {}
+}
+```
+
+### Bison Organizations
+
+#### Add Bison Organization
+- **URL**: `/settings/add-bison-organization`
+- **Method**: `POST`
+- **Auth**: Yes
+- **Payload**:
+```json
+{
+    "bison_organization_id": "string",
+    "bison_organization_name": "string",
+    "bison_api_key": "string"
+}
+```
+- **Response (200)**:
+```json
+{
+    "message": "Bison organization added successfully",
+    "data": {
+        "bison_organization_id": "string",
+        "bison_organization_name": "string",
+        "bison_api_key": "string"
+    }
+}
+```
+
+#### Update Bison Organization
+- **URL**: `/settings/update-bison-organization/{org_id}`
+- **Method**: `PUT`
+- **Auth**: Yes
+- **Payload**: Same as Add
+- **Response (200)**: Same as Add
+
+#### Delete Bison Organization
+- **URL**: `/settings/delete-bison-organization/{org_id}`
+- **Method**: `DELETE`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "message": "Bison organization deleted successfully",
+    "data": {}
+}
+```
+
+#### List Organizations
+- **URL**: `/settings/list-bison-organizations`
+- **Method**: `GET`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+[
+    {
+        "id": "integer",
+        "bison_organization_id": "string",
+        "bison_organization_name": "string",
+        "bison_api_key": "string",
+        "bison_organization_status": "boolean"
+    }
+]
+```
+
+#### List Instantly Organizations
+- **URL**: `/settings/list-instantly-organizations`
+- **Method**: `GET`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+[
+    {
+        "id": "integer",
+        "instantly_organization_id": "string",
+        "instantly_organization_name": "string",
+        "instantly_api_key": "string",
+        "instantly_organization_status": "boolean"
+    }
+]
+```
+
+### Status Checks
+
+#### Check Instantly Status
+- **URL**: `/settings/check-instantly-status`
+- **Method**: `GET`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "status": "boolean",
+    "message": "string",
+    "user_id": "string",
+    "organizations": []
+}
+```
+
+#### Check EmailGuard Status
+- **URL**: `/settings/check-emailguard-status`
+- **Method**: `GET`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "status": "boolean",
+    "message": "string"
+}
+```
+
+#### Check Bison Organization Status
+- **URL**: `/settings/check-bison-organization-status/{org_id}`
+- **Method**: `POST`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "status": "boolean",
+    "message": "string"
+}
+```
+
+### Get Stored Keys/Accounts
+
+#### Get Instantly Editor Account
+- **URL**: `/settings/instantly-editor`
+- **Method**: `GET`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "instantly_editor_email": "string",
+    "instantly_editor_password": "string"
+}
+```
+
+#### Get EmailGuard Key
+- **URL**: `/settings/emailguard-key`
+- **Method**: `GET`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "emailguard_api_key": "string"
+}
+```
+
+#### Get Bison Organizations
+- **URL**: `/settings/bison-organizations`
+- **Method**: `GET`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+[
+    {
+        "bison_organization_id": "string",
+        "bison_organization_name": "string",
+        "bison_api_key": "string"
+    }
+]
+```
+
+## Error Responses
+
+All endpoints may return these error responses:
+
+### 400 Bad Request
+```json
+{
+    "detail": "Error message"
+}
+```
+
+### 401 Unauthorized
+```json
+{
+    "detail": "Invalid credentials"
+}
+```
+
+### 404 Not Found
+```json
+{
+    "detail": "Resource not found"
+}
+``` 

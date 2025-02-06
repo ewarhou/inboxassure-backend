@@ -2,107 +2,15 @@
 
 Base URL: http://inboxassure-backend.imnodev.com/api
 
-## Important: API Usage Guide
-
-### CORS and URL Format
-1. Always use URLs WITHOUT trailing slashes to avoid CORS preflight issues
-   ```javascript
-   // ✅ Correct
-   http://inboxassure-backend.imnodev.com/api/profile
-   http://inboxassure-backend.imnodev.com/api/auth/login
-   
-   // ❌ Incorrect (will cause CORS issues)
-   http://inboxassure-backend.imnodev.com/api/profile/
-   http://inboxassure-backend.imnodev.com/api/auth/login/
-   ```
-
-### Axios Configuration Example
-```javascript
-import axios from 'axios';
-
-const api = axios.create({
-  baseURL: 'http://inboxassure-backend.imnodev.com/api',
-  headers: {
-    'Content-Type': 'application/json',
-  }
-});
-
-// For authenticated requests
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token'); // or however you store your token
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  
-  // Remove trailing slashes from URL
-  config.url = config.url?.replace(/\/+$/, '');
-  
-  return config;
-});
-
-// Example usage:
-const getProfile = () => api.get('/profile');  // Note: no trailing slash
-const login = (data) => api.post('/auth/login', data);  // Note: no trailing slash
-```
-
-### Fetch Configuration Example
-```javascript
-const API_BASE = 'http://inboxassure-backend.imnodev.com/api';
-
-// Helper function to remove trailing slashes
-const formatUrl = (url) => url.replace(/\/+$/, '');
-
-// Example authenticated request
-const getProfile = async () => {
-  const token = localStorage.getItem('token');
-  const response = await fetch(formatUrl(`${API_BASE}/profile`), {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    }
-  });
-  return response.json();
-};
-
-// Example login request
-const login = async (data) => {
-  const response = await fetch(formatUrl(`${API_BASE}/auth/login`), {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(data)
-  });
-  return response.json();
-};
-```
-
-### Common Issues and Solutions
-1. If you get CORS preflight errors:
-   - Ensure you're not using trailing slashes in your URLs
-   - Don't include `withCredentials: true` in your requests
-   - Make sure your Authorization header is properly formatted
-
-2. For file uploads (like profile picture):
-   - Don't set Content-Type header, let the browser set it automatically
-   - Use FormData for file uploads
-
-3. For authenticated requests:
-   - Always include the Bearer token in the Authorization header
-   - Token format: `Bearer your_token_here`
-
-## API Endpoints
-
 All authenticated endpoints require Bearer token in the Authorization header:
 ```
 Authorization: Bearer <access_token>
 ```
 
-### Authentication Endpoints
+## Authentication Endpoints
 
-#### Register
-- **URL**: `/auth/register` (no trailing slash)
+### Register
+- **URL**: `/auth/register`
 - **Method**: `POST`
 - **Auth**: No
 - **Payload**:
@@ -123,8 +31,8 @@ Authorization: Bearer <access_token>
 }
 ```
 
-#### Login
-- **URL**: `/auth/login` (no trailing slash)
+### Login
+- **URL**: `/auth/login`
 - **Method**: `POST`
 - **Auth**: No
 - **Payload**:
@@ -142,10 +50,80 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### Profile Endpoints
+### Password Reset Request
+- **URL**: `/auth/password-reset-request`
+- **Method**: `POST`
+- **Auth**: No
+- **Payload**:
+```json
+{
+    "email": "string"
+}
+```
+- **Response (200)**:
+```json
+{
+    "message": "Password reset email sent"
+}
+```
 
-#### Get Profile
-- **URL**: `/profile` (no trailing slash)
+### Verify Reset Token
+- **URL**: `/auth/password-reset-verify`
+- **Method**: `POST`
+- **Auth**: No
+- **Payload**:
+```json
+{
+    "token": "string"
+}
+```
+- **Response (200)**:
+```json
+{
+    "valid": true
+}
+```
+
+### Confirm Password Reset
+- **URL**: `/auth/password-reset-confirm`
+- **Method**: `POST`
+- **Auth**: No
+- **Payload**:
+```json
+{
+    "token": "string",
+    "new_password": "string"
+}
+```
+- **Response (200)**:
+```json
+{
+    "message": "Password has been reset successfully"
+}
+```
+
+### Change Password
+- **URL**: `/auth/change-password`
+- **Method**: `POST`
+- **Auth**: Yes
+- **Payload**:
+```json
+{
+    "old_password": "string",
+    "new_password": "string"
+}
+```
+- **Response (200)**:
+```json
+{
+    "message": "Password changed successfully"
+}
+```
+
+## Profile Endpoints
+
+### Get Profile
+- **URL**: `/profile/`
 - **Method**: `GET`
 - **Auth**: Yes
 - **Response (200)**:
@@ -159,8 +137,8 @@ Authorization: Bearer <access_token>
 }
 ```
 
-#### Update Profile
-- **URL**: `/profile` (no trailing slash)
+### Update Profile
+- **URL**: `/profile/`
 - **Method**: `PUT`
 - **Auth**: Yes
 - **Payload**:
@@ -182,10 +160,28 @@ Authorization: Bearer <access_token>
 }
 ```
 
-### Settings Endpoints
+### Update Profile Picture
+- **URL**: `/profile/picture`
+- **Method**: `PUT`
+- **Auth**: Yes
+- **Payload**: Form Data with 'file' field containing image
+- **Response (200)**:
+```json
+{
+    "first_name": "string",
+    "last_name": "string",
+    "email": "string",
+    "profile_picture": "string (URL)",
+    "timezone": "string"
+}
+```
+
+## Settings Endpoints
+
+### Instantly Editor Account
 
 #### Add Instantly Editor Account
-- **URL**: `/settings/add-instantly-editor-account` (no trailing slash)
+- **URL**: `/settings/add-instantly-editor-account`
 - **Method**: `POST`
 - **Auth**: Yes
 - **Payload**:
@@ -194,6 +190,272 @@ Authorization: Bearer <access_token>
     "instantly_editor_email": "string",
     "instantly_editor_password": "string"
 }
+```
+- **Response (200)**:
+```json
+{
+    "message": "Instantly editor account added successfully",
+    "data": {
+        "instantly_editor_email": "string",
+        "instantly_editor_password": "string"
+    }
+}
+```
+
+#### Update Instantly Editor Account
+- **URL**: `/settings/update-instantly-editor-account`
+- **Method**: `PUT`
+- **Auth**: Yes
+- **Payload**: Same as Add
+- **Response (200)**: Same as Add
+
+#### Delete Instantly Editor Account
+- **URL**: `/settings/delete-instantly-editor-account`
+- **Method**: `DELETE`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "message": "Instantly editor account deleted successfully",
+    "data": {}
+}
+```
+
+### Instantly API Key
+
+#### Add Instantly API Key
+- **URL**: `/settings/add-instantly-api-key`
+- **Method**: `POST`
+- **Auth**: Yes
+- **Payload**:
+```json
+{
+    "organization_id": "integer",
+    "instantly_api_key": "string"
+}
+```
+- **Response (200)**:
+```json
+{
+    "message": "Instantly API key added successfully",
+    "data": {
+        "organization_id": "string",
+        "organization_name": "string",
+        "instantly_api_key": "string"
+    }
+}
+```
+
+#### Check Instantly API Key
+- **URL**: `/settings/check-instantly-api-key/{org_id}`
+- **Method**: `GET`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "status": "boolean",
+    "message": "string"
+}
+```
+
+### EmailGuard API Key
+
+#### Add EmailGuard API Key
+- **URL**: `/settings/add-emailguard-api-key`
+- **Method**: `POST`
+- **Auth**: Yes
+- **Payload**:
+```json
+{
+    "emailguard_api_key": "string"
+}
+```
+- **Response (200)**:
+```json
+{
+    "message": "EmailGuard API key added successfully",
+    "data": {
+        "emailguard_api_key": "string"
+    }
+}
+```
+
+#### Update EmailGuard API Key
+- **URL**: `/settings/update-emailguard-api-key`
+- **Method**: `PUT`
+- **Auth**: Yes
+- **Payload**: Same as Add
+- **Response (200)**: Same as Add
+
+#### Delete EmailGuard API Key
+- **URL**: `/settings/delete-emailguard-api-key`
+- **Method**: `DELETE`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "message": "EmailGuard API key deleted successfully",
+    "data": {}
+}
+```
+
+### Bison Organizations
+
+#### Add Bison Organization
+- **URL**: `/settings/add-bison-organization`
+- **Method**: `POST`
+- **Auth**: Yes
+- **Payload**:
+```json
+{
+    "bison_organization_id": "string",
+    "bison_organization_name": "string",
+    "bison_api_key": "string"
+}
+```
+- **Response (200)**:
+```json
+{
+    "message": "Bison organization added successfully",
+    "data": {
+        "bison_organization_id": "string",
+        "bison_organization_name": "string",
+        "bison_api_key": "string"
+    }
+}
+```
+
+#### Update Bison Organization
+- **URL**: `/settings/update-bison-organization/{org_id}`
+- **Method**: `PUT`
+- **Auth**: Yes
+- **Payload**: Same as Add
+- **Response (200)**: Same as Add
+
+#### Delete Bison Organization
+- **URL**: `/settings/delete-bison-organization/{org_id}`
+- **Method**: `DELETE`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "message": "Bison organization deleted successfully",
+    "data": {}
+}
+```
+
+#### List Organizations
+- **URL**: `/settings/list-bison-organizations`
+- **Method**: `GET`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+[
+    {
+        "id": "integer",
+        "bison_organization_id": "string",
+        "bison_organization_name": "string",
+        "bison_api_key": "string",
+        "bison_organization_status": "boolean"
+    }
+]
+```
+
+#### List Instantly Organizations
+- **URL**: `/settings/list-instantly-organizations`
+- **Method**: `GET`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+[
+    {
+        "id": "integer",
+        "instantly_organization_id": "string",
+        "instantly_organization_name": "string",
+        "instantly_api_key": "string",
+        "instantly_organization_status": "boolean"
+    }
+]
+```
+
+### Status Checks
+
+#### Check Instantly Status
+- **URL**: `/settings/check-instantly-status`
+- **Method**: `GET`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "status": "boolean",
+    "message": "string",
+    "user_id": "string",
+    "organizations": []
+}
+```
+
+#### Check EmailGuard Status
+- **URL**: `/settings/check-emailguard-status`
+- **Method**: `GET`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "status": "boolean",
+    "message": "string"
+}
+```
+
+#### Check Bison Organization Status
+- **URL**: `/settings/check-bison-organization-status/{org_id}`
+- **Method**: `POST`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "status": "boolean",
+    "message": "string"
+}
+```
+
+### Get Stored Keys/Accounts
+
+#### Get Instantly Editor Account
+- **URL**: `/settings/instantly-editor`
+- **Method**: `GET`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "instantly_editor_email": "string",
+    "instantly_editor_password": "string"
+}
+```
+
+#### Get EmailGuard Key
+- **URL**: `/settings/emailguard-key`
+- **Method**: `GET`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "emailguard_api_key": "string"
+}
+```
+
+#### Get Bison Organizations
+- **URL**: `/settings/bison-organizations`
+- **Method**: `GET`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+[
+    {
+        "bison_organization_id": "string",
+        "bison_organization_name": "string",
+        "bison_api_key": "string"
+    }
+]
 ```
 
 ## Error Responses
@@ -219,4 +481,4 @@ All endpoints may return these error responses:
 {
     "detail": "Resource not found"
 }
-```
+``` 
