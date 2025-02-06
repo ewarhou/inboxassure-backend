@@ -283,6 +283,9 @@ def update_profile(request, data: UpdateProfileSchema):
 def update_profile_picture(request, file: UploadedFile = File(...)):
     """Update user's profile picture"""
     try:
+        # Log file details
+        logger.info(f"Received file: name={file.name}, size={file.size}, content_type={file.content_type}")
+        
         user = request.auth
         profile, _ = AuthProfile.objects.get_or_create(user=user)
         
@@ -298,8 +301,10 @@ def update_profile_picture(request, file: UploadedFile = File(...)):
             "first_name": user.first_name,
             "last_name": user.last_name,
             "email": user.email,
-            "profile_picture": request.build_absolute_uri(profile.profile_picture.url) if profile.profile_picture else None
+            "profile_picture": request.build_absolute_uri(profile.profile_picture.url) if profile.profile_picture else None,
+            "timezone": profile.timezone
         }
     except Exception as e:
         logger.error(f"Error updating profile picture: {str(e)}")
-        return 400, {"message": "Failed to update profile picture"} 
+        # Return more detailed error message
+        return 400, {"message": f"Failed to update profile picture: {str(e)}"} 
