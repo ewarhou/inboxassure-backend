@@ -27,17 +27,11 @@ api = NinjaAPI(
     urls_namespace="auth",
     csrf=False,
     auth=CustomAuthBearer(),
-    docs_url=None
+    docs_url="/docs"  # Re-enable docs
 )
 
-# Mount routers without trailing slashes
-api.add_router("auth", auth_router)
-api.add_router("profile", profile_router)
-api.add_router("settings", settings_router)
-api.add_router("spamcheck", spamcheck_router)
-
-# Add OPTIONS handler for preflight requests
-@api.api_operation(["OPTIONS"], "/{path:path}", auth=None)
-def options_handler(request, path: str) -> Any:
-    response = api.create_response(request, content={})
-    return response 
+# Mount routers with leading slashes
+api.add_router("/auth", auth_router)
+api.add_router("/profile", profile_router)
+api.add_router("/settings", settings_router)
+api.add_router("/spamcheck", spamcheck_router) 
