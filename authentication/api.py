@@ -298,7 +298,6 @@ def update_profile_picture(request):
         logger.info(f"Content-Type: {request.headers.get('Content-Type', 'Not provided')}")
         logger.info(f"Files in request: {request.FILES}")
         logger.info(f"POST data: {request.POST}")
-        logger.info(f"Body: {request.body[:1000] if request.body else 'No body'}")  # Log first 1000 chars
         
         # Get file from request.FILES
         if 'file' not in request.FILES:
@@ -330,8 +329,6 @@ def update_profile_picture(request):
         # Delete old profile picture if it exists
         if profile.profile_picture:
             try:
-                old_path = profile.profile_picture.path
-                logger.info(f"Deleting old profile picture: {old_path}")
                 profile.profile_picture.delete()
             except Exception as e:
                 logger.warning(f"Error deleting old profile picture: {str(e)}")
@@ -341,17 +338,17 @@ def update_profile_picture(request):
             profile.profile_picture = file
             profile.save()
             logger.info("Successfully saved new profile picture")
+            
+            return 200, {
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "email": user.email,
+                "profile_picture": request.build_absolute_uri(profile.profile_picture.url) if profile.profile_picture else None,
+                "timezone": profile.timezone
+            }
         except Exception as e:
             logger.error(f"Error saving profile picture: {str(e)}")
             return 400, {"message": f"Failed to save profile picture: {str(e)}"}
-        
-        return 200, {
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "email": user.email,
-            "profile_picture": request.build_absolute_uri(profile.profile_picture.url) if profile.profile_picture else None,
-            "timezone": profile.timezone
-        }
         
     except Exception as e:
         logger.error(f"Unexpected error in profile picture upload: {str(e)}")
