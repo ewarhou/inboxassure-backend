@@ -280,7 +280,7 @@ def update_profile(request, data: UpdateProfileSchema):
         return 400, {"message": "Failed to update profile"}
 
 @profile_router.put("/picture", auth=AuthBearer(), response={200: ProfileResponseSchema, 400: ErrorMessage})
-def update_profile_picture(request, file: UploadedFile = File(...)):
+def update_profile_picture(request, file: UploadedFile = File(..., alias="file")):
     """Update user's profile picture"""
     try:
         # Log file details
