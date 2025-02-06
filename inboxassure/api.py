@@ -3,23 +3,30 @@ from authentication.api import router as auth_router, profile_router
 from settings.api import router as settings_router
 from spamcheck.api import router as spamcheck_router
 from ninja.security import HttpBearer
-from typing import Any
+from typing import Any, Optional
+import jwt
+from django.conf import settings
+from django.contrib.auth import get_user_model
 
-class CORSMiddleware:
-    def __init__(self, get_response):
-        self.get_response = get_response
+User = get_user_model()
 
-    def __call__(self, request):
-        response = self.get_response(request)
-        response["Access-Control-Allow-Origin"] = "*"
-        response["Access-Control-Allow-Methods"] = "*"
-        response["Access-Control-Allow-Headers"] = "*"
-        return response
+class CustomAuthBearer(HttpBearer):
+    def authenticate(self, request, token: str) -> Optional[Any]:
+        # Skip authentication for OPTIONS requests
+        if request.method == 'OPTIONS':
+            return None
+            
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+            user = User.objects.get(id=payload['user_id'])
+            return user
+        except:
+            return None
 
 api = NinjaAPI(
     urls_namespace="auth",
     csrf=False,
-    auth=HttpBearer(),
+    auth=CustomAuthBearer(),
     docs_url=None
 )
 
