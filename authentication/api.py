@@ -20,6 +20,7 @@ from .schema import (
     PasswordResetVerifySchema, PasswordResetConfirmSchema, 
     ChangePasswordSchema, UpdateProfileSchema, ProfileResponseSchema
 )
+from settings.api import log_to_terminal
 
 logger = logging.getLogger(__name__)
 
@@ -237,6 +238,8 @@ def change_password(request, data: ChangePasswordSchema):
 def get_profile(request):
     """Get user's profile information"""
     try:
+        log_to_terminal("Profile", "Get", f"User {request.auth.username} requested profile info")
+        
         user = request.auth
         profile, _ = AuthProfile.objects.get_or_create(user=user)
         
@@ -244,53 +247,62 @@ def get_profile(request):
         profile_pic_url = None
         if profile.profile_picture:
             profile_pic_url = request.build_absolute_uri(f'/media/{profile.profile_picture.name}')
-            logger.info(f"Generated profile picture URL: {profile_pic_url}")
+            log_to_terminal("Profile", "Get", f"Profile picture URL generated: {profile_pic_url}")
         
-        return 200, {
+        response_data = {
             "first_name": user.first_name,
             "last_name": user.last_name,
             "email": user.email,
             "profile_picture": profile_pic_url,
             "timezone": profile.timezone
         }
+        log_to_terminal("Profile", "Get", f"Profile data retrieved successfully for user {user.username}")
+        return 200, response_data
     except Exception as e:
-        logger.error(f"Error getting profile: {str(e)}")
+        log_to_terminal("Profile", "Error", f"Error getting profile for user {request.auth.username}: {str(e)}")
         return 400, {"message": "Failed to get profile information"}
 
 @profile_router.put("/", auth=AuthBearer(), response={200: ProfileResponseSchema, 400: ErrorMessage})
 def update_profile(request, data: UpdateProfileSchema):
     """Update user's profile information"""
     try:
+        log_to_terminal("Profile", "Update", f"User {request.auth.username} requested profile update with data: {data.dict()}")
+        
         user = request.auth
         profile, _ = AuthProfile.objects.get_or_create(user=user)
         
         if data.first_name is not None:
             user.first_name = data.first_name
+            log_to_terminal("Profile", "Update", f"Updated first_name to: {data.first_name}")
+            
         if data.last_name is not None:
             user.last_name = data.last_name
+            log_to_terminal("Profile", "Update", f"Updated last_name to: {data.last_name}")
+            
         if data.timezone is not None:
             try:
                 import pytz
                 pytz.timezone(data.timezone)  # Validate timezone
                 profile.timezone = data.timezone
                 profile.save()
+                log_to_terminal("Profile", "Update", f"Updated timezone to: {data.timezone}")
             except pytz.exceptions.UnknownTimeZoneError:
+                log_to_terminal("Profile", "Error", f"Invalid timezone provided: {data.timezone}")
                 return 400, {"message": f"Invalid timezone: {data.timezone}"}
             
         user.save()
         
-        return 200, {
+        response_data = {
             "first_name": user.first_name,
             "last_name": user.last_name,
             "email": user.email,
             "profile_picture": request.build_absolute_uri(profile.profile_picture.url) if profile.profile_picture else None,
             "timezone": profile.timezone
         }
+        log_to_terminal("Profile", "Update", f"Profile updated successfully for user {user.username}")
+        return 200, response_data
     except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        user_id = user.id if user and hasattr(user, 'id') else 'unknown'
-        logger.error(f"Error updating profile for user {user_id}: {str(e)}\nTraceback: {tb}")
+        log_to_terminal("Profile", "Error", f"Error updating profile for user {request.auth.username}: {str(e)}")
         return 500, {"message": "Internal Server Error. Please check the server logs for details."}
 
 def patch_put_multipart(view_func):
@@ -329,100 +341,72 @@ def patch_put_multipart(view_func):
 )
 @patch_put_multipart
 def update_profile_picture(request):
-    """
-    Upload a new profile picture
-    
-    Parameters:
-        - file: Image file (JPG, JPEG, PNG, or GIF)
-          - Maximum size: 2.5MB
-          - Must be sent as form-data with field name 'file'
-    """
+    """Upload a new profile picture"""
     try:
-        print("\n=== Profile Picture Upload Debug ===")
-        print(f"Request Method: {request.method}")
-        print(f"Content-Type: {request.headers.get('Content-Type', 'Not provided')}")
-        print(f"Request FILES: {request.FILES}")
+        log_to_terminal("Profile", "Picture", f"User {request.auth.username} started profile picture upload")
+        log_to_terminal("Profile", "Picture", f"Request Method: {request.method}")
+        log_to_terminal("Profile", "Picture", f"Content-Type: {request.headers.get('Content-Type', 'Not provided')}")
         
         if 'file' not in request.FILES:
-            print("No file provided in request")
+            log_to_terminal("Profile", "Error", "No file provided in request")
             return 400, {"message": "No file provided"}
             
         file = request.FILES['file']
-        print("\nFile details:")
-        print(f"- Name: {file.name}")
-        print(f"- Size: {file.size}")
-        print(f"- Content Type: {file.content_type}")
+        log_to_terminal("Profile", "Picture", f"File details - Name: {file.name}, Size: {file.size}, Type: {file.content_type}")
         
         user = request.auth
-        print(f"\nUser details:")
-        print(f"- User ID: {user.id}")
-        print(f"- Username: {user.username}")
-        
         profile, created = AuthProfile.objects.get_or_create(user=user)
-        print(f"\nProfile details:")
-        print(f"- Profile ID: {profile.id}")
-        print(f"- Created now: {created}")
-        print(f"- Current profile picture: {profile.profile_picture if profile.profile_picture else 'None'}")
+        log_to_terminal("Profile", "Picture", f"Profile accessed - ID: {profile.id}, Created: {created}")
         
         # Validate file extension
         allowed_extensions = ('.jpg', '.jpeg', '.png', '.gif')
         if not any(file.name.lower().endswith(ext) for ext in allowed_extensions):
-            print(f"\nInvalid file extension: {file.name}")
+            log_to_terminal("Profile", "Error", f"Invalid file extension: {file.name}")
             return 400, {"message": f"File must be one of: {', '.join(allowed_extensions)}"}
         
         # Validate file type
         if not file.content_type or not file.content_type.startswith('image/'):
-            print(f"\nInvalid file type: {file.content_type}")
+            log_to_terminal("Profile", "Error", f"Invalid file type: {file.content_type}")
             return 400, {"message": f"File must be an image. Received content type: {file.content_type}"}
         
         # Validate file size (max 2.5MB)
         max_size = 2.5 * 1024 * 1024  # 2.5MB in bytes
         if file.size > max_size:
-            print(f"\nFile too large: {file.size} bytes")
+            log_to_terminal("Profile", "Error", f"File too large: {file.size} bytes")
             return 400, {"message": f"File size must be less than 2.5MB. Received: {file.size / 1024 / 1024:.2f}MB"}
         
         # Delete old profile picture if it exists
         if profile.profile_picture:
             try:
                 old_path = profile.profile_picture.path
-                print(f"\nDeleting old profile picture:")
-                print(f"- Path: {old_path}")
+                log_to_terminal("Profile", "Picture", f"Deleting old profile picture: {old_path}")
                 profile.profile_picture.delete(save=False)
-                print("Old profile picture deleted successfully")
             except Exception as e:
-                print(f"Warning: Error deleting old profile picture: {str(e)}")
+                log_to_terminal("Profile", "Warning", f"Error deleting old profile picture: {str(e)}")
         
         # Save new profile picture
         try:
-            print("\nSaving new profile picture:")
-            print(f"- Upload path: {profile_picture_path(profile, file.name)}")
+            log_to_terminal("Profile", "Picture", f"Saving new profile picture: {profile_picture_path(profile, file.name)}")
             profile.profile_picture = file
             profile.save()
-            print("Profile picture saved successfully")
             
             # Build URL with MEDIA_URL prefix
             profile_pic_url = request.build_absolute_uri(f'/media/{profile.profile_picture.name}')
-            print(f"\nGenerated profile picture URL: {profile_pic_url}")
+            log_to_terminal("Profile", "Picture", f"New profile picture URL: {profile_pic_url}")
             
-            return 200, {
+            response_data = {
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "email": user.email,
                 "profile_picture": profile_pic_url,
                 "timezone": profile.timezone
             }
+            log_to_terminal("Profile", "Picture", f"Profile picture updated successfully for user {user.username}")
+            return 200, response_data
         except Exception as e:
-            import traceback
-            tb = traceback.format_exc()
-            print(f"\nError saving profile picture:")
-            print(f"Error: {str(e)}")
-            print(f"Traceback:\n{tb}")
+            log_to_terminal("Profile", "Error", f"Error saving profile picture: {str(e)}")
             return 500, {"message": "Failed to save profile picture. Please try again."}
             
     except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        print(f"\nUnexpected error in profile picture upload:")
-        print(f"Error: {str(e)}")
-        print(f"Traceback:\n{tb}")
+        log_to_terminal("Profile", "Error", f"Unexpected error in profile picture upload: {str(e)}")
         return 500, {"message": "An unexpected error occurred. Please try again."} 
