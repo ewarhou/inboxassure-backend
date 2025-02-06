@@ -285,6 +285,13 @@ def update_profile_picture(request, file: UploadedFile = File(...)):
     try:
         # Log file details
         logger.info(f"Received file: name={file.name}, size={file.size}, content_type={file.content_type}")
+        logger.info(f"Request Content-Type: {request.headers.get('Content-Type', 'Not provided')}")
+        
+        if not file:
+            return 400, {"message": "No file provided"}
+            
+        if not file.content_type.startswith('image/'):
+            return 400, {"message": "File must be an image"}
         
         user = request.auth
         profile, _ = AuthProfile.objects.get_or_create(user=user)
