@@ -1,4 +1,12 @@
 # InboxAssure Terminal Logs
 # Format: [Timestamp] [Module] [Action] Message
 
-[2024-03-18 12:00:00] [System] [Init] Terminal logs file created 
+[2024-03-18 12:00:00] [System] [Init] Terminal logs file created [2025-02-06 03:25:58] [Profile] [Picture] User amine1 started profile picture upload
+[2025-02-06 03:25:58] [Profile] [Picture] Request Method: PUT
+[2025-02-06 03:25:58] [Profile] [Picture] Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryXEfBl1G9hc4WXq7z
+[2025-02-06 03:25:58] [Profile] [Picture] File details - Name: Hello.jpg, Size: 31366, Type: image/jpeg
+[2025-02-06 03:25:58] [Profile] [Picture] Profile accessed - ID: 1, Created: False
+[2025-02-06 03:25:58] [Profile] [Picture] Deleting old profile picture: C:\Users\FatiiMa\Desktop\InboxAssure\inboxassure-backend\media\profile_pictures\5\7d43f0b2-d988-4e58-87a3-1a75289a4962.jpg
+[2025-02-06 03:25:58] [Profile] [Picture] Saving new profile picture: profile_pictures\5\3b876242-a8cf-43d5-bdc5-fedc4dac12b4.jpg
+[2025-02-06 03:25:58] [Profile] [Picture] New profile picture URL: http://127.0.0.1:8000/media/profile_pictures/5/09f15ea2-e163-4b0e-a417-2c00d84b2eb8.jpg
+[2025-02-06 03:25:58] [Profile] [Picture] Profile picture updated successfully for user amine1

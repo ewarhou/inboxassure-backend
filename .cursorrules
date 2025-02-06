@@ -51,3 +51,9 @@ Always update dependencies if needed in requirements.txt before committing and p
 
 Always push to the main branch. then use the deploy.sh script to deploy to the server.
 DO NOT change the nginx.conf file, it's already configured and working.
+
+you can use the log_to_terminal() function anywhere in your code to write logs. For example, in your profile picture upload endpoint, you can add logs like this:
+from settings.api import log_to_terminal
+
+# In your update_profile_picture function:
+log_to_terminal("Profile", "Upload", f"User {request.auth.username} started profile picture upload")
