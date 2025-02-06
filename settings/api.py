@@ -1,7 +1,7 @@
 from typing import List
-from ninja import Router
+from ninja import Router, Schema
 from django.shortcuts import get_object_or_404
-from django.http import HttpRequest
+from django.http import HttpRequest, FileResponse
 from authentication.authorization import AuthBearer
 from .models import UserSettings, UserBison, UserInstantly, UserProfile
 from .schema import (
@@ -27,6 +27,8 @@ from .schema import (
 )
 import requests
 import pytz
+from datetime import datetime
+from pathlib import Path
 
 router = Router(tags=['Settings'])
 profile_router = Router(tags=['Profile'])
@@ -740,4 +742,31 @@ def get_bison_organizations(request):
             "bison_organization_status": org.bison_organization_status
         } for org in bison_orgs]
     except Exception as e:
-        return 400, {"detail": str(e)} 
+        return 400, {"detail": str(e)}
+
+@router.get("/download-logs", auth=AuthBearer())
+def download_logs(request):
+    """Download the terminal logs file"""
+    try:
+        logs_path = Path("terminal_logs.txt")
+        if logs_path.exists():
+            response = FileResponse(
+                open(logs_path, 'rb'),
+                content_type='text/plain'
+            )
+            response['Content-Disposition'] = f'attachment; filename="terminal_logs_{datetime.now().strftime("%Y%m%d_%H%M%S")}.txt"'
+            return response
+        return {"message": "Logs file not found"}, 404
+    except Exception as e:
+        return {"message": str(e)}, 500
+
+def log_to_terminal(module: str, action: str, message: str):
+    """Utility function to write logs to the terminal_logs.txt file"""
+    try:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_entry = f"[{timestamp}] [{module}] [{action}] {message}\n"
+        
+        with open("terminal_logs.txt", "a") as f:
+            f.write(log_entry)
+    except Exception as e:
+        print(f"Error writing to logs: {str(e)}") 

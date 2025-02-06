@@ -1,0 +1,4 @@
+# InboxAssure Terminal Logs
+# Format: [Timestamp] [Module] [Action] Message
+
+[2024-03-18 12:00:00] [System] [Init] Terminal logs file created 
