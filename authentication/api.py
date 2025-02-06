@@ -285,7 +285,7 @@ def update_profile(request, data: UpdateProfileSchema):
         return 400, {"message": "Failed to update profile"}
 
 @profile_router.put("/picture", auth=AuthBearer(), response={200: ProfileResponseSchema, 400: ErrorMessage, 422: dict})
-def update_profile_picture(request):
+def update_profile_picture(request, file: File[UploadedFile]):
     """Update user's profile picture
     
     Upload a new profile picture. The file must be an image (JPEG, PNG, or GIF) and less than 2.5MB in size.
@@ -296,17 +296,6 @@ def update_profile_picture(request):
         logger.info("=== Profile Picture Upload Debug ===")
         logger.info(f"Request Method: {request.method}")
         logger.info(f"Content-Type: {request.headers.get('Content-Type', 'Not provided')}")
-        logger.info(f"Files in request: {request.FILES}")
-        logger.info(f"POST data: {request.POST}")
-        
-        # Get file from request.FILES
-        if 'file' not in request.FILES:
-            logger.error("No file field in request.FILES")
-            return 400, {"message": "No file provided"}
-            
-        file = request.FILES['file']
-        
-        # Log file details
         logger.info(f"File details:")
         logger.info(f"- Name: {file.name}")
         logger.info(f"- Size: {file.size}")
