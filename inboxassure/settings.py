@@ -195,3 +195,9 @@ DEFAULT_FROM_EMAIL = 'InboxAssure <dev@vitalitymarketingfirm.com>'
 
 # Password Reset Settings
 PASSWORD_RESET_TIMEOUT = 3600  # 1 hour in seconds
+
+# Authentication backends
+AUTHENTICATION_BACKENDS = [
+    'authentication.backends.EmailBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
