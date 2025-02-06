@@ -3,12 +3,14 @@ from django.contrib.auth import get_user_model
 import uuid
 from datetime import timedelta
 from django.utils import timezone
+import os
 
 User = get_user_model()
 
 def profile_picture_path(instance, filename):
     ext = filename.split('.')[-1]
-    return f'profile_pictures/{instance.user.id}/{uuid.uuid4()}.{ext}'
+    filename = f"{uuid.uuid4()}.{ext}"
+    return os.path.join('profile_pictures', str(instance.user.id), filename)
 
 class AuthProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='auth_profile')
@@ -26,10 +28,11 @@ class PasswordResetToken(models.Model):
     used = models.BooleanField(default=False)
 
     def is_valid(self):
-        return (
-            not self.used and
-            self.created_at + timedelta(hours=1) > timezone.now()
-        )
+        from django.conf import settings
+        if self.used:
+            return False
+        expiry_time = self.created_at + timedelta(seconds=settings.PASSWORD_RESET_TIMEOUT)
+        return timezone.now() <= expiry_time
 
     class Meta:
         indexes = [
