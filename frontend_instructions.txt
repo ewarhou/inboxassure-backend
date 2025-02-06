@@ -481,4 +481,161 @@ All endpoints may return these error responses:
 {
     "detail": "Resource not found"
 }
+```
+
+# Profile Picture Upload
+
+## Endpoint
+- **URL**: `/api/profile/picture`
+- **Method**: `PUT`
+- **Auth Required**: Yes (Bearer Token)
+
+## Request Format
+The request must be sent as `multipart/form-data` with a single file field:
+
+```typescript
+const formData = new FormData();
+formData.append('file', file); // file must be named 'file'
+```
+
+## Example Implementation
+```typescript
+// Profile picture upload function
+const updateProfilePicture = async (file: File) => {
+  // Validate file type
+  if (!file.type.startsWith('image/')) {
+    throw new Error('File must be an image');
+  }
+
+  // Validate file size (max 2.5MB)
+  if (file.size > 2.5 * 1024 * 1024) {
+    throw new Error('File size must be less than 2.5MB');
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await axios.put(
+      '/api/profile/picture',
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          // Do NOT set Content-Type - axios will set it automatically
+        }
+      }
+    );
+    return response.data;
+  } catch (error) {
+    if (error.response?.status === 422) {
+      throw new Error('Invalid file format or missing file');
+    }
+    throw error;
+  }
+};
+
+// Usage in a React component
+const ProfilePictureUpload = () => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      await updateProfilePicture(file);
+      // Handle success (e.g., show success message, update UI)
+    } catch (error) {
+      // Handle error (e.g., show error message)
+      console.error('Upload failed:', error.message);
+    }
+  };
+
+  return (
+    <input
+      type="file"
+      accept="image/*"
+      onChange={handleFileChange}
+    />
+  );
+};
+```
+
+## Important Notes
+1. File Requirements:
+   - Field name must be 'file'
+   - Must be an image file (JPEG, PNG, GIF)
+   - Maximum size: 2.5MB
+   - Content-Type must be image/* (e.g., image/jpeg, image/png)
+
+2. Common Issues:
+   - 422 Error: Usually means the file field is missing or invalid
+   - 400 Error: File validation failed (not an image or too large)
+   - 401 Error: Invalid or missing authentication token
+
+3. Best Practices:
+   - Always validate file type and size on frontend before uploading
+   - Don't set Content-Type header manually when using FormData
+   - Handle errors appropriately and show user-friendly messages
+   - Consider adding loading state during upload
+
+## Response Format
+### Success (200)
+```json
+{
+    "first_name": "string",
+    "last_name": "string",
+    "email": "string",
+    "profile_picture": "string (URL)",
+    "timezone": "string"
+}
+```
+
+### Error (400, 401, 422)
+```json
+{
+    "message": "Error description"
+}
+```
+
+## Example Error Handling
+```typescript
+const handleUpload = async (file: File) => {
+  try {
+    // Show loading state
+    setIsUploading(true);
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Please select an image file');
+    }
+
+    // Validate file size (2.5MB)
+    const maxSize = 2.5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      throw new Error('File size must be less than 2.5MB');
+    }
+
+    // Upload file
+    const result = await updateProfilePicture(file);
+    
+    // Update UI with new profile picture
+    setProfilePicture(result.profile_picture);
+    
+    // Show success message
+    toast.success('Profile picture updated successfully');
+    
+  } catch (error) {
+    // Handle specific errors
+    if (error.response?.status === 422) {
+      toast.error('Please select a valid image file');
+    } else if (error.response?.status === 401) {
+      toast.error('Please log in again');
+      // Handle session expiry
+    } else {
+      toast.error(error.message || 'Failed to update profile picture');
+    }
+  } finally {
+    setIsUploading(false);
+  }
+};
 ``` 
