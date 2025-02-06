@@ -48,7 +48,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
+    'inboxassure.api.CORSMiddleware',  # Our custom CORS middleware
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -165,22 +165,23 @@ LOGGING = {
     },
 }
 
+# Remove all CORS settings since we're handling it in our middleware
 # CORS settings - Super permissive for development
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
-CORS_ORIGIN_ALLOW_ALL = True
+# CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOW_CREDENTIALS = True
+# CORS_ORIGIN_ALLOW_ALL = True
 
-# Allow all headers and methods
-CORS_ALLOW_HEADERS = ['*']
-CORS_ALLOW_METHODS = ['*']
+# # Allow all headers and methods
+# CORS_ALLOW_HEADERS = ['*']
+# CORS_ALLOW_METHODS = ['*']
 
-# Disable CSRF for API endpoints
-CSRF_TRUSTED_ORIGINS = ['http://localhost:8080', 'http://localhost:3000', 'https://inboxassure.online']
-CSRF_COOKIE_SECURE = False
-SESSION_COOKIE_SECURE = False
+# # Disable CSRF for API endpoints
+# CSRF_TRUSTED_ORIGINS = ['http://localhost:8080', 'http://localhost:3000', 'https://inboxassure.online']
+# CSRF_COOKIE_SECURE = False
+# SESSION_COOKIE_SECURE = False
 
-# Important for handling redirects
-APPEND_SLASH = False  # This prevents Django from redirecting URLs
+# # Important for handling redirects
+# APPEND_SLASH = False  # This prevents Django from redirecting URLs
 
 # Email Configuration
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
