@@ -285,7 +285,7 @@ def update_profile(request, data: UpdateProfileSchema):
         return 400, {"message": "Failed to update profile"}
 
 @profile_router.put("/picture", auth=AuthBearer(), response={200: ProfileResponseSchema, 400: ErrorMessage, 422: dict})
-def update_profile_picture(request, file: UploadedFile = Form(File(...))):
+def update_profile_picture(request, file: UploadedFile = File(...)):
     """Update user's profile picture
     
     Upload a new profile picture. The file must be an image (JPEG, PNG, or GIF) and less than 2.5MB in size.
@@ -300,6 +300,11 @@ def update_profile_picture(request, file: UploadedFile = Form(File(...))):
         logger.info(f"- Name: {file.name}")
         logger.info(f"- Size: {file.size}")
         logger.info(f"- Content Type: {file.content_type}")
+        
+        # Validate file extension
+        if not file.name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
+            logger.error(f"Invalid file extension: {file.name}")
+            return 400, {"message": "File must be a JPG, JPEG, PNG, or GIF image"}
         
         # Validate file type
         if not file.content_type or not file.content_type.startswith('image/'):
