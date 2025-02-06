@@ -287,8 +287,11 @@ def update_profile(request, data: UpdateProfileSchema):
             "timezone": profile.timezone
         }
     except Exception as e:
-        logger.error(f"Error updating profile: {str(e)}")
-        return 400, {"message": "Failed to update profile"}
+        import traceback
+        tb = traceback.format_exc()
+        user_id = user.id if user and hasattr(user, 'id') else 'unknown'
+        logger.error(f"Error updating profile for user {user_id}: {str(e)}\nTraceback: {tb}")
+        return 500, {"message": "Internal Server Error. Please check the server logs for details."}
 
 def patch_put_multipart(view_func):
     def _wrapped_view(request, *args, **kwargs):
@@ -371,8 +374,11 @@ def update_profile_picture(request):
                 "timezone": profile.timezone
             }
         except Exception as e:
-            logger.error(f"Error saving profile picture: {str(e)}")
-            return 400, {"message": f"Failed to save profile picture: {str(e)}"}
+            import traceback
+            tb = traceback.format_exc()
+            user_id = user.id if user and hasattr(user, 'id') else 'unknown'
+            logger.error(f"Unexpected error in profile picture upload for user {user_id}: {str(e)}\nTraceback: {tb}")
+            return 500, {"message": "Internal Server Error. Please check the server logs for details."}
         
     except Exception as e:
         logger.error(f"Unexpected error in profile picture upload: {str(e)}")
