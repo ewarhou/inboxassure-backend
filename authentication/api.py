@@ -297,7 +297,7 @@ def patch_put_multipart(view_func):
 
 @profile_router.put("/picture", auth=AuthBearer(), response={200: ProfileResponseSchema, 400: ErrorMessage, 422: dict})
 @patch_put_multipart
-def update_profile_picture(request, file: UploadedFile = File(...)):
+def update_profile_picture(request):
     """Update user's profile picture
     
     Upload a new profile picture. The file must be an image (JPEG, PNG, or GIF) and less than 2.5MB in size.
@@ -308,6 +308,14 @@ def update_profile_picture(request, file: UploadedFile = File(...)):
         logger.info("=== Profile Picture Upload Debug ===")
         logger.info(f"Request Method: {request.method}")
         logger.info(f"Content-Type: {request.headers.get('Content-Type', 'Not provided')}")
+        logger.info(f"Files in request: {request.FILES}")
+        
+        if 'file' not in request.FILES:
+            logger.error("No file provided in request")
+            return 400, {"message": "No file provided"}
+            
+        file = request.FILES['file']
+        
         logger.info(f"File details:")
         logger.info(f"- Name: {file.name}")
         logger.info(f"- Size: {file.size}")
