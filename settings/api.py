@@ -20,6 +20,9 @@ from .schema import (
     InstantlyOrganizationDataSchema,
     InstantlyStatusResponseSchema,
     InstantlyApiKeyCheckResponseSchema,
+    InstantlyEditorAccountResponseSchema,
+    EmailGuardKeyResponseSchema,
+    BisonKeyResponseSchema,
     UpdateProfileSchema
 )
 import requests
@@ -299,37 +302,60 @@ def check_instantly_status(request: HttpRequest):
                 )
                 print(f"✅ {'Created' if created else 'Updated'} organization in database: {org['name']}")
                 
-                # Create API key for the organization
+                # Check existing API keys
                 api_key_headers = {
                     'Cookie': f'__session={session_token}',
                     'x-workspace-id': org['id'],
                     'Content-Type': 'application/json'
                 }
                 
-                api_key_data = {
-                    'name': 'InboxAssure',
-                    'scopes': ['all:all']
-                }
-                
-                print(f"\n5️⃣ Creating API Key for Organization: {org['name']}")
-                print(f"📡 Request Headers: {api_key_headers}")
-                print(f"📄 Request Body: {api_key_data}")
-                
-                api_key_response = requests.post(
-                    'https://app.instantly.ai/backend/api/v2/api-keys',
-                    headers=api_key_headers,
-                    json=api_key_data
+                print(f"\n5️⃣ Checking existing API Keys for Organization: {org['name']}")
+                list_keys_response = requests.get(
+                    'https://app.instantly.ai/backend/api/v2/api-keys?limit=100',
+                    headers=api_key_headers
                 )
-                print(f"📡 API Key Response Status: {api_key_response.status_code}")
-                print(f"📄 API Key Response Body: {api_key_response.text}")
+                print(f"📡 List Keys Response Status: {list_keys_response.status_code}")
+                print(f"📄 List Keys Response Body: {list_keys_response.text}")
                 
-                if api_key_response.status_code == 200:
-                    api_key_data = api_key_response.json()
-                    instantly_org.instantly_api_key = api_key_data.get('key')
-                    instantly_org.save()
-                    print(f"✅ API Key created and stored for organization: {org['name']}")
-                else:
-                    print(f"❌ Failed to create API key for organization: {org['name']}")
+                should_create_key = True  # Flag to control key creation
+                if list_keys_response.status_code == 200:
+                    keys_data = list_keys_response.json()
+                    for key in keys_data.get('items', []):
+                        if key.get('name') == 'InboxAssure':
+                            existing_api_key = key.get('key')
+                            print(f"✅ Found existing InboxAssure API key for organization: {org['name']}")
+                            instantly_org.instantly_api_key = existing_api_key
+                            instantly_org.save()
+                            print(f"✅ Using existing API key for organization: {org['name']}")
+                            should_create_key = False  # Don't create a new key
+                            break
+                
+                if should_create_key:  # Only create new key if flag is True
+                    # Create new API key if none exists
+                    api_key_data = {
+                        'name': 'InboxAssure',
+                        'scopes': ['all:all']
+                    }
+                    
+                    print(f"\n6️⃣ Creating new API Key for Organization: {org['name']}")
+                    print(f"📡 Request Headers: {api_key_headers}")
+                    print(f"📄 Request Body: {api_key_data}")
+                    
+                    api_key_response = requests.post(
+                        'https://app.instantly.ai/backend/api/v2/api-keys',
+                        headers=api_key_headers,
+                        json=api_key_data
+                    )
+                    print(f"📡 API Key Response Status: {api_key_response.status_code}")
+                    print(f"📄 API Key Response Body: {api_key_response.text}")
+                    
+                    if api_key_response.status_code == 200:
+                        api_key_data = api_key_response.json()
+                        instantly_org.instantly_api_key = api_key_data.get('key')
+                        instantly_org.save()
+                        print(f"✅ New API Key created and stored for organization: {org['name']}")
+                    else:
+                        print(f"❌ Failed to create API key for organization: {org['name']}")
                 
                 org_list.append({
                     "id": instantly_org.id,  # Our database ID
@@ -675,5 +701,43 @@ def update_profile(request, payload: UpdateProfileSchema):
                 "timezone": profile.timezone
             }
         }
+    except Exception as e:
+        return 400, {"detail": str(e)}
+
+@router.get("/instantly-editor", auth=AuthBearer(), response={200: InstantlyEditorAccountResponseSchema, 400: ErrorResponseSchema})
+def get_instantly_editor_account(request):
+    """Get user's Instantly editor account credentials"""
+    try:
+        settings = get_object_or_404(UserSettings, user=request.auth)
+        return 200, {
+            "instantly_editor_email": settings.instantly_editor_email,
+            "instantly_editor_password": settings.instantly_editor_password,
+            "instantly_status": settings.instantly_status
+        }
+    except Exception as e:
+        return 400, {"detail": str(e)}
+
+@router.get("/emailguard-key", auth=AuthBearer(), response={200: EmailGuardKeyResponseSchema, 400: ErrorResponseSchema})
+def get_emailguard_key(request):
+    """Get user's EmailGuard API key"""
+    try:
+        settings = get_object_or_404(UserSettings, user=request.auth)
+        return 200, {
+            "emailguard_api_key": settings.emailguard_api_key,
+            "emailguard_status": settings.emailguard_status
+        }
+    except Exception as e:
+        return 400, {"detail": str(e)}
+
+@router.get("/bison-organizations", auth=AuthBearer(), response={200: List[BisonKeyResponseSchema], 400: ErrorResponseSchema})
+def get_bison_organizations(request):
+    """Get user's Bison organizations and their API keys"""
+    try:
+        bison_orgs = UserBison.objects.filter(user=request.auth)
+        return 200, [{
+            "bison_organization_name": org.bison_organization_name,
+            "bison_organization_api_key": org.bison_organization_api_key,
+            "bison_organization_status": org.bison_organization_status
+        } for org in bison_orgs]
     except Exception as e:
         return 400, {"detail": str(e)} 

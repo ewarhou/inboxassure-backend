@@ -759,3 +759,48 @@ Content-Type: application/json
 - Use search parameter to filter campaigns by name
 - Sort results using sortColumn and sortOrder parameters
 
+**API Endpoints:**
+
+1. List API Keys
+```
+GET https://app.instantly.ai/backend/api/v2/api-keys?limit=100
+
+Response:
+{
+    "items": [
+        {
+            "id": "string",
+            "name": "string",
+            "scopes": ["string"],
+            "key": "string",
+            "organization_id": "string",
+            "timestamp_created": "string",
+            "timestamp_updated": "string"
+        }
+    ],
+    "next_starting_after": "string"
+}
+```
+
+2. Create API Key
+```
+POST https://app.instantly.ai/backend/api/v2/api-keys
+
+Request Body:
+{
+    "name": "string",
+    "scopes": ["string"]
+}
+
+Response:
+{
+    "id": "string",
+    "name": "string",
+    "scopes": ["string"],
+    "key": "string",
+    "organization_id": "string",
+    "timestamp_created": "string",
+    "timestamp_updated": "string"
+}
+```
+

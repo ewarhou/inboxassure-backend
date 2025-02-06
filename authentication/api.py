@@ -1,7 +1,8 @@
 from django.contrib.auth import get_user_model, authenticate
 from django.contrib.auth.hashers import make_password
-from ninja import Router, Schema
+from ninja import Router, Schema, File
 from ninja.security import HttpBearer
+from ninja.files import UploadedFile
 import jwt
 from datetime import datetime, timedelta
 from django.conf import settings
@@ -13,13 +14,18 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
 from typing import Dict
-from .models import PasswordResetToken
-from .schema import TokenSchema, ErrorMessage, PasswordResetRequestSchema, PasswordResetVerifySchema, PasswordResetConfirmSchema
+from .models import PasswordResetToken, AuthProfile
+from .schema import (
+    TokenSchema, ErrorMessage, PasswordResetRequestSchema, 
+    PasswordResetVerifySchema, PasswordResetConfirmSchema, 
+    ChangePasswordSchema, UpdateProfileSchema, ProfileResponseSchema
+)
 
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
-router = Router()
+router = Router(tags=["Authentication"])
+profile_router = Router(tags=["Profile"])
 
 class SignUpSchema(Schema):
     username: str
@@ -202,4 +208,98 @@ def confirm_password_reset(request, data: PasswordResetConfirmSchema):
         
         return {"message": "Password has been reset successfully"}
     except PasswordResetToken.DoesNotExist:
-        return 404, {"message": "Invalid token"} 
+        return 404, {"message": "Invalid token"}
+
+@router.post("/change-password", auth=AuthBearer(), response={200: Dict, 400: ErrorMessage})
+def change_password(request, data: ChangePasswordSchema):
+    """Change user's password by providing old and new password"""
+    try:
+        user = request.auth
+        # Verify old password
+        if not user.check_password(data.old_password):
+            return 400, {"message": "Current password is incorrect"}
+        
+        # Set new password
+        user.set_password(data.new_password)
+        user.save()
+        
+        return 200, {"message": "Password changed successfully"}
+    except Exception as e:
+        logger.error(f"Error changing password: {str(e)}")
+        return 400, {"message": "Failed to change password"}
+
+@profile_router.get("/", auth=AuthBearer(), response={200: ProfileResponseSchema, 400: ErrorMessage})
+def get_profile(request):
+    """Get user's profile information"""
+    try:
+        user = request.auth
+        profile, _ = AuthProfile.objects.get_or_create(user=user)
+        
+        return 200, {
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+            "profile_picture": request.build_absolute_uri(profile.profile_picture.url) if profile.profile_picture else None,
+            "timezone": profile.timezone
+        }
+    except Exception as e:
+        logger.error(f"Error getting profile: {str(e)}")
+        return 400, {"message": "Failed to get profile information"}
+
+@profile_router.put("/", auth=AuthBearer(), response={200: ProfileResponseSchema, 400: ErrorMessage})
+def update_profile(request, data: UpdateProfileSchema):
+    """Update user's profile information"""
+    try:
+        user = request.auth
+        profile, _ = AuthProfile.objects.get_or_create(user=user)
+        
+        if data.first_name is not None:
+            user.first_name = data.first_name
+        if data.last_name is not None:
+            user.last_name = data.last_name
+        if data.timezone is not None:
+            try:
+                import pytz
+                pytz.timezone(data.timezone)  # Validate timezone
+                profile.timezone = data.timezone
+                profile.save()
+            except pytz.exceptions.UnknownTimeZoneError:
+                return 400, {"message": f"Invalid timezone: {data.timezone}"}
+            
+        user.save()
+        
+        return 200, {
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+            "profile_picture": request.build_absolute_uri(profile.profile_picture.url) if profile.profile_picture else None,
+            "timezone": profile.timezone
+        }
+    except Exception as e:
+        logger.error(f"Error updating profile: {str(e)}")
+        return 400, {"message": "Failed to update profile"}
+
+@profile_router.put("/picture", auth=AuthBearer(), response={200: ProfileResponseSchema, 400: ErrorMessage})
+def update_profile_picture(request, file: UploadedFile = File(...)):
+    """Update user's profile picture"""
+    try:
+        user = request.auth
+        profile, _ = AuthProfile.objects.get_or_create(user=user)
+        
+        # Delete old profile picture if it exists
+        if profile.profile_picture:
+            profile.profile_picture.delete()
+        
+        # Save new profile picture
+        profile.profile_picture = file
+        profile.save()
+        
+        return 200, {
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+            "profile_picture": request.build_absolute_uri(profile.profile_picture.url) if profile.profile_picture else None
+        }
+    except Exception as e:
+        logger.error(f"Error updating profile picture: {str(e)}")
+        return 400, {"message": "Failed to update profile picture"} 

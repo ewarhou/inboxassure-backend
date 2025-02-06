@@ -6,6 +6,20 @@ class InstantlyEditorAccountSchema(Schema):
     instantly_editor_email: str
     instantly_editor_password: str
 
+class InstantlyEditorAccountResponseSchema(Schema):
+    instantly_editor_email: Optional[str]
+    instantly_editor_password: Optional[str]
+    instantly_status: Optional[bool]
+
+class EmailGuardKeyResponseSchema(Schema):
+    emailguard_api_key: Optional[str]
+    emailguard_status: Optional[bool]
+
+class BisonKeyResponseSchema(Schema):
+    bison_organization_name: str
+    bison_organization_api_key: str
+    bison_organization_status: Optional[bool]
+
 class InstantlyApiKeySchema(Schema):
     instantly_api_key: str
     organization_id: int
