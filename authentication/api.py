@@ -306,25 +306,33 @@ def patch_put_multipart(view_func):
 
 @profile_router.put("/picture", auth=AuthBearer(), response={200: ProfileResponseSchema, 400: ErrorMessage, 422: dict})
 @patch_put_multipart
-def update_profile_picture(request):
-    """Update user's profile picture
+def update_profile_picture(
+    request,
+    file: UploadedFile = File(..., description="Profile picture file (JPG, JPEG, PNG, or GIF, max 2.5MB)")
+):
+    """
+    Upload a new profile picture
     
-    Upload a new profile picture. The file must be an image (JPEG, PNG, or GIF) and less than 2.5MB in size.
-    The file must be sent as form-data with the field name 'file'.
+    Parameters:
+        - file: Image file (JPG, JPEG, PNG, or GIF)
+          - Maximum size: 2.5MB
+          - Must be sent as form-data with field name 'file'
+    
+    Returns:
+        - 200: Profile updated successfully
+        - 400: Invalid file type or size
+        - 422: Missing or invalid file
+        - 500: Server error
     """
     try:
-        # Debug logging
         logger.info("=== Profile Picture Upload Debug ===")
         logger.info(f"Request Method: {request.method}")
         logger.info(f"Content-Type: {request.headers.get('Content-Type', 'Not provided')}")
-        logger.info(f"Files in request: {request.FILES}")
         
-        if 'file' not in request.FILES:
+        if not file:
             logger.error("No file provided in request")
             return 400, {"message": "No file provided"}
             
-        file = request.FILES['file']
-        
         logger.info(f"File details:")
         logger.info(f"- Name: {file.name}")
         logger.info(f"- Size: {file.size}")
@@ -334,9 +342,10 @@ def update_profile_picture(request):
         profile, _ = AuthProfile.objects.get_or_create(user=user)
         
         # Validate file extension
-        if not file.name.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
+        allowed_extensions = ('.jpg', '.jpeg', '.png', '.gif')
+        if not any(file.name.lower().endswith(ext) for ext in allowed_extensions):
             logger.error(f"Invalid file extension: {file.name}")
-            return 400, {"message": "File must be a JPG, JPEG, PNG, or GIF image"}
+            return 400, {"message": f"File must be one of: {', '.join(allowed_extensions)}"}
         
         # Validate file type
         if not file.content_type or not file.content_type.startswith('image/'):
@@ -352,7 +361,9 @@ def update_profile_picture(request):
         # Delete old profile picture if it exists
         if profile.profile_picture:
             try:
-                profile.profile_picture.delete()
+                old_path = profile.profile_picture.path
+                profile.profile_picture.delete(save=False)
+                logger.info(f"Deleted old profile picture: {old_path}")
             except Exception as e:
                 logger.warning(f"Error deleting old profile picture: {str(e)}")
         
@@ -377,9 +388,11 @@ def update_profile_picture(request):
             import traceback
             tb = traceback.format_exc()
             user_id = user.id if user and hasattr(user, 'id') else 'unknown'
-            logger.error(f"Unexpected error in profile picture upload for user {user_id}: {str(e)}\nTraceback: {tb}")
-            return 500, {"message": "Internal Server Error. Please check the server logs for details."}
-        
+            logger.error(f"Error saving profile picture for user {user_id}: {str(e)}\nTraceback: {tb}")
+            return 500, {"message": "Failed to save profile picture. Please try again."}
+            
     except Exception as e:
-        logger.error(f"Unexpected error in profile picture upload: {str(e)}")
-        return 400, {"message": f"Failed to update profile picture: {str(e)}"} 
+        import traceback
+        tb = traceback.format_exc()
+        logger.error(f"Unexpected error in profile picture upload: {str(e)}\nTraceback: {tb}")
+        return 500, {"message": "An unexpected error occurred. Please try again."} 
