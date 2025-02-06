@@ -240,11 +240,16 @@ def get_profile(request):
         user = request.auth
         profile, _ = AuthProfile.objects.get_or_create(user=user)
         
+        # Build profile picture URL with MEDIA_URL prefix
+        profile_pic_url = None
+        if profile.profile_picture:
+            profile_pic_url = request.build_absolute_uri(settings.MEDIA_URL + profile.profile_picture.name)
+        
         return 200, {
             "first_name": user.first_name,
             "last_name": user.last_name,
             "email": user.email,
-            "profile_picture": request.build_absolute_uri(profile.profile_picture.url) if profile.profile_picture else None,
+            "profile_picture": profile_pic_url,
             "timezone": profile.timezone
         }
     except Exception as e:
@@ -353,11 +358,15 @@ def update_profile_picture(request):
             profile.save()
             logger.info("Successfully saved new profile picture")
             
+            # Build URL with MEDIA_URL prefix
+            profile_pic_url = request.build_absolute_uri(settings.MEDIA_URL + profile.profile_picture.name)
+            logger.info(f"Generated profile picture URL: {profile_pic_url}")
+            
             return 200, {
                 "first_name": user.first_name,
                 "last_name": user.last_name,
                 "email": user.email,
-                "profile_picture": request.build_absolute_uri(profile.profile_picture.url) if profile.profile_picture else None,
+                "profile_picture": profile_pic_url,
                 "timezone": profile.timezone
             }
         except Exception as e:
