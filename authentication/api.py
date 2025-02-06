@@ -306,7 +306,7 @@ def patch_put_multipart(view_func):
 
 @profile_router.put("/picture", 
     auth=AuthBearer(), 
-    response={200: ProfileResponseSchema, 400: ErrorMessage, 422: dict},
+    response={200: ProfileResponseSchema, 400: ErrorMessage, 422: dict, 500: ErrorMessage},
     openapi_extra={
         'requestBody': {
             'content': {
