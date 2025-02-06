@@ -23,4 +23,11 @@ from .api import api
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', api.urls),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+]
+
+# Serve media files in development and production
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+else:
+    # For production, we'll still configure media URLs but handle them through nginx
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
