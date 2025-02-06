@@ -167,6 +167,16 @@ LOGGING = {
 
 # CORS settings
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ORIGIN_ALLOW_ALL = True  # Additional setting to ensure all origins
+CORS_REPLACE_HTTPS_REFERER = True
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
+
+# Handle redirects for preflight requests
+CORS_URLS_REGEX = r'^.*$'  # Allow all paths
+
+# Important: Allow credentials and handle preflight
+CORS_ALLOW_CREDENTIALS = True
+CORS_HANDLE_PREFLIGHT = True
 
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -177,18 +187,17 @@ CORS_ALLOW_METHODS = [
 ]
 
 CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
+    '*'  # Allow all headers
 ]
 
-CORS_ALLOW_CREDENTIALS = True
+# Additional CORS settings
+CORS_EXPOSE_HEADERS = ['*']  # Expose all headers
+CORS_ORIGIN_WHITELIST = (
+    'http://localhost:8080',
+    'http://localhost:3000',
+    'https://inboxassure.online',
+    'http://inboxassure-backend.imnodev.com',
+)
 
 # Email Configuration
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
