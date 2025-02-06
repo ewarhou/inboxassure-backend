@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model, authenticate
 from django.contrib.auth.hashers import make_password
-from ninja import Router, Schema, File
+from ninja import Router, Schema, File, Form, UploadedFile
 from ninja.security import HttpBearer
 from ninja.files import UploadedFile
 import jwt
@@ -13,7 +13,7 @@ from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
-from typing import Dict
+from typing import Dict, Optional
 from .models import PasswordResetToken, AuthProfile
 from .schema import (
     TokenSchema, ErrorMessage, PasswordResetRequestSchema, 
@@ -44,6 +44,11 @@ class TokenSchema(Schema):
 
 class ErrorSchema(Schema):
     detail: str
+
+class ProfilePictureResponse(Schema):
+    success: bool
+    message: str
+    data: Optional[dict] = None
 
 def verify_client_email(email):
     try:
@@ -279,30 +284,69 @@ def update_profile(request, data: UpdateProfileSchema):
         logger.error(f"Error updating profile: {str(e)}")
         return 400, {"message": "Failed to update profile"}
 
-@profile_router.put("/picture", auth=AuthBearer(), response={200: ProfileResponseSchema, 400: ErrorMessage})
-def update_profile_picture(request, file: UploadedFile = File(..., alias="file")):
+@profile_router.put("/picture", auth=AuthBearer(), response={200: ProfileResponseSchema, 400: ErrorMessage, 422: dict})
+def update_profile_picture(
+    request, 
+    file: Optional[UploadedFile] = File(None)
+):
     """Update user's profile picture"""
     try:
-        # Log file details
-        logger.info(f"Received file: name={file.name}, size={file.size}, content_type={file.content_type}")
-        logger.info(f"Request Content-Type: {request.headers.get('Content-Type', 'Not provided')}")
+        # Debug logging
+        logger.info("=== Profile Picture Upload Debug ===")
+        logger.info(f"Request Method: {request.method}")
+        logger.info(f"Content-Type: {request.headers.get('Content-Type', 'Not provided')}")
+        logger.info(f"Files in request: {request.FILES}")
+        logger.info(f"POST data: {request.POST}")
+        logger.info(f"Body: {request.body[:1000] if request.body else 'No body'}")  # Log first 1000 chars
         
+        # Validate file presence
         if not file:
-            return 400, {"message": "No file provided"}
-            
-        if not file.content_type.startswith('image/'):
-            return 400, {"message": "File must be an image"}
+            logger.error("No file provided in request")
+            return 422, {
+                "detail": [{
+                    "type": "missing",
+                    "loc": ["file"],
+                    "msg": "No file provided in request. Please ensure you're sending a file with field name 'file'"
+                }]
+            }
+        
+        # Log file details
+        logger.info(f"File details:")
+        logger.info(f"- Name: {file.name if file else 'No name'}")
+        logger.info(f"- Size: {file.size if file else 'No size'}")
+        logger.info(f"- Content Type: {file.content_type if file else 'No content type'}")
+        
+        # Validate file type
+        if not file.content_type or not file.content_type.startswith('image/'):
+            logger.error(f"Invalid file type: {file.content_type}")
+            return 400, {"message": f"File must be an image. Received content type: {file.content_type}"}
+        
+        # Validate file size (max 2.5MB)
+        max_size = 2.5 * 1024 * 1024  # 2.5MB in bytes
+        if file.size > max_size:
+            logger.error(f"File too large: {file.size} bytes")
+            return 400, {"message": f"File size must be less than 2.5MB. Received: {file.size / 1024 / 1024:.2f}MB"}
         
         user = request.auth
         profile, _ = AuthProfile.objects.get_or_create(user=user)
         
         # Delete old profile picture if it exists
         if profile.profile_picture:
-            profile.profile_picture.delete()
+            try:
+                old_path = profile.profile_picture.path
+                logger.info(f"Deleting old profile picture: {old_path}")
+                profile.profile_picture.delete()
+            except Exception as e:
+                logger.warning(f"Error deleting old profile picture: {str(e)}")
         
         # Save new profile picture
-        profile.profile_picture = file
-        profile.save()
+        try:
+            profile.profile_picture = file
+            profile.save()
+            logger.info("Successfully saved new profile picture")
+        except Exception as e:
+            logger.error(f"Error saving profile picture: {str(e)}")
+            return 400, {"message": f"Failed to save profile picture: {str(e)}"}
         
         return 200, {
             "first_name": user.first_name,
@@ -311,7 +355,7 @@ def update_profile_picture(request, file: UploadedFile = File(..., alias="file")
             "profile_picture": request.build_absolute_uri(profile.profile_picture.url) if profile.profile_picture else None,
             "timezone": profile.timezone
         }
+        
     except Exception as e:
-        logger.error(f"Error updating profile picture: {str(e)}")
-        # Return more detailed error message
+        logger.error(f"Unexpected error in profile picture upload: {str(e)}")
         return 400, {"message": f"Failed to update profile picture: {str(e)}"} 
