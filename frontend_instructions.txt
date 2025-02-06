@@ -1,291 +1,222 @@
-InboxAssure API Documentation
-=========================
+# InboxAssure Backend API Documentation
 
-Base URL: https://inboxassure-backend.imnodev.com/api
+Base URL: http://inboxassure-backend.imnodev.com/api
 
-Authentication
--------------
-All authenticated endpoints require a Bearer token in the Authorization header:
+## Important: API Usage Guide
+
+### CORS and URL Format
+1. Always use URLs WITHOUT trailing slashes to avoid CORS preflight issues
+   ```javascript
+   // ✅ Correct
+   http://inboxassure-backend.imnodev.com/api/profile
+   http://inboxassure-backend.imnodev.com/api/auth/login
+   
+   // ❌ Incorrect (will cause CORS issues)
+   http://inboxassure-backend.imnodev.com/api/profile/
+   http://inboxassure-backend.imnodev.com/api/auth/login/
+   ```
+
+### Axios Configuration Example
+```javascript
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'http://inboxassure-backend.imnodev.com/api',
+  headers: {
+    'Content-Type': 'application/json',
+  }
+});
+
+// For authenticated requests
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token'); // or however you store your token
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  
+  // Remove trailing slashes from URL
+  config.url = config.url?.replace(/\/+$/, '');
+  
+  return config;
+});
+
+// Example usage:
+const getProfile = () => api.get('/profile');  // Note: no trailing slash
+const login = (data) => api.post('/auth/login', data);  // Note: no trailing slash
+```
+
+### Fetch Configuration Example
+```javascript
+const API_BASE = 'http://inboxassure-backend.imnodev.com/api';
+
+// Helper function to remove trailing slashes
+const formatUrl = (url) => url.replace(/\/+$/, '');
+
+// Example authenticated request
+const getProfile = async () => {
+  const token = localStorage.getItem('token');
+  const response = await fetch(formatUrl(`${API_BASE}/profile`), {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return response.json();
+};
+
+// Example login request
+const login = async (data) => {
+  const response = await fetch(formatUrl(`${API_BASE}/auth/login`), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  });
+  return response.json();
+};
+```
+
+### Common Issues and Solutions
+1. If you get CORS preflight errors:
+   - Ensure you're not using trailing slashes in your URLs
+   - Don't include `withCredentials: true` in your requests
+   - Make sure your Authorization header is properly formatted
+
+2. For file uploads (like profile picture):
+   - Don't set Content-Type header, let the browser set it automatically
+   - Use FormData for file uploads
+
+3. For authenticated requests:
+   - Always include the Bearer token in the Authorization header
+   - Token format: `Bearer your_token_here`
+
+## API Endpoints
+
+All authenticated endpoints require Bearer token in the Authorization header:
+```
 Authorization: Bearer <access_token>
+```
 
-Endpoints
----------
+### Authentication Endpoints
 
-1. Register New User
--------------------
-POST /auth/register
-
-Request Body:
+#### Register
+- **URL**: `/auth/register` (no trailing slash)
+- **Method**: `POST`
+- **Auth**: No
+- **Payload**:
+```json
 {
     "username": "string",
     "email": "string",
     "password": "string",
-    "first_name": "string" (optional),
-    "last_name": "string" (optional)
+    "first_name": "string (optional)",
+    "last_name": "string (optional)"
 }
-
-Response (200):
+```
+- **Response (200)**:
+```json
 {
     "access_token": "string",
     "token_type": "bearer"
 }
+```
 
-Response (400):
+#### Login
+- **URL**: `/auth/login` (no trailing slash)
+- **Method**: `POST`
+- **Auth**: No
+- **Payload**:
+```json
 {
-    "detail": "error message"
-}
-
-Notes:
-- Email must exist in the client database
-- Username and email must be unique
-- Password should be secure
-
-2. Login
---------
-POST /auth/login
-
-Request Body:
-{
-    "username": "string",
+    "email": "string",
     "password": "string"
 }
-
-Response (200):
+```
+- **Response (200)**:
+```json
 {
     "access_token": "string",
     "token_type": "bearer"
 }
+```
 
-Response (401):
+### Profile Endpoints
+
+#### Get Profile
+- **URL**: `/profile` (no trailing slash)
+- **Method**: `GET`
+- **Auth**: Yes
+- **Response (200)**:
+```json
+{
+    "first_name": "string",
+    "last_name": "string",
+    "email": "string",
+    "profile_picture": "string (URL)",
+    "timezone": "string"
+}
+```
+
+#### Update Profile
+- **URL**: `/profile` (no trailing slash)
+- **Method**: `PUT`
+- **Auth**: Yes
+- **Payload**:
+```json
+{
+    "first_name": "string (optional)",
+    "last_name": "string (optional)",
+    "timezone": "string (optional)"
+}
+```
+- **Response (200)**:
+```json
+{
+    "first_name": "string",
+    "last_name": "string",
+    "email": "string",
+    "profile_picture": "string (URL)",
+    "timezone": "string"
+}
+```
+
+### Settings Endpoints
+
+#### Add Instantly Editor Account
+- **URL**: `/settings/add-instantly-editor-account` (no trailing slash)
+- **Method**: `POST`
+- **Auth**: Yes
+- **Payload**:
+```json
+{
+    "instantly_editor_email": "string",
+    "instantly_editor_password": "string"
+}
+```
+
+## Error Responses
+
+All endpoints may return these error responses:
+
+### 400 Bad Request
+```json
+{
+    "detail": "Error message"
+}
+```
+
+### 401 Unauthorized
+```json
 {
     "detail": "Invalid credentials"
 }
+```
 
-Notes:
-- Token expires after 24 hours
-- Use the returned token in the Authorization header for authenticated requests 
-
-## Password Reset Flow
-
-### 1. Request Password Reset
-- Endpoint: `POST /auth/password-reset-request`
-- Description: Initiates the password reset process by sending a reset link to the user's email
-- Request Body:
+### 404 Not Found
 ```json
 {
-    "email": "user@example.com"
+    "detail": "Resource not found"
 }
 ```
-- Responses:
-  - 200: Password reset email sent successfully
-  ```json
-  {
-      "message": "Password reset email sent"
-  }
-  ```
-  - 404: User not found
-  ```json
-  {
-      "message": "User with this email does not exist"
-  }
-  ```
-
-### 2. Verify Reset Token
-- Endpoint: `POST /auth/password-reset-verify`
-- Description: Verifies if a password reset token is valid (not expired and not used)
-- Request Body:
-```json
-{
-    "token": "uuid-token-from-email-link"
-}
-```
-- Responses:
-  - 200: Token is valid
-  ```json
-  {
-      "valid": true
-  }
-  ```
-  - 200: Token is invalid or expired
-  ```json
-  {
-      "valid": false,
-      "message": "Token has expired or has been used"
-  }
-  ```
-  - 404: Token not found
-  ```json
-  {
-      "message": "Invalid token"
-  }
-  ```
-
-### 3. Reset Password
-- Endpoint: `POST /auth/password-reset-confirm`
-- Description: Resets the user's password using a valid token
-- Request Body:
-```json
-{
-    "token": "uuid-token-from-email-link",
-    "new_password": "new-password"
-}
-```
-- Responses:
-  - 200: Password reset successful
-  ```json
-  {
-      "message": "Password has been reset successfully"
-  }
-  ```
-  - 400: Token invalid or expired
-  ```json
-  {
-      "message": "Token has expired or has been used"
-  }
-  ```
-  - 404: Token not found
-  ```json
-  {
-      "message": "Invalid token"
-  }
-  ```
-
-Notes:
-- The reset token is valid for 1 hour after creation
-- The token can only be used once
-- The reset link format is: `https://inboxassure.online/reset-password?token={token}`
-
-Mock Data for UI Development
-===========================
-
-1. Mock User for Registration
-----------------------------
-{
-    "username": "john.doe",
-    "email": "john.doe@example.com",
-    "password": "SecurePass123!",
-    "first_name": "John",
-    "last_name": "Doe"
-}
-
-2. Mock Successful Registration Response
---------------------------------------
-{
-    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImpvaG4uZG9lIiwiZXhwIjoxNzA5NDU2Nzg5LCJpYXQiOjE3MDkzNzAzODl9.mock-token-hash",
-    "token_type": "bearer"
-}
-
-3. Mock Registration Error Responses
-----------------------------------
-Email not found:
-{
-    "detail": "Email not found in our client database. Please contact support."
-}
-
-Email already registered:
-{
-    "detail": "Email already registered"
-}
-
-Username taken:
-{
-    "detail": "Username already registered"
-}
-
-4. Mock Login Credentials
-------------------------
-{
-    "username": "john.doe",
-    "password": "SecurePass123!"
-}
-
-5. Mock Login Success Response
-----------------------------
-{
-    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImpvaG4uZG9lIiwiZXhwIjoxNzA5NDU2Nzg5LCJpYXQiOjE3MDkzNzAzODl9.mock-token-hash",
-    "token_type": "bearer"
-}
-
-6. Mock Login Error Response
----------------------------
-{
-    "detail": "Invalid credentials"
-}
-
-7. Mock Headers for Authenticated Requests
-----------------------------------------
-{
-    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImpvaG4uZG9lIiwiZXhwIjoxNzA5NDU2Nzg5LCJpYXQiOjE3MDkzNzAzODl9.mock-token-hash"
-}
-
-8. Mock Password Reset Request
-----------------------------
-Request:
-{
-    "email": "john.doe@example.com"
-}
-
-Success Response:
-{
-    "message": "Password reset email sent"
-}
-
-Error Response:
-{
-    "message": "User with this email does not exist"
-}
-
-9. Mock Reset Token
-------------------
-Valid token for testing:
-"550e8400-e29b-41d4-a716-446655440000"
-
-Mock reset link:
-https://inboxassure.online/reset-password?token=550e8400-e29b-41d4-a716-446655440000
-
-10. Mock Token Verification
----------------------------
-Request:
-{
-    "token": "550e8400-e29b-41d4-a716-446655440000"
-}
-
-Valid Token Response:
-{
-    "valid": true
-}
-
-Expired Token Response:
-{
-    "valid": false,
-    "message": "Token has expired or has been used"
-}
-
-Invalid Token Response:
-{
-    "message": "Invalid token"
-}
-
-11. Mock Password Reset
------------------------
-Request:
-{
-    "token": "550e8400-e29b-41d4-a716-446655440000",
-    "new_password": "NewSecurePass123!"
-}
-
-Success Response:
-{
-    "message": "Password has been reset successfully"
-}
-
-Error Response (Expired/Used Token):
-{
-    "message": "Token has expired or has been used"
-}
-
-Error Response (Invalid Token):
-{
-    "message": "Invalid token"
-}
-
