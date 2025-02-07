@@ -495,23 +495,13 @@ def get_emailguard_status(request: HttpRequest):
 @router.post("/add-bison-organization", auth=AuthBearer(), response={200: SuccessResponseSchema, 400: ErrorResponseSchema})
 def add_bison_organization(request: HttpRequest, payload: BisonOrganizationSchema):
     try:
-        # Check Bison API connection
-        headers = {
-            'Authorization': f'Bearer {payload.bison_organization_api_key}'
-        }
-        response = requests.get(f'{payload.base_url}/api/sender-emails', headers=headers)
-        print("\n=== Bison API Response ===")
-        print(f"Status Code: {response.status_code}")
-        print(f"Response Body: {response.text}")
-        print("==========================\n")
-        
-        # Create organization with status based on API response
+        # Create organization with initial status as False
         bison_org = UserBison.objects.create(
             user=request.auth,
             bison_organization_name=payload.bison_organization_name,
             bison_organization_api_key=payload.bison_organization_api_key,
             base_url=payload.base_url,
-            bison_organization_status=response.status_code == 200
+            bison_organization_status=False  # Set initial status to False
         )
         
         return 200, {
@@ -619,31 +609,69 @@ def check_bison_organization_status(request: HttpRequest, org_id: int):
             return 200, {"status": False, "message": "Bison organization API key not configured"}
         
         try:
-            # Check Bison API connection
+            # Check Bison API connection using users endpoint
             headers = {
                 'Authorization': f'Bearer {bison_org.bison_organization_api_key}'
             }
-            response = requests.get(f'{bison_org.base_url}/api/sender-emails', headers=headers)
-            print("\n=== Bison API Response ===")
-            print(f"Status Code: {response.status_code}")
-            print(f"Response Body: {response.text}")
-            print("==========================\n")
             
-            # Update status based on API response
-            status = response.status_code == 200
-            bison_org.bison_organization_status = status
-            bison_org.save()
-            
-            if not status and response.status_code == 401:
-                message = "Invalid API key or unauthorized access"
-            elif not status and response.status_code == 404:
-                message = "API endpoint not found"
-            elif not status:
-                message = f"API check failed with status code: {response.status_code}"
-            else:
-                message = "Bison organization is active"
+            # First validate base_url format and accessibility
+            try:
+                response = requests.get(f'{bison_org.base_url}/api/users', headers=headers)
+                print("\n=== Bison API Response ===")
+                print(f"Status Code: {response.status_code}")
+                print(f"Response Body: {response.text}")
+                print("==========================\n")
                 
-            return 200, {"status": status, "message": message}
+                # Update status based on response content validation
+                status = False
+                try:
+                    # First check if response is JSON
+                    response_data = response.json()
+                    
+                    # Check if it's a valid API response with user data
+                    if (isinstance(response_data, dict) 
+                        and 'data' in response_data 
+                        and isinstance(response_data['data'], dict)
+                        and all(key in response_data['data'] for key in ['name', 'email', 'team'])):
+                        status = True
+                        message = "Bison organization is active"
+                    else:
+                        status = False
+                        message = "Invalid response format from API"
+                except ValueError:
+                    # If response is not JSON (like HTML), it means unauthorized/invalid token
+                    status = False
+                    if "<!DOCTYPE html>" in response.text:
+                        message = "Invalid API key or unauthorized access"
+                    else:
+                        message = "Invalid response format from API (expected JSON)"
+                
+                bison_org.bison_organization_status = status
+                bison_org.save()
+                
+                if not status:
+                    if response.status_code == 404:
+                        message = f"API endpoint not found at {bison_org.base_url}/api/users"
+                    elif not message:  # if message wasn't set above
+                        message = "Invalid response from API"
+                    
+                return 200, {"status": status, "message": message}
+                
+            except requests.exceptions.ConnectionError as e:
+                bison_org.bison_organization_status = False
+                bison_org.save()
+                if "Name or service not known" in str(e) or "Failed to resolve" in str(e):
+                    return 200, {"status": False, "message": "Base URL is not working. Please check if the URL is correct"}
+                return 200, {"status": False, "message": "Base URL is not working"}
+            except requests.exceptions.Timeout:
+                bison_org.bison_organization_status = False
+                bison_org.save()
+                return 200, {"status": False, "message": "Base URL is not working (Connection timeout)"}
+            except requests.exceptions.RequestException as e:
+                bison_org.bison_organization_status = False
+                bison_org.save()
+                return 200, {"status": False, "message": "Base URL is not working"}
+            
         except requests.RequestException as e:
             bison_org.bison_organization_status = False
             bison_org.save()
