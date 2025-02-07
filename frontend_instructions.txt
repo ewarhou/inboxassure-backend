@@ -180,6 +180,13 @@ Toggles a spamcheck between paused and pending status.
 **URL Parameters:**
 - `spamcheck_id`: ID of the spamcheck to toggle
 
+**Status Transitions:**
+- From 'pending' → 'paused'
+- From 'completed' → 'paused'
+- From 'paused' → 'pending'
+
+**Note:** Cannot toggle pause for spamchecks in 'in_progress', 'failed', or 'generating_reports' status.
+
 **Response:**
 ```json
 {
@@ -190,6 +197,27 @@ Toggles a spamcheck between paused and pending status.
         "name": "string",
         "status": "string"
     }
+}
+```
+
+**Example Success Response:**
+```json
+{
+    "success": true,
+    "message": "Spamcheck 'My Test Spamcheck' is now paused",
+    "data": {
+        "id": 123,
+        "name": "My Test Spamcheck",
+        "status": "paused"
+    }
+}
+```
+
+**Example Error Response:**
+```json
+{
+    "success": false,
+    "message": "Cannot toggle pause for spamcheck with status 'in_progress'. Only pending, paused, or completed spamchecks can be toggled."
 }
 ```
 

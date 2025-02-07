@@ -726,7 +726,7 @@ def toggle_pause_spamcheck(request, spamcheck_id: int):
         
         return {
             "success": True,
-            "message": f"Spamcheck {spamcheck_id} is now {new_status}",
+            "message": f"Spamcheck '{spamcheck.name}' is now {new_status}",
             "data": {
                 "id": spamcheck.id,
                 "name": spamcheck.name,
