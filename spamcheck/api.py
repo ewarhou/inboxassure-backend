@@ -269,10 +269,10 @@ def delete_spamcheck_instantly(request, spamcheck_id: int):
         )
         
         # Check if status allows deletion
-        if spamcheck.status not in ['draft', 'failed', 'completed']:
+        if spamcheck.status in ['in_progress', 'generating_reports']:
             return {
                 "success": False,
-                "message": f"Cannot delete spamcheck with status '{spamcheck.status}'. Only draft, failed, or completed spamchecks can be deleted."
+                "message": f"Cannot delete spamcheck with status '{spamcheck.status}'. Only spamchecks that are not in progress or generating reports can be deleted."
             }
         
         # Store name for response

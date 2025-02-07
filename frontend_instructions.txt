@@ -103,7 +103,7 @@ Updates an existing spamcheck.
 
 ### Delete Spamcheck Instantly
 **Endpoint:** `DELETE /api/spamcheck/delete-spamcheck-instantly/{spamcheck_id}`  
-Deletes an existing spamcheck.
+Deletes an existing spamcheck. The spamcheck can be deleted in any status except 'in_progress' or 'generating_reports'.
 
 **URL Parameters:**
 - `spamcheck_id`: ID of the spamcheck to delete
@@ -113,6 +113,22 @@ Deletes an existing spamcheck.
 {
     "success": "boolean",
     "message": "string"
+}
+```
+
+**Example Success Response:**
+```json
+{
+    "success": true,
+    "message": "Spamcheck 'Test Spamcheck' and all related data deleted successfully"
+}
+```
+
+**Example Error Response:**
+```json
+{
+    "success": false,
+    "message": "Cannot delete spamcheck with status 'in_progress'. Only spamchecks that are not in progress or generating reports can be deleted."
 }
 ```
 
@@ -177,16 +193,19 @@ Toggles a spamcheck between paused and pending status.
 }
 ```
 
-### List Accounts
+### List Organization Accounts
 **Endpoint:** `POST /api/spamcheck/list-accounts`  
-Lists accounts from Instantly API with filtering options.
+Lists all email accounts from a specific Instantly organization with filtering options.
+
+**URL Parameters:**
+- `organization_id`: ID of the organization to get accounts from
 
 **Request Body:**
 ```json
 {
     "search": "string?",      // Optional: Filter accounts by content
     "ignore_tag": "string?",  // Optional: Don't include accounts with this tag title
-    "is_active": "boolean?",  // Optional: Include ONLY active accounts
+    "is_active": "boolean?",  // Optional: Include ONLY active accounts (status = 1)
     "limit": "number?"        // Optional: Number of accounts to return (default: 10)
 }
 ```
@@ -200,7 +219,35 @@ Lists accounts from Instantly API with filtering options.
         "organization_id": "number",
         "organization_name": "string",
         "total_accounts": "number",
-        "accounts": ["string"]
+        "accounts": ["string"]  // List of email addresses
+    }
+}
+```
+
+**Example Request:**
+```json
+POST /api/spamcheck/list-accounts?organization_id=123
+{
+    "search": "gmail",        // Will filter accounts containing "gmail"
+    "ignore_tag": "blocked",  // Will exclude accounts tagged as "blocked"
+    "is_active": true,       // Will only return active accounts
+    "limit": 20              // Will return up to 20 accounts
+}
+```
+
+**Example Response:**
+```json
+{
+    "success": true,
+    "message": "Accounts retrieved successfully",
+    "data": {
+        "organization_id": 123,
+        "organization_name": "My Organization",
+        "total_accounts": 2,
+        "accounts": [
+            "test1@gmail.com",
+            "test2@gmail.com"
+        ]
     }
 }
 ```
