@@ -28,20 +28,20 @@ class UserSettings(models.Model):
 
 
 class UserBison(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bison_organizations')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     bison_organization_name = models.CharField(max_length=255)
     bison_organization_api_key = models.CharField(max_length=255)
-    bison_organization_status = models.BooleanField(null=True, blank=True, default=False)
+    base_url = models.CharField(max_length=255, default='https://app.orbitmailboost.com')
+    bison_organization_status = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def __str__(self):
+        return f"{self.user.username} - {self.bison_organization_name}"
+
     class Meta:
         db_table = 'user_bison'
-        verbose_name = 'User Bison'
-        verbose_name_plural = 'User Bison'
-
-    def __str__(self):
-        return f"{self.bison_organization_name} - {self.user.email}"
+        unique_together = ('user', 'bison_organization_name')
 
 
 class UserInstantly(models.Model):
