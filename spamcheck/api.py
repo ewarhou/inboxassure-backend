@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404
 from django.db import transaction, IntegrityError
 from django.core.exceptions import ObjectDoesNotExist
 from authentication.authorization import AuthBearer
-from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema, ListAccountsRequestSchema, ListAccountsResponseSchema
+from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema, ListAccountsRequestSchema, ListAccountsResponseSchema, ListSpamchecksResponseSchema
 from .models import UserSpamcheck, UserSpamcheckAccounts, UserSpamcheckCampaignOptions, UserSpamcheckCampaigns, UserSpamcheckReport
 from settings.models import UserInstantly, UserSettings
 import requests
@@ -12,6 +12,7 @@ from django.conf import settings
 from datetime import datetime
 from django.utils import timezone
 import pytz
+from ninja.errors import HttpError
 
 router = Router(tags=["spamcheck"])
 
@@ -34,6 +35,13 @@ def create_spamcheck_instantly(request, payload: CreateSpamcheckSchema):
         - reports_waiting_time: Optional, reports waiting time
     """
     user = request.auth
+    
+    # Validate accounts list is not empty
+    if not payload.accounts:
+        return {
+            "success": False,
+            "message": "At least one email account is required"
+        }
     
     # Get the specific organization with better error handling
     try:
@@ -854,4 +862,65 @@ def list_accounts(
         return {
             "success": False,
             "message": f"Error listing accounts: {str(e)}. Please try again or contact support if the issue persists."
+        }
+
+@router.get("/list-spamchecks", auth=AuthBearer(), response=ListSpamchecksResponseSchema)
+def list_spamchecks(request):
+    """
+    Get all spamchecks with their details
+    """
+    user = request.auth
+    
+    try:
+        # Get all spamchecks for the user with related data
+        spamchecks = UserSpamcheck.objects.select_related(
+            'user_organization',
+            'options'
+        ).prefetch_related(
+            'accounts',
+            'campaigns'
+        ).filter(user=user).order_by('-created_at')
+        
+        spamcheck_list = []
+        for spamcheck in spamchecks:
+            # Get options as dict
+            options_dict = {
+                'open_tracking': spamcheck.options.open_tracking,
+                'link_tracking': spamcheck.options.link_tracking,
+                'text_only': spamcheck.options.text_only,
+                'subject': spamcheck.options.subject,
+                'body': spamcheck.options.body
+            } if spamcheck.options else {}
+            
+            # Create spamcheck details
+            spamcheck_details = {
+                'id': spamcheck.id,
+                'name': spamcheck.name,
+                'status': spamcheck.status,
+                'scheduled_at': spamcheck.scheduled_at,
+                'recurring_days': spamcheck.recurring_days,
+                'is_domain_based': spamcheck.is_domain_based,
+                'conditions': spamcheck.conditions,
+                'reports_waiting_time': spamcheck.reports_waiting_time,
+                'created_at': spamcheck.created_at,
+                'updated_at': spamcheck.updated_at,
+                'user_organization_id': spamcheck.user_organization.id,
+                'organization_name': spamcheck.user_organization.instantly_organization_name,
+                'accounts_count': spamcheck.accounts.count(),
+                'campaigns_count': spamcheck.campaigns.count(),
+                'options': options_dict
+            }
+            spamcheck_list.append(spamcheck_details)
+        
+        return {
+            'success': True,
+            'message': f'Successfully retrieved {len(spamcheck_list)} spamchecks',
+            'data': spamcheck_list
+        }
+        
+    except Exception as e:
+        return {
+            'success': False,
+            'message': f'Error retrieving spamchecks: {str(e)}',
+            'data': []
         } 

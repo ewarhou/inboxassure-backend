@@ -1,0 +1,253 @@
+## Spamcheck API Endpoints
+
+### List Instantly Organizations
+**Endpoint:** `GET /api/settings/list-instantly-organizations`  
+Lists all Instantly organizations associated with the authenticated user.
+
+**Response:**
+```json
+[
+    {
+        "id": "number",
+        "instantly_organization_id": "string",
+        "instantly_organization_name": "string",
+        "instantly_organization_token": "string",
+        "instantly_organization_status": "boolean?",
+        "created_at": "datetime",
+        "updated_at": "datetime"
+    }
+]
+```
+
+### Create Spamcheck Instantly
+**Endpoint:** `POST /api/spamcheck/create-spamcheck-instantly`  
+Creates a new spamcheck with accounts and options.
+
+**Request Body:**
+```json
+{
+    "name": "string",                 // Name of the spamcheck
+    "user_organization_id": "number", // ID of the Instantly organization to use
+    "accounts": ["string"],           // List of email accounts to check
+    "open_tracking": "boolean",       // Whether to track email opens
+    "link_tracking": "boolean",       // Whether to track link clicks
+    "text_only": "boolean",          // Whether to send text-only emails
+    "subject": "string",             // Email subject template
+    "body": "string",                // Email body template
+    "scheduled_at": "datetime",      // When to run the spamcheck
+    "recurring_days": "number?",      // Optional: Number of days for recurring checks
+    "is_domain_based": "boolean",    // Whether to filter accounts by domain and use one per domain
+    "conditions": "string?",         // Optional: Conditions for sending limit (e.g., 'google>=0.5andoutlook>=0.5sending=10/0')
+    "reports_waiting_time": "number?" // Optional: Time in hours to wait before generating reports (0 for immediate, 0.5 for 30min, 1 for 1h, etc)
+}
+```
+
+**Response:**
+```json
+{
+    "success": "boolean",
+    "message": "string",
+    "data": {
+        "id": "number",
+        "name": "string",
+        "scheduled_at": "datetime",
+        "recurring_days": "number?",
+        "status": "string",
+        "accounts_count": "number",
+        "user_organization_id": "number",
+        "organization_name": "string"
+    }
+}
+```
+
+### Update Spamcheck Instantly
+**Endpoint:** `PUT /api/spamcheck/update-spamcheck-instantly/{spamcheck_id}`  
+Updates an existing spamcheck.
+
+**URL Parameters:**
+- `spamcheck_id`: ID of the spamcheck to update
+
+**Request Body:**
+```json
+{
+    "name": "string?",           // Optional: New name for the spamcheck
+    "accounts": ["string?"],     // Optional: New list of email accounts
+    "open_tracking": "boolean?", // Optional: Whether to track email opens
+    "link_tracking": "boolean?", // Optional: Whether to track link clicks
+    "text_only": "boolean?",     // Optional: Whether to send text-only emails
+    "subject": "string?",        // Optional: New email subject template
+    "body": "string?",           // Optional: New email body template
+    "scheduled_at": "datetime?", // Optional: New scheduled time
+    "recurring_days": "number?", // Optional: New recurring days setting
+    "conditions": "string?",     // Optional: New conditions for sending limit
+    "reports_waiting_time": "number?" // Optional: New reports waiting time
+}
+```
+
+**Response:**
+```json
+{
+    "success": "boolean",
+    "message": "string",
+    "data": {
+        "id": "number",
+        "name": "string",
+        "scheduled_at": "datetime",
+        "recurring_days": "number?",
+        "status": "string",
+        "options_updated": "boolean",
+        "accounts_updated": "boolean"
+    }
+}
+```
+
+### Delete Spamcheck Instantly
+**Endpoint:** `DELETE /api/spamcheck/delete-spamcheck-instantly/{spamcheck_id}`  
+Deletes an existing spamcheck.
+
+**URL Parameters:**
+- `spamcheck_id`: ID of the spamcheck to delete
+
+**Response:**
+```json
+{
+    "success": "boolean",
+    "message": "string"
+}
+```
+
+### Launch Spamcheck Instantly
+**Endpoint:** `POST /api/spamcheck/launch-spamcheck-instantly`  
+Launches a spamcheck immediately.
+
+**Request Body:**
+```json
+{
+    "spamcheck_id": "number",  // ID of the spamcheck to launch
+    "is_test": "boolean"       // Whether this is a test launch
+}
+```
+
+**Response:**
+```json
+{
+    "success": "boolean",
+    "message": "string",
+    "data": {
+        "id": "number",
+        "name": "string",
+        "status": "string",
+        "campaigns_count": "number"
+    }
+}
+```
+
+### Clear Organization Spamchecks
+**Endpoint:** `POST /api/spamcheck/clear-organization-spamchecks/{organization_id}`  
+Clears all spamchecks for a specific organization.
+
+**URL Parameters:**
+- `organization_id`: ID of the organization to clear spamchecks for
+
+**Response:**
+```json
+{
+    "success": "boolean",
+    "message": "string"
+}
+```
+
+### Toggle Pause Spamcheck
+**Endpoint:** `POST /api/spamcheck/toggle-pause/{spamcheck_id}`  
+Toggles a spamcheck between paused and pending status.
+
+**URL Parameters:**
+- `spamcheck_id`: ID of the spamcheck to toggle
+
+**Response:**
+```json
+{
+    "success": "boolean",
+    "message": "string",
+    "data": {
+        "id": "number",
+        "name": "string",
+        "status": "string"
+    }
+}
+```
+
+### List Accounts
+**Endpoint:** `POST /api/spamcheck/list-accounts`  
+Lists accounts from Instantly API with filtering options.
+
+**Request Body:**
+```json
+{
+    "search": "string?",      // Optional: Filter accounts by content
+    "ignore_tag": "string?",  // Optional: Don't include accounts with this tag title
+    "is_active": "boolean?",  // Optional: Include ONLY active accounts
+    "limit": "number?"        // Optional: Number of accounts to return (default: 10)
+}
+```
+
+**Response:**
+```json
+{
+    "success": "boolean",
+    "message": "string",
+    "data": {
+        "organization_id": "number",
+        "organization_name": "string",
+        "total_accounts": "number",
+        "accounts": ["string"]
+    }
+}
+```
+
+### List Spamchecks
+**Endpoint:** `GET /api/spamcheck/list-spamchecks`  
+Get all spamchecks with their details, ordered by creation date (newest first).
+
+**Response:**
+```json
+{
+    "success": "boolean",
+    "message": "string",
+    "data": [
+        {
+            "id": "number",
+            "name": "string",
+            "status": "string",           // One of: 'pending', 'in_progress', 'completed', 'failed', 'paused'
+            "scheduled_at": "datetime",
+            "recurring_days": "number?",
+            "is_domain_based": "boolean",
+            "conditions": "string?",
+            "reports_waiting_time": "number?",
+            "created_at": "datetime",
+            "updated_at": "datetime",
+            "user_organization_id": "number",
+            "organization_name": "string",
+            "accounts_count": "number",
+            "campaigns_count": "number",
+            "options": {
+                "open_tracking": "boolean",
+                "link_tracking": "boolean",
+                "text_only": "boolean",
+                "subject": "string",
+                "body": "string"
+            }
+        }
+    ]
+}
+```
+
+### Notes:
+1. All endpoints require authentication using Bearer token.
+2. Dates should be in ISO format.
+3. Error responses will have `success: false` and an error message.
+4. The spamcheck status can be one of: 'pending', 'in_progress', 'completed', 'failed', 'paused'.
+5. Some operations are only allowed on spamchecks with certain statuses:
+   - Update: only on 'pending', 'failed', or 'completed' spamchecks
+   - Launch: only on 'pending', 'failed', or 'completed' spamchecks
+   - Toggle pause: only on 'pending', 'paused', or 'completed' spamchecks

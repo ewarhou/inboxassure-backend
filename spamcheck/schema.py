@@ -2,6 +2,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from ninja import Schema, Field
 from uuid import UUID
+from ninja.errors import HttpError
 
 class SpamcheckAccountSchema(Schema):
     email_account: str = Field(..., description="Email account to use for spamcheck")
@@ -20,6 +21,11 @@ class CreateSpamcheckSchema(Schema):
     is_domain_based: bool = Field(default=False, description="Whether to filter accounts by domain and use one per domain")
     conditions: Optional[str] = Field(None, description="Conditions for sending limit (e.g., 'google>=0.5andoutlook>=0.5sending=10/0')")
     reports_waiting_time: Optional[float] = Field(None, description="Time in hours to wait before generating reports (0 for immediate, 0.5 for 30min, 1 for 1h, etc). Default is 1h")
+
+    def validate_accounts(self, accounts: List[str]) -> List[str]:
+        if not accounts:
+            raise HttpError(400, "At least one email account is required")
+        return accounts
 
 class UpdateSpamcheckSchema(Schema):
     name: Optional[str] = Field(None, description="Name of the spamcheck")
@@ -98,4 +104,26 @@ class ListAccountsRequestSchema(Schema):
 class ListAccountsResponseSchema(Schema):
     success: bool
     message: str
-    data: ListAccountsDataSchema 
+    data: ListAccountsDataSchema
+
+class SpamcheckDetailsSchema(Schema):
+    id: int
+    name: str
+    status: str
+    scheduled_at: datetime
+    recurring_days: Optional[int]
+    is_domain_based: bool
+    conditions: Optional[str]
+    reports_waiting_time: Optional[float]
+    created_at: datetime
+    updated_at: datetime
+    user_organization_id: int
+    organization_name: str
+    accounts_count: int
+    campaigns_count: int
+    options: dict
+
+class ListSpamchecksResponseSchema(Schema):
+    success: bool
+    message: str
+    data: List[SpamcheckDetailsSchema] 
