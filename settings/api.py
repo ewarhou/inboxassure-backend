@@ -515,6 +515,11 @@ def add_bison_organization(request: HttpRequest, payload: BisonOrganizationSchem
             }
         }
     except Exception as e:
+        error_message = str(e)
+        if "Duplicate entry" in error_message and "user_bison_user_id_bison_organization_name" in error_message:
+            # Extract organization name from the error message
+            org_name = payload.bison_organization_name
+            return 400, {"detail": f"An organization with the name '{org_name}' already exists for your account. Please use a different name."}
         return 400, {"detail": str(e)}
 
 @router.put("/update-bison-organization/{org_id}", auth=AuthBearer(), response={200: SuccessResponseSchema, 400: ErrorResponseSchema, 404: ErrorResponseSchema})
