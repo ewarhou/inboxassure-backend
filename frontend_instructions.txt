@@ -7,76 +7,148 @@ All authenticated endpoints require Bearer token in the Authorization header:
 Authorization: Bearer <access_token>
 ```
 
-## Profile Endpoints
+## EmailGuard Endpoints
 
-### Get Profile
-- **URL**: `/api/profile/`
-- **Method**: `GET`
-- **Auth Required**: Yes (Bearer Token)
-- **Response (200)**:
-```json
-{
-    "first_name": "string",
-    "last_name": "string",
-    "email": "string",
-    "profile_picture": "string (URL) | null",
-    "timezone": "string"
-}
-```
-
-### Update Profile
-- **URL**: `/api/profile/`
-- **Method**: `PUT`
+### Add EmailGuard API Key
+- **URL**: `/api/settings/add-emailguard-api-key`
+- **Method**: `POST`
 - **Auth Required**: Yes (Bearer Token)
 - **Payload**:
 ```json
 {
-    "first_name": "string (optional)",
-    "last_name": "string (optional)",
-    "timezone": "string (optional)"
+    "emailguard_api_key": "string"
 }
 ```
 - **Response (200)**:
 ```json
 {
-    "first_name": "string",
-    "last_name": "string",
-    "email": "string",
-    "profile_picture": "string (URL) | null",
-    "timezone": "string"
+    "message": "EmailGuard API key added successfully",
+    "data": {
+        "emailguard_api_key": "string"
+    }
 }
 ```
-
-### Update Profile Picture
-- **URL**: `/api/profile/picture`
-- **Method**: `PUT`
-- **Auth Required**: Yes (Bearer Token)
-- **Content-Type**: `multipart/form-data`
-- **Payload**: Form data with field name 'file'
-- **File Requirements**:
-  - Must be an image (JPG, JPEG, PNG, or GIF)
-  - Maximum size: 2.5MB
-- **Response (200)**:
+- **Error Response (400)**:
 ```json
 {
-    "first_name": "string",
-    "last_name": "string",
-    "email": "string",
-    "profile_picture": "string (URL) | null",
-    "timezone": "string"
+    "detail": "Error message"
 }
 ```
-- **Error Responses**:
-  - **400**: `{"message": "File must be an image" | "File size must be less than 2.5MB" | "No file provided"}`
-  - **500**: `{"message": "Failed to save profile picture. Please try again."}`
 
-## System Endpoints
-
-### Download Terminal Logs
-- **URL**: `/api/settings/download-logs`
+### Get EmailGuard Key
+- **URL**: `/api/settings/emailguard-key`
 - **Method**: `GET`
 - **Auth Required**: Yes (Bearer Token)
-- **Response**: Text file download
+- **Response (200)**:
+```json
+{
+    "emailguard_api_key": "string",
+    "emailguard_status": boolean
+}
+```
+- **Error Response (400)**:
+```json
+{
+    "detail": "Error message"
+}
+```
+
+### Check EmailGuard Status
+- **URL**: `/api/settings/check-emailguard-status`
+- **Method**: `GET`
+- **Auth Required**: Yes (Bearer Token)
+- **Response (200)**:
+```json
+{
+    "status": true,
+    "message": "EmailGuard connection verified successfully",
+    "data": {
+        // User data from EmailGuard API
+    }
+}
+```
 - **Error Responses**:
-  - **404**: `{"message": "Logs file not found"}`
-  - **500**: `{"message": "Error message"}`
+  - **400**: `{"detail": "Failed to verify EmailGuard connection"}`
+  - **404**: `{"detail": "EmailGuard API key not configured" | "User settings not found"}`
+  - **500**: `{"detail": "Failed to connect to EmailGuard API: {error}" | "An unexpected error occurred: {error}"}`
+
+## Instantly Editor Account Endpoints
+
+### Get Instantly Editor Account
+- **URL**: `/api/settings/instantly-editor`
+- **Method**: `GET`
+- **Auth Required**: Yes (Bearer Token)
+- **Response (200)**:
+```json
+{
+    "instantly_editor_email": "string",
+    "instantly_editor_password": "string",
+    "instantly_status": boolean
+}
+```
+- **Error Response (400)**:
+```json
+{
+    "detail": "Error message"
+}
+```
+
+### Add Instantly Editor Account
+- **URL**: `/api/settings/add-instantly-editor-account`
+- **Method**: `POST`
+- **Auth Required**: Yes (Bearer Token)
+- **Payload**:
+```json
+{
+    "instantly_editor_email": "string",
+    "instantly_editor_password": "string"
+}
+```
+- **Response (200)**:
+```json
+{
+    "message": "Instantly editor account added successfully",
+    "data": {
+        "instantly_editor_email": "string",
+        "instantly_editor_password": "string"
+    }
+}
+```
+- **Error Response (400)**:
+```json
+{
+    "detail": "Error message"
+}
+```
+
+### Check Instantly Status
+- **URL**: `/api/settings/check-instantly-status`
+- **Method**: `GET`
+- **Auth Required**: Yes (Bearer Token)
+- **Response (200)**:
+```json
+{
+    "status": true,
+    "message": "Successfully fetched {count} organizations",
+    "user_id": "string",
+    "organizations": [
+        {
+            "id": "integer",
+            "uuid": "string",
+            "name": "string"
+        }
+    ]
+}
+```
+- **Error Responses**:
+  - **400**: `{"detail": "Error message"}`
+  - **404**: `{"detail": "User settings not found"}`
+  - **200 (with error)**:
+```json
+{
+    "status": false,
+    "message": "Editor account credentials not configured",
+    "user_id": null,
+    "organizations": []
+}
+```

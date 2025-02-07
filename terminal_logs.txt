@@ -10,3 +10,12 @@
 [2025-02-06 03:25:58] [Profile] [Picture] Saving new profile picture: profile_pictures\5\3b876242-a8cf-43d5-bdc5-fedc4dac12b4.jpg
 [2025-02-06 03:25:58] [Profile] [Picture] New profile picture URL: http://127.0.0.1:8000/media/profile_pictures/5/09f15ea2-e163-4b0e-a417-2c00d84b2eb8.jpg
 [2025-02-06 03:25:58] [Profile] [Picture] Profile picture updated successfully for user amine1
+[2025-02-06 03:30:50] [Profile] [Update] User amine1 requested profile update with data: {'first_name': 'string', 'last_name': 'string', 'timezone': 'string'}
+[2025-02-06 03:30:50] [Profile] [Update] Updated first_name to: string
+[2025-02-06 03:30:50] [Profile] [Update] Updated last_name to: string
+[2025-02-06 03:30:55] [Profile] [Error] Invalid timezone provided: string
+[2025-02-06 03:31:07] [Profile] [Update] User amine1 requested profile update with data: {'first_name': 'string', 'last_name': 'string', 'timezone': 'utc'}
+[2025-02-06 03:31:07] [Profile] [Update] Updated first_name to: string
+[2025-02-06 03:31:07] [Profile] [Update] Updated last_name to: string
+[2025-02-06 03:31:07] [Profile] [Update] Updated timezone to: utc
+[2025-02-06 03:31:07] [Profile] [Update] Profile updated successfully for user amine1

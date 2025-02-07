@@ -495,16 +495,11 @@ def get_emailguard_status(request: HttpRequest):
 @router.post("/add-bison-organization", auth=AuthBearer(), response={200: SuccessResponseSchema, 400: ErrorResponseSchema})
 def add_bison_organization(request: HttpRequest, payload: BisonOrganizationSchema):
     try:
-        # Set base URL for all users
-        settings, created = UserSettings.objects.get_or_create(user=request.auth)
-        settings.bison_base_url = 'https://app.orbitmailboost.com'
-        settings.save()
-        
         # Check Bison API connection
         headers = {
             'Authorization': f'Bearer {payload.bison_organization_api_key}'
         }
-        response = requests.get(f'{settings.bison_base_url}/api/sender-emails', headers=headers)
+        response = requests.get(f'{payload.base_url}/api/sender-emails', headers=headers)
         print("\n=== Bison API Response ===")
         print(f"Status Code: {response.status_code}")
         print(f"Response Body: {response.text}")
@@ -515,6 +510,7 @@ def add_bison_organization(request: HttpRequest, payload: BisonOrganizationSchem
             user=request.auth,
             bison_organization_name=payload.bison_organization_name,
             bison_organization_api_key=payload.bison_organization_api_key,
+            base_url=payload.base_url,
             bison_organization_status=response.status_code == 200
         )
         
@@ -524,6 +520,7 @@ def add_bison_organization(request: HttpRequest, payload: BisonOrganizationSchem
                 "id": bison_org.id,
                 "bison_organization_name": bison_org.bison_organization_name,
                 "bison_organization_api_key": bison_org.bison_organization_api_key,
+                "base_url": bison_org.base_url,
                 "bison_organization_status": bison_org.bison_organization_status
             }
         }
@@ -534,13 +531,12 @@ def add_bison_organization(request: HttpRequest, payload: BisonOrganizationSchem
 def update_bison_organization(request: HttpRequest, org_id: int, payload: BisonOrganizationSchema):
     try:
         bison_org = get_object_or_404(UserBison, id=org_id, user=request.auth)
-        settings = get_object_or_404(UserSettings, user=request.auth)
         
         # Check Bison API connection
         headers = {
             'Authorization': f'Bearer {payload.bison_organization_api_key}'
         }
-        response = requests.get(f'{settings.bison_base_url}/api/sender-emails', headers=headers)
+        response = requests.get(f'{payload.base_url}/api/sender-emails', headers=headers)
         print("\n=== Bison API Response ===")
         print(f"Status Code: {response.status_code}")
         print(f"Response Body: {response.text}")
@@ -549,6 +545,7 @@ def update_bison_organization(request: HttpRequest, org_id: int, payload: BisonO
         # Update organization with new status
         bison_org.bison_organization_name = payload.bison_organization_name
         bison_org.bison_organization_api_key = payload.bison_organization_api_key
+        bison_org.base_url = payload.base_url
         bison_org.bison_organization_status = response.status_code == 200
         bison_org.save()
         
@@ -558,6 +555,7 @@ def update_bison_organization(request: HttpRequest, org_id: int, payload: BisonO
                 "id": bison_org.id,
                 "bison_organization_name": bison_org.bison_organization_name,
                 "bison_organization_api_key": bison_org.bison_organization_api_key,
+                "base_url": bison_org.base_url,
                 "bison_organization_status": bison_org.bison_organization_status
             }
         }
@@ -612,26 +610,20 @@ def check_bison_organization_status(request: HttpRequest, org_id: int):
             
         try:
             bison_org = UserBison.objects.get(id=org_id, user=request.auth)
-            settings = UserSettings.objects.get(user=request.auth)
         except UserBison.DoesNotExist:
             return 404, {"detail": f"Bison organization with ID {org_id} not found for this user"}
-        except UserSettings.DoesNotExist:
-            return 404, {"detail": "User settings not found"}
         
         if not bison_org.bison_organization_api_key:
             bison_org.bison_organization_status = False
             bison_org.save()
             return 200, {"status": False, "message": "Bison organization API key not configured"}
         
-        if not settings.bison_base_url:
-            return 400, {"detail": "Bison base URL not configured"}
-        
         try:
             # Check Bison API connection
             headers = {
                 'Authorization': f'Bearer {bison_org.bison_organization_api_key}'
             }
-            response = requests.get(f'{settings.bison_base_url}/api/sender-emails', headers=headers)
+            response = requests.get(f'{bison_org.base_url}/api/sender-emails', headers=headers)
             print("\n=== Bison API Response ===")
             print(f"Status Code: {response.status_code}")
             print(f"Response Body: {response.text}")

@@ -30,6 +30,7 @@ class EmailGuardApiKeySchema(Schema):
 class BisonOrganizationSchema(Schema):
     bison_organization_name: str
     bison_organization_api_key: str
+    base_url: str = 'https://app.orbitmailboost.com'
 
 class InstantlyOrganizationInfo(Schema):
     id: int  # Our database ID
