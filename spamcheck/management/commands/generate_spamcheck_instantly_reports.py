@@ -7,7 +7,7 @@ Purpose:
   * 0 hours: Generate immediately
   * 0.5 hours: Wait 30 minutes after last update
   * 1 hour: Wait 1 hour after last update (default)
-  * Any custom hours value
+  * Any custom hours value (2h, 3h, 4h, 5h, 6h)
 - Gets report data from EmailGuard API
 - Creates/updates reports in database
 - Updates account sending limits based on results
@@ -25,7 +25,11 @@ Flow:
    - Gets EmailGuard report data
    - Calculates scores
    - Creates reports
-   - Updates sending limits
+   - Updates sending limits based on conditions:
+     * Format: google>0.5andoutlook>0.3sending=23/3
+     * Example: If Google score > 0.5 AND Outlook score > 0.3:
+       - Set sending limit to 23 for good accounts
+       - Set sending limit to 3 for bad accounts
    - Handles domain-based reporting
    - Deletes campaign from Instantly using campaign ID
    - Marks campaign as 'deleted' in database
@@ -95,27 +99,62 @@ class Command(BaseCommand):
         return score
 
     def parse_conditions(self, conditions_str):
-        """Parse conditions string into dict"""
+        """Parse conditions string into dict
+        Format: google>0.5andoutlook>0.3sending=23/3
+        Returns: {
+            'google': 0.5,
+            'outlook': 0.3,
+            'good_limit': 23,  # sending limit for accounts that meet conditions
+            'bad_limit': 3     # sending limit for accounts that don't meet conditions
+        }
+        """
         if not conditions_str:
-            return {'google': 0.5, 'outlook': 0.5, 'daily_limit': 25}
+            return {'google': 0.5, 'outlook': 0.5, 'good_limit': 25, 'bad_limit': 3}
 
         conditions = {}
-        parts = conditions_str.lower().split('and')
         
-        for part in parts:
-            if 'google>=' in part:
-                conditions['google'] = float(part.split('>=')[1])
-            elif 'outlook>=' in part:
-                conditions['outlook'] = float(part.split('>=')[1])
-            elif 'sending=' in part:
-                sending_parts = part.split('=')[1].split('/')
-                conditions['daily_limit'] = int(sending_parts[0])
+        # First split by 'sending=' to separate scores and limits
+        parts = conditions_str.lower().split('sending=')
+        if len(parts) == 2:
+            scores_part = parts[0]
+            limits_part = parts[1]
+            
+            # Parse scores
+            score_parts = scores_part.split('and')
+            for part in score_parts:
+                if 'google>' in part:
+                    conditions['google'] = float(part.split('>')[1])
+                elif 'outlook>' in part:
+                    conditions['outlook'] = float(part.split('>')[1])
+            
+            # Parse sending limits
+            if '/' in limits_part:
+                good_limit, bad_limit = limits_part.split('/')
+                conditions['good_limit'] = int(good_limit)
+                conditions['bad_limit'] = int(bad_limit)
+            else:
+                conditions['good_limit'] = int(limits_part)
+                conditions['bad_limit'] = 3
+        
+        # Set defaults for any missing values
+        if 'google' not in conditions:
+            conditions['google'] = 0.5
+        if 'outlook' not in conditions:
+            conditions['outlook'] = 0.5
+        if 'good_limit' not in conditions:
+            conditions['good_limit'] = 25
+        if 'bad_limit' not in conditions:
+            conditions['bad_limit'] = 3
 
         return conditions
 
     def evaluate_conditions(self, spamcheck, google_score, outlook_score, email):
-        """Evaluate if scores meet conditions"""
+        """Evaluate if scores meet conditions and return appropriate sending limit"""
+        self.stdout.write(f"\nEvaluating conditions from database:")
+        self.stdout.write(f"  Raw conditions string: {spamcheck.conditions}")
+        
         conditions = self.parse_conditions(spamcheck.conditions)
+        self.stdout.write(f"  Parsed conditions: {json.dumps(conditions, indent=2)}")
         
         # Check if scores meet thresholds
         google_ok = google_score >= conditions.get('google', 0.5)
@@ -123,7 +162,15 @@ class Command(BaseCommand):
         
         self.conditions_met = google_ok and outlook_ok
         
-        return self.conditions_met
+        # Return appropriate sending limit
+        if self.conditions_met:
+            sending_limit = conditions.get('good_limit', 25)
+            self.stdout.write(f"  ✓ Conditions met - Using good limit: {sending_limit}")
+            return True, sending_limit
+        else:
+            sending_limit = conditions.get('bad_limit', 3)
+            self.stdout.write(f"  ✗ Conditions not met - Using bad limit: {sending_limit}")
+            return False, sending_limit
 
     def evaluate_default_condition(self, google_score, outlook_score):
         """Evaluate default condition (google >= 0.5)"""
@@ -252,11 +299,8 @@ class Command(BaseCommand):
                 self.stdout.write(f"  Google Score: {google_score}")
                 self.stdout.write(f"  Outlook Score: {outlook_score}")
 
-                # Evaluate conditions first
-                if campaign.spamcheck.conditions:
-                    is_good = self.evaluate_conditions(campaign.spamcheck, google_score, outlook_score, campaign.account_id.email_account)
-                else:
-                    is_good = self.evaluate_default_condition(google_score, outlook_score)
+                # Evaluate conditions and get appropriate sending limit
+                is_good, sending_limit = self.evaluate_conditions(campaign.spamcheck, google_score, outlook_score, campaign.account_id.email_account)
 
                 # Create or update report using the sync function
                 report = await asyncio.to_thread(
@@ -270,9 +314,8 @@ class Command(BaseCommand):
                 self.stdout.write(f"  Report {'created' if report[1] else 'updated'} successfully")
                 self.stdout.write(f"  Account status: {'✓ Good' if is_good else '✗ Bad'}")
 
-                # Update sending limits if needed
-                if self.conditions_met or (not campaign.spamcheck.conditions and google_score >= 0.5):
-                    await self.update_sending_limit(campaign.organization, campaign.account_id.email_account, 25)
+                # Update sending limit based on conditions
+                await self.update_sending_limit(campaign.organization, campaign.account_id.email_account, sending_limit)
 
                 # Delete campaign from Instantly
                 self.stdout.write("\n  Deleting campaign from Instantly...")
