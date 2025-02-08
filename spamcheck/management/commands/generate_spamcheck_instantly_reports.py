@@ -101,18 +101,13 @@ class Command(BaseCommand):
         
         self.conditions_met = google_ok and outlook_ok
         
-        if self.conditions_met:
-            # Update sending limit
-            daily_limit = conditions.get('daily_limit', 25)
-            self.update_sending_limit(spamcheck.user_organization, email, daily_limit)
-            
         return self.conditions_met
 
     def evaluate_default_condition(self, google_score, outlook_score):
         """Evaluate default condition (google >= 0.5)"""
         return google_score >= 0.5
 
-    def update_sending_limit(self, organization, emails, daily_limit):
+    async def update_sending_limit(self, organization, emails, daily_limit):
         """Update sending limit for email accounts"""
         if not isinstance(emails, list):
             emails = [emails]
@@ -131,7 +126,8 @@ class Command(BaseCommand):
         }
         
         try:
-            response = requests.post(
+            response = await asyncio.to_thread(
+                requests.post,
                 "https://app.instantly.ai/backend/api/v1/account/update/bulk",
                 headers=headers,
                 json=data
@@ -144,6 +140,20 @@ class Command(BaseCommand):
                 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"  ✗ Error updating sending limit: {str(e)}"))
+
+    def create_report_sync(self, campaign, google_score, outlook_score, is_good):
+        """Synchronous function to create/update report"""
+        return UserSpamcheckReport.objects.update_or_create(
+            spamcheck_instantly=campaign.spamcheck,
+            email_account=campaign.account_id.email_account,
+            defaults={
+                'organization': campaign.organization,
+                'google_pro_score': google_score,
+                'outlook_pro_score': outlook_score,
+                'report_link': f"https://app.emailguard.io/inbox-placement-tests/{campaign.emailguard_tag}",
+                'is_good': is_good
+            }
+        )
 
     async def process_campaign(self, session, campaign, user_settings):
         """Process a single campaign and generate report"""
@@ -158,7 +168,7 @@ class Command(BaseCommand):
             }
             
             self.stdout.write("  Calling EmailGuard API...")
-            response = requests.get(url, headers=headers)
+            response = await asyncio.to_thread(requests.get, url, headers=headers)
             
             if response.status_code == 200:
                 self.stdout.write("  API call successful")
@@ -172,28 +182,24 @@ class Command(BaseCommand):
                 self.stdout.write(f"  Google Score: {google_score}")
                 self.stdout.write(f"  Outlook Score: {outlook_score}")
 
-                # Create or update report
-                report, created = UserSpamcheckReport.objects.update_or_create(
-                    spamcheck_instantly=campaign.spamcheck,
-                    email_account=campaign.account_id.email_account,
-                    defaults={
-                        'organization': campaign.organization,
-                        'google_pro_score': google_score,
-                        'outlook_pro_score': outlook_score,
-                        'report_link': f"https://app.emailguard.io/inbox-placement-tests/{campaign.emailguard_tag}",
-                        'is_good': self.evaluate_conditions(campaign.spamcheck, google_score, outlook_score, campaign.account_id.email_account) if campaign.spamcheck.conditions else self.evaluate_default_condition(google_score, outlook_score)
-                    }
+                # Evaluate conditions first
+                is_good = self.evaluate_conditions(campaign.spamcheck, google_score, outlook_score, campaign.account_id.email_account) if campaign.spamcheck.conditions else self.evaluate_default_condition(google_score, outlook_score)
+
+                # Create or update report using the sync function
+                report = await asyncio.to_thread(
+                    self.create_report_sync,
+                    campaign,
+                    google_score,
+                    outlook_score,
+                    is_good
                 )
 
-                self.stdout.write(f"  Report {'created' if created else 'updated'} successfully")
-                self.stdout.write(f"  Account status: {'✓ Good' if report.is_good else '✗ Bad'}")
+                self.stdout.write(f"  Report {'created' if report[1] else 'updated'} successfully")
+                self.stdout.write(f"  Account status: {'✓ Good' if is_good else '✗ Bad'}")
 
-                # Evaluate conditions and update sending limits
-                if campaign.spamcheck.conditions:
-                    self.evaluate_conditions(campaign.spamcheck, google_score, outlook_score, campaign.account_id.email_account)
-                else:
-                    if google_score >= 0.5:
-                        self.update_sending_limit(campaign.organization, campaign.account_id.email_account, 25)
+                # Update sending limits if needed
+                if self.conditions_met or (not campaign.spamcheck.conditions and google_score >= 0.5):
+                    await self.update_sending_limit(campaign.organization, campaign.account_id.email_account, 25)
 
                 return True
             else:
@@ -234,7 +240,7 @@ class Command(BaseCommand):
             campaigns = await asyncio.to_thread(
                 lambda: list(UserSpamcheckCampaigns.objects.filter(
                     spamcheck=spamcheck
-                ).select_related('account_id'))
+                ).select_related('account_id', 'spamcheck', 'organization'))
             )
 
             if not campaigns:
