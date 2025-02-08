@@ -2,7 +2,7 @@
 
 # Function to show usage
 show_usage() {
-    echo "Usage: $0 [enable|disable] [all|launch|reports|recurring|accounts]"
+    echo "Usage: $0 [enable|disable] [all|launch|reports|recurring|accounts|campaigns]"
     echo "Examples:"
     echo "  $0 disable all        # Disable all cron jobs"
     echo "  $0 enable all         # Enable all cron jobs"
@@ -51,6 +51,10 @@ case $ACTION in
                 sed -i '/update_accounts.sh/ {s/^##*/#/; s/^#//}' $TEMP_CRONTAB
                 echo "Enabled update_accounts cron job"
                 ;;
+            "campaigns")
+                sed -i '/check_campaigns.sh/ {s/^##*/#/; s/^#//}' $TEMP_CRONTAB
+                echo "Enabled check_campaigns cron job"
+                ;;
             *)
                 show_usage
                 exit 1
@@ -81,6 +85,10 @@ case $ACTION in
             "accounts")
                 sed -i '/update_accounts.sh/ {s/^##*/#/; s/^[^#]/#/}' $TEMP_CRONTAB
                 echo "Disabled update_accounts cron job"
+                ;;
+            "campaigns")
+                sed -i '/check_campaigns.sh/ {s/^##*/#/; s/^[^#]/#/}' $TEMP_CRONTAB
+                echo "Disabled check_campaigns cron job"
                 ;;
             *)
                 show_usage

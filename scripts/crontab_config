@@ -8,4 +8,7 @@
 */5 * * * * /var/www/inboxassure-backend/scripts/generate_reports.sh >> /var/log/inboxassure/cron_reports.log 2>&1
 
 # Run update_active_accounts every hour
-0 * * * * /var/www/inboxassure-backend/scripts/update_accounts.sh >> /var/log/inboxassure/cron_accounts.log 2>&1 
+0 * * * * /var/www/inboxassure-backend/scripts/update_accounts.sh >> /var/log/inboxassure/cron_accounts.log 2>&1
+
+# Run check_spamcheck_instantly_campaigns_status every 5 minutes
+*/5 * * * * /var/www/inboxassure-backend/scripts/check_campaigns.sh >> /var/log/inboxassure/cron_campaigns.log 2>&1 

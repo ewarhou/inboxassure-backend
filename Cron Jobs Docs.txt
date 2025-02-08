@@ -21,6 +21,10 @@ Available Cron Jobs
    - Script: update_accounts.sh
    - Purpose: Updates active accounts for recurring spamchecks
 
+5. Check Campaign Status (runs every 5 minutes)
+   - Script: check_campaigns.sh
+   - Purpose: Checks status of running spamcheck campaigns in Instantly.ai
+
 Managing Cron Jobs
 -----------------
 
@@ -43,6 +47,7 @@ Managing Cron Jobs
    - reports   (for generate_reports.sh)
    - recurring (for recurring_spamchecks.sh)
    - accounts  (for update_accounts.sh)
+   - campaigns (for check_campaigns.sh)
 
    Example:
    ssh -i ~/.ssh/inboxassure root@68.183.98.54 "/var/www/inboxassure-backend/scripts/manage_crons.sh disable launch"
@@ -65,6 +70,9 @@ You can manually trigger any job and see its output in real-time. Here are two w
    d. Update Active Accounts:
       ssh -i ~/.ssh/inboxassure root@68.183.98.54 "cd /var/www/inboxassure-backend && source venv/bin/activate && python manage.py update_active_accounts"
 
+   e. Check Campaign Status:
+      ssh -i ~/.ssh/inboxassure root@68.183.98.54 "cd /var/www/inboxassure-backend && source venv/bin/activate && python manage.py check_spamcheck_instantly_campaigns_status"
+
 2. Trigger and Log Output to File:
 
    a. Recurring Spamchecks:
@@ -78,6 +86,9 @@ You can manually trigger any job and see its output in real-time. Here are two w
 
    d. Update Active Accounts:
       ssh -i ~/.ssh/inboxassure root@68.183.98.54 "/var/www/inboxassure-backend/scripts/update_accounts.sh >> /var/log/inboxassure/cron_accounts.log 2>&1"
+
+   e. Check Campaign Status:
+      ssh -i ~/.ssh/inboxassure root@68.183.98.54 "/var/www/inboxassure-backend/scripts/check_campaigns.sh >> /var/log/inboxassure/cron_campaigns.log 2>&1"
 
 Note: Method 1 shows output directly in your terminal as the script runs. Method 2 saves the output to log files.
 
@@ -96,6 +107,9 @@ Each job writes its output to a dedicated log file in /var/log/inboxassure/:
 
 4. View Update Active Accounts logs:
    ssh -i ~/.ssh/inboxassure root@68.183.98.54 "tail -f /var/log/inboxassure/cron_accounts.log"
+
+5. View Check Campaign Status logs:
+   ssh -i ~/.ssh/inboxassure root@68.183.98.54 "tail -f /var/log/inboxassure/cron_campaigns.log"
 
 Note: Use Ctrl+C to stop viewing logs.
 
