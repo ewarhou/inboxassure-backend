@@ -324,19 +324,11 @@ def check_instantly_status(request: HttpRequest):
                     keys_data = list_keys_response.json()
                     for key in keys_data.get('items', []):
                         if key.get('name') == 'InboxAssure':
-                            existing_api_key = key.get('key')
                             print(f"✅ Found existing InboxAssure API key for organization: {org['name']}")
-                            if existing_api_key:  # Only update if we got a valid key
-                                instantly_org.instantly_api_key = existing_api_key
-                                instantly_org.save()
-                                print(f"✅ Using existing API key for organization: {org['name']}")
-                                should_create_key = False
-                            else:
-                                # Keep the existing key in DB if the found key is empty
-                                should_create_key = not instantly_org.instantly_api_key
-                            break
+                            should_create_key = False  # Don't create new key if InboxAssure exists
+                            break  # Exit loop, don't modify anything in DB
                 
-                if should_create_key:  # Only create new key if flag is True
+                if should_create_key:  # Only create new key if no InboxAssure key exists
                     # Create new API key if none exists
                     api_key_data = {
                         'name': 'InboxAssure',
