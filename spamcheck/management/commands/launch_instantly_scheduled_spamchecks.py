@@ -1,32 +1,28 @@
 """
-This command launches scheduled spamchecks in Instantly.ai.
-
-Purpose:
-- Finds spamchecks scheduled to run now
-- Creates and launches campaigns in Instantly
-- Handles recurring spamchecks
-- Updates spamcheck status and schedules
-
-Flow:
-1. Finds spamchecks that are:
-   - Scheduled for now or past due
-   - Have recurring_days set
-   - In 'pending' status
-2. For each spamcheck:
-   - Creates campaign in Instantly
+LAUNCH SPAMCHECK SCRIPT
+======================
+Launches scheduled spamchecks by:
+1. Finding pending spamchecks
+2. For each account in spamcheck:
+   - Gets EmailGuard tag
+   - Creates Instantly campaign
    - Adds test email addresses
    - Launches campaign
-   - Updates local status
-3. For recurring spamchecks:
-   - Updates next scheduled run
-   - Resets status to pending
+   - Stores campaign info
 
-Features:
-- Async/await for better performance
-- Rate limiting (10 requests/second)
-- Error handling and retries
-- Timezone handling
-- Bulk operations
+Key Functions:
+- get_emailguard_tag: Creates test and returns UUID
+- create_instantly_campaign: Sets up campaign with EmailGuard tag in body
+- add_leads: Adds test emails to campaign
+- launch_campaign: Activates the campaign
+
+Critical Settings:
+- Rate limit: 10 requests/second
+- Campaign timezone: Etc/GMT+12
+- Email gap: 1
+- Daily limit: 100
+
+Runs via cron: * * * * * (every minute)
 """
 
 from django.core.management.base import BaseCommand
@@ -67,14 +63,18 @@ class Command(BaseCommand):
                 async with session.post(url, headers=headers, json=data) as response:
                     if response.status in [200, 201]:  # Accept both 200 and 201 as success
                         data = await response.json()
-                        return data['data']['uuid'], data['data']['inbox_placement_test_emails']
+                        return (
+                            data['data']['uuid'],
+                            data['data']['inbox_placement_test_emails'],
+                            data['data']['filter_phrase']
+                        )
                     else:
                         raise Exception(f"EmailGuard API error: {response.status}")
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Error getting EmailGuard tag: {str(e)}"))
             raise
 
-    async def create_instantly_campaign(self, session, spamcheck, account, test_emails, instantly_api_key):
+    async def create_instantly_campaign(self, session, spamcheck, account, test_emails, instantly_api_key, emailguard_tag, filter_phrase):
         """Create campaign in Instantly"""
         url = "https://api.instantly.ai/api/v2/campaigns"
         headers = {
@@ -124,7 +124,7 @@ class Command(BaseCommand):
                     "type": "email",
                     "variants": [{
                         "subject": spamcheck.options.subject,
-                        "body": spamcheck.options.body
+                        "body": f"{spamcheck.options.body}\n\n{filter_phrase}"
                     }]
                 }]
             }]
@@ -200,10 +200,6 @@ class Command(BaseCommand):
                 instantly_organization_id=spamcheck.user_organization.instantly_organization_id
             )
 
-            print("\n=== DEBUG: API Keys ===")
-            print(f"Instantly API Key: {user_instantly.instantly_api_key}")
-            print("=== END DEBUG ===\n")
-
             # Get accounts to check
             accounts = await asyncio.to_thread(
                 lambda: list(spamcheck.accounts.all())
@@ -218,13 +214,13 @@ class Command(BaseCommand):
                 try:
                     # Get EmailGuard tag
                     campaign_name = f"{spamcheck.name} - {account.email_account}"
-                    tag, test_emails = await self.get_emailguard_tag(
+                    tag, test_emails, filter_phrase = await self.get_emailguard_tag(
                         session, campaign_name, user_settings.emailguard_api_key
                     )
 
                     # Create campaign
                     campaign_id = await self.create_instantly_campaign(
-                        session, spamcheck, account, test_emails, user_instantly.instantly_api_key
+                        session, spamcheck, account, test_emails, user_instantly.instantly_api_key, tag, filter_phrase
                     )
 
                     # Add leads
