@@ -140,6 +140,7 @@ class UserSpamcheckReport(models.Model):
         decimal_places=1,
         validators=[MinValueValidator(0), MaxValueValidator(4)]
     )
+    is_good = models.BooleanField(default=False, help_text='Whether this account meets the spamcheck conditions')
     spamcheck_instantly = models.ForeignKey(
         'UserSpamcheck',
         on_delete=models.SET_NULL,
