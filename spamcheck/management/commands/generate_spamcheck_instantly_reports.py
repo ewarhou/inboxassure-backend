@@ -7,15 +7,18 @@ Purpose:
 - Creates/updates reports in database
 - Updates account sending limits based on results
 - Handles domain-based spamchecks
+- Deletes completed campaigns from Instantly to clean up resources
 
 Flow:
 1. Finds spamchecks ready for report generation
 2. For each spamcheck:
    - Gets EmailGuard report data
    - Calculates scores
-   - Creates/updates reports
+   - Creates reports
    - Updates sending limits
    - Handles domain-based reporting
+   - Deletes campaign from Instantly using campaign ID
+   - Marks campaign as 'deleted' in database
 3. Marks spamchecks as completed when done
 
 Features:
@@ -24,6 +27,14 @@ Features:
 - Error handling
 - Domain-based reporting
 - Bulk operations
+- Campaign cleanup
+- Automatic deletion of completed campaigns
+- Configurable waiting time (0 for immediate, 0.5 for 30min, 1 for 1h)
+
+API Endpoints:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Instantly Update Account: POST https://app.instantly.ai/backend/api/v1/account/update/bulk
+3. Instantly Delete Campaign: DELETE https://api.instantly.ai/api/v2/campaigns/{id}
 """
 
 from django.core.management.base import BaseCommand
@@ -155,6 +166,27 @@ class Command(BaseCommand):
             }
         )
 
+    async def delete_instantly_campaign(self, session, campaign_id, instantly_api_key):
+        """Delete campaign from Instantly"""
+        url = f"https://api.instantly.ai/api/v2/campaigns/{campaign_id}"
+        headers = {
+            "Authorization": f"Bearer {instantly_api_key}",
+            "Content-Type": "application/json"
+        }
+
+        try:
+            async with self.rate_limit:
+                async with session.delete(url, headers=headers) as response:
+                    if response.status == 200:
+                        self.stdout.write(f"  ✓ Successfully deleted campaign {campaign_id} from Instantly")
+                        return True
+                    else:
+                        self.stdout.write(self.style.ERROR(f"  ✗ Failed to delete campaign {campaign_id}: {response.status}"))
+                        return False
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"  ✗ Error deleting campaign {campaign_id}: {str(e)}"))
+            return False
+
     async def process_campaign(self, session, campaign, user_settings):
         """Process a single campaign and generate report"""
         try:
@@ -201,6 +233,20 @@ class Command(BaseCommand):
                 if self.conditions_met or (not campaign.spamcheck.conditions and google_score >= 0.5):
                     await self.update_sending_limit(campaign.organization, campaign.account_id.email_account, 25)
 
+                # Delete campaign from Instantly using the correct campaign ID
+                self.stdout.write("\n  Deleting campaign from Instantly...")
+                self.stdout.write(f"  Using Instantly Campaign ID: {campaign.instantly_campaign_id}")
+                deleted = await self.delete_instantly_campaign(
+                    session, 
+                    campaign.instantly_campaign_id,  # Using the correct instantly_campaign_id
+                    campaign.organization.instantly_api_key
+                )
+                
+                if deleted:
+                    campaign.campaign_status = 'deleted'
+                    await asyncio.to_thread(campaign.save)
+                    self.stdout.write("  ✓ Campaign marked as deleted in database")
+
                 return True
             else:
                 self.stdout.write(self.style.ERROR(f"  API call failed with status {response.status_code}"))
@@ -219,16 +265,17 @@ class Command(BaseCommand):
             # Check if enough time has passed
             time_passed = timezone.now() - spamcheck.updated_at
             hours_passed = time_passed.total_seconds() / 3600
-            waiting_time = spamcheck.reports_waiting_time or 1.0
+            waiting_time = spamcheck.reports_waiting_time if spamcheck.reports_waiting_time is not None else 1.0
             
             self.stdout.write(f"Waiting time configured: {waiting_time} hours")
             self.stdout.write(f"Time since last update: {hours_passed:.2f} hours")
             
-            if hours_passed < waiting_time:
+            # Skip waiting time check if waiting_time is 0 (immediate)
+            if waiting_time > 0 and hours_passed < waiting_time:
                 self.stdout.write("Not enough time has passed. Skipping...")
                 return False
                 
-            self.stdout.write("Enough time has passed. Processing campaigns...")
+            self.stdout.write("Processing campaigns...")
 
             # Get user settings
             user_settings = await asyncio.to_thread(
