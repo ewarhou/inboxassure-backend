@@ -57,3 +57,5 @@ from settings.api import log_to_terminal
 
 # In your update_profile_picture function:
 log_to_terminal("Profile", "Upload", f"User {request.auth.username} started profile picture upload")
+
+

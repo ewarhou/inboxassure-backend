@@ -326,3 +326,57 @@ Get all spamchecks with their details, ordered by creation date (newest first).
    - Update: only on 'pending', 'failed', or 'completed' spamchecks
    - Launch: only on 'pending', 'failed', or 'completed' spamchecks
    - Toggle pause: only on 'pending', 'paused', or 'completed' spamchecks
+
+## Profile Endpoints
+
+### Get Profile Information
+**Endpoint:** `GET /api/profile/`  
+Gets the current user's profile information including the latest profile picture URL.
+
+**Headers:**
+```
+Authorization: Bearer your_access_token
+```
+
+**Response:**
+```json
+{
+    "first_name": "string",
+    "last_name": "string",
+    "email": "string",
+    "profile_picture": "string (URL)",
+    "timezone": "string"
+}
+```
+
+### Update Profile Picture
+**Endpoint:** `PUT /api/profile/picture`  
+Updates the user's profile picture.
+
+**Headers:**
+```
+Authorization: Bearer your_access_token
+Content-Type: multipart/form-data
+```
+
+**Request Body:**
+- Form data with key 'file' containing the image file
+- Supported formats: JPG, JPEG, PNG, or GIF
+- Maximum file size: 2.5MB
+
+**Response:**
+```json
+{
+    "first_name": "string",
+    "last_name": "string",
+    "email": "string",
+    "profile_picture": "string (URL)",  // New profile picture URL
+    "timezone": "string"
+}
+```
+
+**Notes:**
+1. Each time a new profile picture is uploaded, a new file is created with a unique UUID
+2. Old profile pictures are automatically deleted
+3. Always use the URL from the most recent API response
+4. The profile picture URL will be in the format: `https://inboxassure-backend.imnodev.com/media/profile_pictures/{user_id}/{uuid}.{extension}`

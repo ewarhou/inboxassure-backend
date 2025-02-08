@@ -1,0 +1,111 @@
+InboxAssure Cron Jobs Documentation
+================================
+
+This document explains how to manage and manually trigger the cron jobs in InboxAssure backend.
+
+Available Cron Jobs
+------------------
+1. Recurring Spamchecks (runs every hour)
+   - Script: recurring_spamchecks.sh
+   - Purpose: Handles recurring spamchecks by resetting completed ones
+
+2. Launch Scheduled (runs every minute)
+   - Script: launch_scheduled.sh
+   - Purpose: Launches scheduled spamchecks in Instantly.ai
+
+3. Generate Reports (runs every 5 minutes)
+   - Script: generate_reports.sh
+   - Purpose: Generates reports for completed spamchecks
+
+4. Update Active Accounts (runs every hour)
+   - Script: update_accounts.sh
+   - Purpose: Updates active accounts for recurring spamchecks
+
+Managing Cron Jobs
+-----------------
+
+1. Enable/Disable ALL Jobs:
+   - Disable all jobs:
+     ssh -i ~/.ssh/inboxassure root@68.183.98.54 "/var/www/inboxassure-backend/scripts/manage_crons.sh disable all"
+   
+   - Enable all jobs:
+     ssh -i ~/.ssh/inboxassure root@68.183.98.54 "/var/www/inboxassure-backend/scripts/manage_crons.sh enable all"
+
+2. Enable/Disable SPECIFIC Jobs:
+   - Disable specific job:
+     ssh -i ~/.ssh/inboxassure root@68.183.98.54 "/var/www/inboxassure-backend/scripts/manage_crons.sh disable [JOB_NAME]"
+   
+   - Enable specific job:
+     ssh -i ~/.ssh/inboxassure root@68.183.98.54 "/var/www/inboxassure-backend/scripts/manage_crons.sh enable [JOB_NAME]"
+   
+   Available job names:
+   - launch    (for launch_scheduled.sh)
+   - reports   (for generate_reports.sh)
+   - recurring (for recurring_spamchecks.sh)
+   - accounts  (for update_accounts.sh)
+
+   Example:
+   ssh -i ~/.ssh/inboxassure root@68.183.98.54 "/var/www/inboxassure-backend/scripts/manage_crons.sh disable launch"
+
+Manually Triggering Jobs
+-----------------------
+You can manually trigger any job and see its output in real-time. Here are two ways to do it:
+
+1. Trigger and View Output in Real-time:
+
+   a. Recurring Spamchecks:
+      ssh -i ~/.ssh/inboxassure root@68.183.98.54 "cd /var/www/inboxassure-backend && source venv/bin/activate && python manage.py handle_recurring_spamchecks"
+
+   b. Launch Scheduled:
+      ssh -i ~/.ssh/inboxassure root@68.183.98.54 "cd /var/www/inboxassure-backend && source venv/bin/activate && python manage.py launch_instantly_scheduled_spamchecks"
+
+   c. Generate Reports:
+      ssh -i ~/.ssh/inboxassure root@68.183.98.54 "cd /var/www/inboxassure-backend && source venv/bin/activate && python manage.py generate_spamcheck_instantly_reports"
+
+   d. Update Active Accounts:
+      ssh -i ~/.ssh/inboxassure root@68.183.98.54 "cd /var/www/inboxassure-backend && source venv/bin/activate && python manage.py update_active_accounts"
+
+2. Trigger and Log Output to File:
+
+   a. Recurring Spamchecks:
+      ssh -i ~/.ssh/inboxassure root@68.183.98.54 "/var/www/inboxassure-backend/scripts/recurring_spamchecks.sh >> /var/log/inboxassure/cron_recurring.log 2>&1"
+
+   b. Launch Scheduled:
+      ssh -i ~/.ssh/inboxassure root@68.183.98.54 "/var/www/inboxassure-backend/scripts/launch_scheduled.sh >> /var/log/inboxassure/cron_launch.log 2>&1"
+
+   c. Generate Reports:
+      ssh -i ~/.ssh/inboxassure root@68.183.98.54 "/var/www/inboxassure-backend/scripts/generate_reports.sh >> /var/log/inboxassure/cron_reports.log 2>&1"
+
+   d. Update Active Accounts:
+      ssh -i ~/.ssh/inboxassure root@68.183.98.54 "/var/www/inboxassure-backend/scripts/update_accounts.sh >> /var/log/inboxassure/cron_accounts.log 2>&1"
+
+Note: Method 1 shows output directly in your terminal as the script runs. Method 2 saves the output to log files.
+
+Monitoring Logs
+--------------
+Each job writes its output to a dedicated log file in /var/log/inboxassure/:
+
+1. View Recurring Spamchecks logs:
+   ssh -i ~/.ssh/inboxassure root@68.183.98.54 "tail -f /var/log/inboxassure/cron_recurring.log"
+
+2. View Launch Scheduled logs:
+   ssh -i ~/.ssh/inboxassure root@68.183.98.54 "tail -f /var/log/inboxassure/cron_launch.log"
+
+3. View Generate Reports logs:
+   ssh -i ~/.ssh/inboxassure root@68.183.98.54 "tail -f /var/log/inboxassure/cron_reports.log"
+
+4. View Update Active Accounts logs:
+   ssh -i ~/.ssh/inboxassure root@68.183.98.54 "tail -f /var/log/inboxassure/cron_accounts.log"
+
+Note: Use Ctrl+C to stop viewing logs.
+
+Checking Cron Status
+-------------------
+1. View all current cron jobs:
+   ssh -i ~/.ssh/inboxassure root@68.183.98.54 "crontab -l"
+
+2. Check if cron service is running:
+   ssh -i ~/.ssh/inboxassure root@68.183.98.54 "systemctl status cron"
+
+3. View last 20 lines of all logs:
+   ssh -i ~/.ssh/inboxassure root@68.183.98.54 "tail -n 20 /var/log/inboxassure/*.log" 

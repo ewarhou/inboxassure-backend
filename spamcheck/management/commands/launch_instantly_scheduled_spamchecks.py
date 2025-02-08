@@ -248,9 +248,12 @@ class Command(BaseCommand):
 
                 except Exception as e:
                     self.stdout.write(self.style.ERROR(f"Error processing account {account.email_account}: {str(e)}"))
+                    # Update spamcheck status to failed
+                    spamcheck.status = 'failed'
+                    await asyncio.to_thread(spamcheck.save)
                     return False
 
-            # Update spamcheck status and schedule
+            # Only update to in_progress if all accounts were processed successfully
             spamcheck.status = 'in_progress'
             if spamcheck.recurring_days:
                 spamcheck.scheduled_at = timezone.now() + timedelta(days=spamcheck.recurring_days)
@@ -260,6 +263,9 @@ class Command(BaseCommand):
 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Error processing spamcheck {spamcheck.id}: {str(e)}"))
+            # Update spamcheck status to failed
+            spamcheck.status = 'failed'
+            await asyncio.to_thread(spamcheck.save)
             return False
 
     async def handle_async(self, *args, **options):

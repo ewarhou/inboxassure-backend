@@ -1,0 +1,11 @@
+# Run handle_recurring_spamchecks every hour
+0 * * * * /var/www/inboxassure-backend/scripts/recurring_spamchecks.sh >> /var/log/inboxassure/cron_recurring.log 2>&1
+
+# Run launch_instantly_scheduled_spamchecks every minute
+* * * * * /var/www/inboxassure-backend/scripts/launch_scheduled.sh >> /var/log/inboxassure/cron_launch.log 2>&1
+
+# Run generate_spamcheck_instantly_reports every 5 minutes
+*/5 * * * * /var/www/inboxassure-backend/scripts/generate_reports.sh >> /var/log/inboxassure/cron_reports.log 2>&1
+
+# Run update_active_accounts every hour
+0 * * * * /var/www/inboxassure-backend/scripts/update_accounts.sh >> /var/log/inboxassure/cron_accounts.log 2>&1 
