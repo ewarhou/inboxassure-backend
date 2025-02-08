@@ -325,34 +325,34 @@ def check_instantly_status(request: HttpRequest):
                     print(f"\n🔍 Found {len(keys_data.get('items', []))} API keys")
                     print(f"🗄️ Current API key in database: {instantly_org.instantly_api_key}")
                     
-                    for key in keys_data.get('items', []):
-                        print(f"\n📑 Checking key: {key.get('name')}")
-                        if key.get('name') == 'InboxAssure':
+                    # Check if any InboxAssure key exists
+                    inboxassure_keys = [key for key in keys_data.get('items', []) if key.get('name') == 'InboxAssure']
+                    if inboxassure_keys:
+                        print(f"\n✅ Found {len(inboxassure_keys)} existing InboxAssure API key(s)")
+                        should_create_key = False  # Don't create a new key if any exist
+                        
+                        # Try to find a non-empty key
+                        for key in inboxassure_keys:
                             existing_api_key = key.get('key')
-                            print(f"✅ Found existing InboxAssure API key for organization: {org['name']}")
+                            print(f"\n📑 Checking key: {key.get('name')}")
                             
-                            # Skip if key is empty
-                            if not existing_api_key:
-                                print(f"⚠️ Found key is empty, skipping...")
-                                continue
+                            if existing_api_key:
+                                print(f"🔑 Found API key: {existing_api_key[:10]}...{existing_api_key[-10:]}")  # Show first and last 10 chars
                                 
-                            print(f"🔑 Found API key: {existing_api_key[:10]}...{existing_api_key[-10:]}")  # Show first and last 10 chars
-                            
-                            if existing_api_key != instantly_org.instantly_api_key:
-                                print(f"⚠️ API key in database differs from found key")
-                                print(f"📥 Updating database with found key")
-                                instantly_org.instantly_api_key = existing_api_key
-                                instantly_org.save()
-                                print(f"✅ Database updated with found key")
+                                if existing_api_key != instantly_org.instantly_api_key:
+                                    print(f"⚠️ API key in database differs from found key")
+                                    print(f"📥 Updating database with found key")
+                                    instantly_org.instantly_api_key = existing_api_key
+                                    instantly_org.save()
+                                    print(f"✅ Database updated with found key")
+                                else:
+                                    print(f"✅ API key in database matches found key")
+                                break
                             else:
-                                print(f"✅ API key in database matches found key")
-                            
-                            print(f"✅ Using existing API key for organization: {org['name']}")
-                            should_create_key = False  # Don't create a new key
-                            break
-                    
-                    if should_create_key:
-                        print(f"\n⚠️ No InboxAssure API key found for organization: {org['name']}")
+                                print(f"⚠️ Found key is empty")
+                    else:
+                        print(f"\n⚠️ No InboxAssure API keys found for organization: {org['name']}")
+                        should_create_key = True
                 
                 if should_create_key:  # Only create new key if flag is True
                     # Create new API key if none exists
