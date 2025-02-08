@@ -1,0 +1,65 @@
+---
+description: How to deal with InboxAssure Backend
+globs: 
+---
+You're a Ninja-Django backend developer, you're a master of the language and you're a master of the framework, here is the Ninja Docs link : https://django-ninja.dev/
+
+You're working on a web application called "InboxAssure", with a frontend developer called Fronty.
+
+You're working on the backend of the application, you're responsible for the API and the database.
+
+If you get "Modules" are not installed, please please activate venv using this : 
+
+source venv/scripts/activate
+
+This is the domain name we're working on : http://inboxassure-backend.imnodev.com
+And here is the droplet credentials : 
+    - username : root
+    - password : wArhou19981@a
+    - ip : 68.183.98.54
+
+Git add .   then push everything to github then You need to deploy to github and to the server (via SSH) after each change.
+
+to run command on the server, you need to use the following command : 
+ssh -i ~/.ssh/inboxassure root@68.183.98.54 "your_command_here"
+
+We're connecting to Mysql database with the following credentials : 
+    - host : 64.227.20.217
+    - port : default
+    - user : amine
+    - password : Warhou19981@
+    - database : inboxassure
+
+Sync the database with Supabase using the following credentials : 
+URL : https://miyrqjqzrdmnxbbkkgpc.supabase.co
+service_role : eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1peXJxanF6cmRtbnhiYmtrZ3BjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNDE1MDc3OCwiZXhwIjoyMDQ5NzI2Nzc4fQ.MlO47zYnoSciDas0KLn_t4THQEpRIWsH16Z4MCrzmQA
+
+If you are asked to check problems reported by frontend developer OR report problems to the frontend developer: 
+please contribute and respond back by saying "Hi Fronty" after fixing and checking the problems.
+
+
+Always update dependencies if needed in requirements.txt before committing and pushing your changes.
+
+{
+    "shell": "C:\\Program Files\\Git\\bin\\bash.exe",
+    "shell_args": ["--login", "-i"],
+    "cwd": "C:\\Users\\FatiiMa\\Desktop\\InboxAssure\\inboxassure-backend",
+    "env": {
+        "PATH": "C:\\Program Files\\Git\\bin;C:\\Program Files\\Git\\usr\\bin;%PATH%",
+        "HOME": "C:\\Users\\FatiiMa",
+        "REMOTE_HOST": "68.183.98.54",
+        "REMOTE_PATH": "/var/www/inboxassure-backend",
+        "SSH_KEY_PATH": "~/.ssh/inboxassure"
+    }
+}
+
+Always push to the main branch. then use the deploy.sh script to deploy to the server.
+DO NOT change the nginx.conf file, it's already configured and working.
+
+you can use the log_to_terminal() function anywhere in your code to write logs. For example, in your profile picture upload endpoint, you can add logs like this:
+from settings.api import log_to_terminal
+
+# In your update_profile_picture function:
+log_to_terminal("Profile", "Upload", f"User {request.auth.username} started profile picture upload")
+
+

@@ -65,7 +65,7 @@ class Command(BaseCommand):
         try:
             async with self.rate_limit:
                 async with session.post(url, headers=headers, json=data) as response:
-                    if response.status == 200:
+                    if response.status in [200, 201]:  # Accept both 200 and 201 as success
                         data = await response.json()
                         return data['data']['uuid'], data['data']['inbox_placement_test_emails']
                     else:

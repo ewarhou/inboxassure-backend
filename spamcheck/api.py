@@ -430,7 +430,7 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
                         timeout=30
                     )
                     
-                    if emailguard_response.status_code not in [200, 201]:
+                    if emailguard_response.status_code not in [200, 201]:  # Accept both 200 and 201 as success
                         raise Exception(f"Failed to get EmailGuard tag: {emailguard_response.text}")
                     
                     emailguard_data = emailguard_response.json()
