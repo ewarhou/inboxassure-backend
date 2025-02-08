@@ -12,7 +12,7 @@ Launches scheduled spamchecks by:
 
 Key Functions:
 - get_emailguard_tag: Creates test and returns UUID
-- create_instantly_campaign: Sets up campaign with EmailGuard tag in body
+- create_instantly_campaign: Sets up campaign with EmailGuard filter phrase in body
 - add_leads: Adds test emails to campaign
 - launch_campaign: Activates the campaign
 
