@@ -4,6 +4,7 @@ LAUNCH SPAMCHECK SCRIPT
 Launches scheduled spamchecks by:
 1. Finding pending spamchecks
 2. For each account in spamcheck:
+   - Updates account sending limit to 100
    - Gets EmailGuard tag
    - Creates Instantly campaign
    - Adds test email addresses
@@ -20,7 +21,8 @@ Critical Settings:
 - Rate limit: 10 requests/second
 - Campaign timezone: Etc/GMT+12
 - Email gap: 1
-- Daily limit: 100
+- Campaign daily limit: 100
+- Account sending limit: 100 (set before campaign creation)
 
 Runs via cron: * * * * * (every minute)
 """
@@ -36,6 +38,7 @@ import json
 import logging
 from datetime import timedelta
 import pytz
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -212,6 +215,29 @@ class Command(BaseCommand):
             # Process each account
             for account in accounts:
                 try:
+                    # Update account sending limit
+                    self.stdout.write(f"\nUpdating sending limit for account {account.email_account}")
+                    update_limit_response = await asyncio.to_thread(
+                        requests.post,
+                        "https://app.instantly.ai/backend/api/v1/account/update/bulk",
+                        headers={
+                            "Cookie": f"__session={user_settings.instantly_user_token}",
+                            "X-Org-Auth": spamcheck.user_organization.instantly_organization_token,
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "payload": {
+                                "daily_limit": "100"
+                            },
+                            "emails": [account.email_account]
+                        }
+                    )
+                    
+                    if update_limit_response.status_code != 200:
+                        self.stdout.write(self.style.WARNING(f"Failed to update account sending limit: {update_limit_response.text}"))
+                    else:
+                        self.stdout.write(f"✓ Account sending limit updated to 100")
+
                     # Get EmailGuard tag
                     campaign_name = f"{spamcheck.name} - {account.email_account}"
                     tag, test_emails, filter_phrase = await self.get_emailguard_tag(
