@@ -368,18 +368,41 @@ def check_instantly_status(request: HttpRequest):
                 }
                 
                 print(f"\n5️⃣ Checking existing API Keys for Organization: {org['name']}")
-                list_keys_response = requests.get(
-                    'https://app.instantly.ai/backend/api/v2/api-keys?limit=100',
-                    headers=api_key_headers
-                )
-                print(f"📡 List Keys Response Status: {list_keys_response.status_code}")
-                print(f"📄 List Keys Response Body: {list_keys_response.text}")
                 
-                # Only create new key if organization doesn't have an API key at all
-                should_create_key = not instantly_org.instantly_api_key
+                # First check if we have an API key in our DB
+                should_create_key = False
+                if instantly_org.instantly_api_key:
+                    print(f"✅ Found existing API key in our DB for organization: {org['name']}")
+                    
+                    # Check if this key exists in Instantly with name "InboxAssure"
+                    list_keys_response = requests.get(
+                        'https://app.instantly.ai/backend/api/v2/api-keys?limit=100',
+                        headers=api_key_headers
+                    )
+                    print(f"📡 List Keys Response Status: {list_keys_response.status_code}")
+                    print(f"📄 List Keys Response Body: {list_keys_response.text}")
+                    
+                    if list_keys_response.status_code == 200:
+                        keys = list_keys_response.json().get('keys', [])
+                        found_inboxassure_key = False
+                        
+                        for key in keys:
+                            if key.get('name') == 'InboxAssure':
+                                print(f"✅ Found existing InboxAssure API key in Instantly for organization: {org['name']}")
+                                found_inboxassure_key = True
+                                break
+                        
+                        # Only create new key if we didn't find InboxAssure key
+                        should_create_key = not found_inboxassure_key
+                    else:
+                        print(f"❌ Failed to list API keys for organization: {org['name']}")
+                        should_create_key = True
+                else:
+                    print(f"❌ No API key found in DB for organization: {org['name']}")
+                    should_create_key = True
                 
-                if should_create_key:  # Only create new key if org has no API key
-                    # Create new API key if none exists
+                if should_create_key:
+                    # Create new API key
                     api_key_data = {
                         'name': 'InboxAssure',
                         'scopes': ['all:all']
