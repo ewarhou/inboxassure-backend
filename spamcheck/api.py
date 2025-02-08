@@ -16,6 +16,12 @@ from ninja.errors import HttpError
 
 router = Router(tags=["spamcheck"])
 
+@router.get("/test", auth=None)
+def test_endpoint(request):
+    """Simple test endpoint to verify API is working"""
+    print("Test endpoint called!")
+    return {"message": "hello 1"}
+
 @router.post("/create-spamcheck-instantly", auth=AuthBearer())
 def create_spamcheck_instantly(request, payload: CreateSpamcheckSchema):
     """

@@ -371,36 +371,58 @@ def check_instantly_status(request: HttpRequest):
                 
                 # First check if we have an API key in our DB
                 should_create_key = False
+                print("\n=== DEBUG: API Key Check ===")
+                print(f"Organization ID: {org['id']}")
+                print(f"DB API Key: {instantly_org.instantly_api_key}")
+                print(f"Headers: {api_key_headers}")
+                print("=== END DEBUG ===\n")
+                
                 if instantly_org.instantly_api_key:
                     print(f"✅ Found existing API key in our DB for organization: {org['name']}")
                     
                     # Check if this key exists in Instantly with name "InboxAssure"
-                    list_keys_response = requests.get(
-                        'https://app.instantly.ai/backend/api/v2/api-keys?limit=100',
-                        headers=api_key_headers
-                    )
-                    print(f"📡 List Keys Response Status: {list_keys_response.status_code}")
-                    print(f"📄 List Keys Response Body: {list_keys_response.text}")
-                    
-                    if list_keys_response.status_code == 200:
-                        keys = list_keys_response.json().get('items', [])  # Changed from 'keys' to 'items'
-                        found_inboxassure_key = False
+                    try:
+                        list_keys_response = requests.get(
+                            'https://app.instantly.ai/backend/api/v2/api-keys?limit=100',
+                            headers=api_key_headers,
+                            timeout=30  # Add timeout
+                        )
+                        print(f"📡 List Keys Response Status: {list_keys_response.status_code}")
+                        print(f"📄 List Keys Response Body: {list_keys_response.text}")
+                        print(f"📤 Request Headers Used: {api_key_headers}")
                         
-                        for key in keys:
-                            if key.get('name') == 'InboxAssure':
-                                print(f"✅ Found existing InboxAssure API key in Instantly for organization: {org['name']}")
-                                found_inboxassure_key = True
-                                break
-                        
-                        if found_inboxassure_key:
-                            print(f"✅ Using existing InboxAssure API key for organization: {org['name']}")
-                            should_create_key = False
-                            continue  # Skip to next organization
+                        if list_keys_response.status_code == 200:
+                            keys = list_keys_response.json().get('items', [])
+                            found_inboxassure_key = False
+                            
+                            print("\n=== DEBUG: Processing Keys ===")
+                            print(f"Found {len(keys)} keys")
+                            for key in keys:
+                                print(f"Key Name: {key.get('name')}")
+                                if key.get('name') == 'InboxAssure':
+                                    print(f"✅ Found existing InboxAssure API key in Instantly for organization: {org['name']}")
+                                    found_inboxassure_key = True
+                                    break
+                            print("=== END DEBUG ===\n")
+                            
+                            if found_inboxassure_key:
+                                print(f"✅ Using existing InboxAssure API key for organization: {org['name']}")
+                                should_create_key = False
+                                org_list.append({
+                                    "id": instantly_org.id,
+                                    "uuid": org['id'],
+                                    "name": org['name']
+                                })
+                                continue  # Skip to next organization
+                            else:
+                                print(f"❌ No InboxAssure API key found in Instantly for organization: {org['name']}")
+                                should_create_key = True
                         else:
-                            print(f"❌ No InboxAssure API key found in Instantly for organization: {org['name']}")
+                            print(f"❌ Failed to list API keys for organization: {org['name']}")
+                            print(f"Response Headers: {dict(list_keys_response.headers)}")
                             should_create_key = True
-                    else:
-                        print(f"❌ Failed to list API keys for organization: {org['name']}")
+                    except requests.exceptions.RequestException as e:
+                        print(f"❌ Request failed: {str(e)}")
                         should_create_key = True
                 else:
                     print(f"❌ No API key found in DB for organization: {org['name']}")
@@ -417,21 +439,27 @@ def check_instantly_status(request: HttpRequest):
                     print(f"📡 Request Headers: {api_key_headers}")
                     print(f"📄 Request Body: {api_key_data}")
                     
-                    api_key_response = requests.post(
-                        'https://app.instantly.ai/backend/api/v2/api-keys',
-                        headers=api_key_headers,
-                        json=api_key_data
-                    )
-                    print(f"📡 API Key Response Status: {api_key_response.status_code}")
-                    print(f"📄 API Key Response Body: {api_key_response.text}")
-                    
-                    if api_key_response.status_code == 200:
-                        api_key_data = api_key_response.json()
-                        instantly_org.instantly_api_key = api_key_data.get('key')
-                        instantly_org.save()
-                        print(f"✅ New API Key created and stored for organization: {org['name']}")
-                    else:
-                        print(f"❌ Failed to create API key for organization: {org['name']}")
+                    try:
+                        api_key_response = requests.post(
+                            'https://app.instantly.ai/backend/api/v2/api-keys',
+                            headers=api_key_headers,
+                            json=api_key_data,
+                            timeout=30  # Add timeout
+                        )
+                        print(f"📡 API Key Creation Response Status: {api_key_response.status_code}")
+                        print(f"📄 API Key Creation Response Body: {api_key_response.text}")
+                        print(f"📤 Request Headers Used: {api_key_headers}")
+                        
+                        if api_key_response.status_code == 200:
+                            api_key_data = api_key_response.json()
+                            instantly_org.instantly_api_key = api_key_data.get('key')
+                            instantly_org.save()
+                            print(f"✅ New API Key created and stored for organization: {org['name']}")
+                        else:
+                            print(f"❌ Failed to create API key for organization: {org['name']}")
+                            print(f"Response Headers: {dict(api_key_response.headers)}")
+                    except requests.exceptions.RequestException as e:
+                        print(f"❌ API Key creation request failed: {str(e)}")
                 
                 org_list.append({
                     "id": instantly_org.id,  # Our database ID
