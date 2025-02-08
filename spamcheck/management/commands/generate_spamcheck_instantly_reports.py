@@ -3,6 +3,11 @@ This command generates reports for completed spamcheck campaigns.
 
 Purpose:
 - Finds spamchecks in 'generating_reports' status
+- Respects waiting time before generating reports (based on spamcheck's updated_at time):
+  * 0 hours: Generate immediately
+  * 0.5 hours: Wait 30 minutes after last update
+  * 1 hour: Wait 1 hour after last update (default)
+  * Any custom hours value
 - Gets report data from EmailGuard API
 - Creates/updates reports in database
 - Updates account sending limits based on results
@@ -10,7 +15,12 @@ Purpose:
 - Deletes completed campaigns from Instantly to clean up resources
 
 Flow:
-1. Finds spamchecks ready for report generation
+1. Finds spamchecks ready for report generation:
+   - Status must be 'generating_reports'
+   - Must satisfy waiting time condition:
+     * No waiting time specified (uses default 1h)
+     * Waiting time is 0 (immediate)
+     * Enough time has passed since last update (updated_at + waiting_time <= now)
 2. For each spamcheck:
    - Gets EmailGuard report data
    - Calculates scores
@@ -39,7 +49,7 @@ API Endpoints:
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from django.db.models import Q
+from django.db.models import Q, F
 from spamcheck.models import UserSpamcheck, UserSpamcheckCampaigns, UserSpamcheckReport
 from settings.models import UserSettings
 from asgiref.sync import sync_to_async
@@ -346,6 +356,21 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"Error processing spamcheck {spamcheck.id}: {str(e)}"))
             return False
 
+    async def get_ready_spamchecks(self):
+        """Get spamchecks that are ready for report generation based on waiting time"""
+        now = timezone.now()
+        
+        return await asyncio.to_thread(
+            lambda: list(UserSpamcheck.objects.filter(
+                Q(status='generating_reports') &
+                (
+                    Q(reports_waiting_time__isnull=True) |  # No waiting time specified (uses default 1h)
+                    Q(reports_waiting_time=0) |  # Immediate generation
+                    Q(updated_at__lte=now - timedelta(hours=F('reports_waiting_time')))  # Enough time has passed
+                )
+            ).select_related('user', 'user_organization'))
+        )
+
     async def handle_async(self, *args, **options):
         """Async entry point"""
         now = timezone.now()
@@ -359,18 +384,14 @@ class Command(BaseCommand):
         self.stdout.write("3. Instantly Delete Campaign: DELETE https://api.instantly.ai/api/v2/campaigns/{id}")
         self.stdout.write("---\n")
 
-        # Get spamchecks ready for report generation
-        spamchecks = await asyncio.to_thread(
-            lambda: list(UserSpamcheck.objects.filter(
-                status='generating_reports'
-            ).select_related('user', 'user_organization'))
-        )
+        # Get spamchecks ready for report generation based on waiting time
+        spamchecks = await self.get_ready_spamchecks()
 
         if not spamchecks:
-            self.stdout.write("No spamchecks in generating_reports status")
+            self.stdout.write("No spamchecks ready for report generation")
             return
 
-        self.stdout.write(f"Found {len(spamchecks)} spamchecks in generating_reports status\n")
+        self.stdout.write(f"Found {len(spamchecks)} spamchecks ready for report generation\n")
 
         # Process all spamchecks
         async with aiohttp.ClientSession() as session:
