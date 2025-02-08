@@ -1,0 +1,5 @@
+0 * * * * /var/www/inboxassure-backend/scripts/recurring_spamchecks.sh >> /var/log/inboxassure/cron_recurring.log 2>&1
+* * * * * /var/www/inboxassure-backend/scripts/launch_scheduled.sh >> /var/log/inboxassure/cron_launch.log 2>&1
+*/5 * * * * /var/www/inboxassure-backend/scripts/generate_reports.sh >> /var/log/inboxassure/cron_reports.log 2>&1
+0 * * * * /var/www/inboxassure-backend/scripts/update_accounts.sh >> /var/log/inboxassure/cron_accounts.log 2>&1
+*/5 * * * * /var/www/inboxassure-backend/scripts/check_campaigns.sh >> /var/log/inboxassure/cron_campaigns.log 2>&1 
