@@ -383,7 +383,7 @@ def check_instantly_status(request: HttpRequest):
                     print(f"📄 List Keys Response Body: {list_keys_response.text}")
                     
                     if list_keys_response.status_code == 200:
-                        keys = list_keys_response.json().get('keys', [])
+                        keys = list_keys_response.json().get('items', [])  # Changed from 'keys' to 'items'
                         found_inboxassure_key = False
                         
                         for key in keys:
@@ -392,8 +392,13 @@ def check_instantly_status(request: HttpRequest):
                                 found_inboxassure_key = True
                                 break
                         
-                        # Only create new key if we didn't find InboxAssure key
-                        should_create_key = not found_inboxassure_key
+                        if found_inboxassure_key:
+                            print(f"✅ Using existing InboxAssure API key for organization: {org['name']}")
+                            should_create_key = False
+                            continue  # Skip to next organization
+                        else:
+                            print(f"❌ No InboxAssure API key found in Instantly for organization: {org['name']}")
+                            should_create_key = True
                     else:
                         print(f"❌ Failed to list API keys for organization: {org['name']}")
                         should_create_key = True
