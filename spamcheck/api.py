@@ -474,6 +474,10 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
                         "Content-Type": "application/json"
                     }
                     
+                    print("\n=== DEBUG: Request Headers ===")
+                    print(f"Headers being sent: {request_headers}")
+                    print("=== END DEBUG ===\n")
+                    
                     print(f"Scheduling campaign in Etc/GMT+12 timezone:")
                     print(f"Start time: {start_hour}:{start_minutes}")
                     print(f"End time: {end_hour}:{start_minutes}")
@@ -529,6 +533,12 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
                         json=request_data,
                         timeout=30
                     )
+                    
+                    print("\n=== DEBUG: Instantly API Response ===")
+                    print(f"Status Code: {campaign_response.status_code}")
+                    print(f"Response Headers: {campaign_response.headers}")
+                    print(f"Response Body: {campaign_response.text}")
+                    print("=== END DEBUG ===\n")
                     
                     if campaign_response.status_code != 200:
                         raise Exception(f"Failed to create campaign: {campaign_response.text}")

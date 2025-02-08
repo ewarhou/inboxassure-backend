@@ -18,7 +18,7 @@ And here is the droplet credentials :
     - password : wArhou19981@a
     - ip : 68.183.98.54
 
-Git add .   then push everything to github then You need to deploy to github and to the server (via SSH) after each change.
+Git add .   then push everything to github then You need to deploy to github and to the server (via SSH) after each change all in one command
 
 to run command on the server, you need to use the following command : 
 ssh -i ~/.ssh/inboxassure root@68.183.98.54 "your_command_here"

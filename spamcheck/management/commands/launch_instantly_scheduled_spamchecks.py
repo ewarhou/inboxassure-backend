@@ -200,6 +200,10 @@ class Command(BaseCommand):
                 instantly_organization_id=spamcheck.user_organization.instantly_organization_id
             )
 
+            print("\n=== DEBUG: API Keys ===")
+            print(f"Instantly API Key: {user_instantly.instantly_api_key}")
+            print("=== END DEBUG ===\n")
+
             # Get accounts to check
             accounts = await asyncio.to_thread(
                 lambda: list(spamcheck.accounts.all())
