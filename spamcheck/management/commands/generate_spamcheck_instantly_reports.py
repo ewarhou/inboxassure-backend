@@ -42,6 +42,7 @@ from django.utils import timezone
 from django.db.models import Q
 from spamcheck.models import UserSpamcheck, UserSpamcheckCampaigns, UserSpamcheckReport
 from settings.models import UserSettings
+from asgiref.sync import sync_to_async
 import aiohttp
 import asyncio
 from datetime import timedelta
@@ -123,20 +124,26 @@ class Command(BaseCommand):
         if not isinstance(emails, list):
             emails = [emails]
             
-        headers = {
-            "Cookie": f"__session={organization.instantly_user_token}",
-            "X-Org-Auth": organization.instantly_organization_token,
-            "Content-Type": "application/json"
-        }
-        
-        data = {
-            "payload": {
-                "daily_limit": str(daily_limit)
-            },
-            "emails": emails
-        }
-        
+        # Get user settings for the token
         try:
+            user_settings = await asyncio.to_thread(
+                UserSettings.objects.get,
+                user=organization.user
+            )
+            
+            headers = {
+                "Cookie": f"__session={user_settings.instantly_user_token}",
+                "X-Org-Auth": organization.instantly_organization_token,
+                "Content-Type": "application/json"
+            }
+            
+            data = {
+                "payload": {
+                    "daily_limit": str(daily_limit)
+                },
+                "emails": emails
+            }
+            
             response = await asyncio.to_thread(
                 requests.post,
                 "https://app.instantly.ai/backend/api/v1/account/update/bulk",
@@ -149,6 +156,8 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(self.style.ERROR(f"  ✗ Failed to update sending limit: {response.text}"))
                 
+        except UserSettings.DoesNotExist:
+            self.stdout.write(self.style.ERROR("  ✗ User settings not found"))
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"  ✗ Error updating sending limit: {str(e)}"))
 
@@ -166,25 +175,64 @@ class Command(BaseCommand):
             }
         )
 
+    @sync_to_async
+    def get_user_settings(self, user):
+        """Get user settings synchronously"""
+        return UserSettings.objects.get(user=user)
+
+    @sync_to_async
+    def get_campaigns(self, spamcheck):
+        """Get campaigns with prefetched related data"""
+        return list(UserSpamcheckCampaigns.objects.filter(
+            spamcheck=spamcheck
+        ).select_related(
+            'account_id', 
+            'spamcheck', 
+            'organization',
+            'organization__user'  # Preload user data
+        ).prefetch_related(
+            'spamcheck__options'  # Preload spamcheck options
+        ))
+
+    @sync_to_async
+    def save_campaign_status(self, campaign, status):
+        """Save campaign status synchronously"""
+        campaign.campaign_status = status
+        campaign.save()
+
     async def delete_instantly_campaign(self, session, campaign_id, instantly_api_key):
-        """Delete campaign from Instantly"""
+        """Delete campaign from Instantly with improved error logging"""
         url = f"https://api.instantly.ai/api/v2/campaigns/{campaign_id}"
         headers = {
-            "Authorization": f"Bearer {instantly_api_key}",
-            "Content-Type": "application/json"
+            "Authorization": f"Bearer {instantly_api_key}"
         }
 
         try:
             async with self.rate_limit:
                 async with session.delete(url, headers=headers) as response:
+                    response_text = await response.text()
+                    try:
+                        response_data = json.loads(response_text)
+                    except json.JSONDecodeError:
+                        response_data = response_text
+
                     if response.status == 200:
                         self.stdout.write(f"  ✓ Successfully deleted campaign {campaign_id} from Instantly")
                         return True
                     else:
-                        self.stdout.write(self.style.ERROR(f"  ✗ Failed to delete campaign {campaign_id}: {response.status}"))
+                        self.stdout.write(self.style.ERROR(
+                            f"  ✗ Failed to delete campaign {campaign_id}:\n"
+                            f"    Status: {response.status}\n"
+                            f"    Response: {response_data}\n"
+                            f"    Headers: {dict(response.headers)}"
+                        ))
                         return False
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"  ✗ Error deleting campaign {campaign_id}: {str(e)}"))
+            self.stdout.write(self.style.ERROR(
+                f"  ✗ Error deleting campaign {campaign_id}:\n"
+                f"    Error: {str(e)}\n"
+                f"    Type: {type(e).__name__}"
+            ))
             return False
 
     async def process_campaign(self, session, campaign, user_settings):
@@ -233,23 +281,26 @@ class Command(BaseCommand):
                 if self.conditions_met or (not campaign.spamcheck.conditions and google_score >= 0.5):
                     await self.update_sending_limit(campaign.organization, campaign.account_id.email_account, 25)
 
-                # Delete campaign from Instantly using the correct campaign ID
+                # Delete campaign from Instantly
                 self.stdout.write("\n  Deleting campaign from Instantly...")
                 self.stdout.write(f"  Using Instantly Campaign ID: {campaign.instantly_campaign_id}")
                 deleted = await self.delete_instantly_campaign(
                     session, 
-                    campaign.instantly_campaign_id,  # Using the correct instantly_campaign_id
+                    campaign.instantly_campaign_id,
                     campaign.organization.instantly_api_key
                 )
                 
                 if deleted:
-                    campaign.campaign_status = 'deleted'
-                    await asyncio.to_thread(campaign.save)
+                    await self.save_campaign_status(campaign, 'deleted')
                     self.stdout.write("  ✓ Campaign marked as deleted in database")
 
                 return True
             else:
-                self.stdout.write(self.style.ERROR(f"  API call failed with status {response.status_code}"))
+                self.stdout.write(self.style.ERROR(
+                    f"  API call failed:\n"
+                    f"    Status: {response.status_code}\n"
+                    f"    Response: {response.text}"
+                ))
                 return False
 
         except Exception as e:
@@ -260,35 +311,16 @@ class Command(BaseCommand):
         """Process a single spamcheck"""
         try:
             self.stdout.write(f"\nProcessing Spamcheck ID: {spamcheck.id}")
-            self.stdout.write(f"Last updated: {spamcheck.updated_at}")
             
-            # Check if enough time has passed
-            time_passed = timezone.now() - spamcheck.updated_at
-            hours_passed = time_passed.total_seconds() / 3600
-            waiting_time = spamcheck.reports_waiting_time if spamcheck.reports_waiting_time is not None else 1.0
-            
-            self.stdout.write(f"Waiting time configured: {waiting_time} hours")
-            self.stdout.write(f"Time since last update: {hours_passed:.2f} hours")
-            
-            # Skip waiting time check if waiting_time is 0 (immediate)
-            if waiting_time > 0 and hours_passed < waiting_time:
-                self.stdout.write("Not enough time has passed. Skipping...")
+            # Get user settings using sync_to_async wrapper
+            try:
+                user_settings = await self.get_user_settings(spamcheck.user)
+            except UserSettings.DoesNotExist:
+                self.stdout.write(self.style.ERROR("User settings not found"))
                 return False
-                
-            self.stdout.write("Processing campaigns...")
 
-            # Get user settings
-            user_settings = await asyncio.to_thread(
-                UserSettings.objects.get,
-                user=spamcheck.user
-            )
-
-            # Get all campaigns
-            campaigns = await asyncio.to_thread(
-                lambda: list(UserSpamcheckCampaigns.objects.filter(
-                    spamcheck=spamcheck
-                ).select_related('account_id', 'spamcheck', 'organization'))
-            )
+            # Get campaigns with prefetched data
+            campaigns = await self.get_campaigns(spamcheck)
 
             if not campaigns:
                 self.stdout.write("No campaigns found")
@@ -300,10 +332,10 @@ class Command(BaseCommand):
                 for campaign in campaigns
             ])
 
-            # Only mark as completed if all campaigns were processed successfully
+            # Update spamcheck status based on results
             if all(results):
+                await sync_to_async(spamcheck.save)(update_fields=['status'])
                 spamcheck.status = 'completed'
-                await asyncio.to_thread(spamcheck.save)
                 self.stdout.write(self.style.SUCCESS(f"All reports generated successfully. Spamcheck {spamcheck.id} marked as completed"))
                 return True
             else:
