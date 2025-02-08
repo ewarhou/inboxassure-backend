@@ -55,7 +55,10 @@ class Command(BaseCommand):
                 async with session.get(url, headers=headers) as response:
                     if response.status == 200:
                         data = await response.json()
-                        status = data.get('status', '').lower()
+                        raw_status = data.get('status', '')
+                        
+                        # Convert integer status to string if needed
+                        status = str(raw_status).lower() if raw_status is not None else ''
                         
                         # Map Instantly status to our status
                         status_map = {
@@ -63,13 +66,20 @@ class Command(BaseCommand):
                             'stopped': 'completed',
                             'paused': 'in_progress',
                             'running': 'in_progress',
-                            'failed': 'failed'
+                            'failed': 'failed',
+                            # Add integer status mappings
+                            '0': 'in_progress',  # Draft
+                            '1': 'in_progress',  # Running
+                            '2': 'completed',    # Completed
+                            '3': 'failed',       # Failed
+                            '4': 'completed',    # Stopped
+                            '5': 'in_progress',  # Paused
                         }
                         
                         campaign.campaign_status = status_map.get(status, 'in_progress')
                         await asyncio.to_thread(campaign.save)
                         
-                        self.stdout.write(f"Campaign {campaign.instantly_campaign_id} status: {status}")
+                        self.stdout.write(f"Campaign {campaign.instantly_campaign_id} status: {status} (raw: {raw_status})")
                         return campaign.campaign_status == 'completed'
                     else:
                         self.stdout.write(self.style.ERROR(f"Failed to check campaign {campaign.instantly_campaign_id}. Status: {response.status}"))
