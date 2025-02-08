@@ -52,7 +52,7 @@ from django.utils import timezone
 from django.db.models import Q, F
 from spamcheck.models import UserSpamcheck, UserSpamcheckCampaigns, UserSpamcheckReport
 from settings.models import UserSettings
-from asgiref.sync import sync_to_async
+from asgiref.sync import sync_to_async  # For safe DB calls in async context
 import aiohttp
 import asyncio
 from datetime import timedelta
@@ -134,12 +134,9 @@ class Command(BaseCommand):
         if not isinstance(emails, list):
             emails = [emails]
             
-        # Get user settings for the token
         try:
-            user_settings = await asyncio.to_thread(
-                UserSettings.objects.get,
-                user=organization.user
-            )
+            # Wrap the DB call safely in an async context
+            user_settings = await sync_to_async(UserSettings.objects.get, thread_sensitive=True)(user=organization.user)
             
             headers = {
                 "Cookie": f"__session={user_settings.instantly_user_token}",
@@ -193,16 +190,11 @@ class Command(BaseCommand):
     @sync_to_async
     def get_campaigns(self, spamcheck):
         """Get campaigns with prefetched related data"""
-        return list(UserSpamcheckCampaigns.objects.filter(
-            spamcheck=spamcheck
-        ).select_related(
-            'account_id', 
-            'spamcheck', 
-            'organization',
-            'organization__user'  # Preload user data
-        ).prefetch_related(
-            'spamcheck__options'  # Preload spamcheck options
-        ))
+        return list(
+            UserSpamcheckCampaigns.objects.filter(spamcheck=spamcheck)
+            .select_related('account_id', 'spamcheck', 'organization', 'organization__user')
+            .prefetch_related('spamcheck__options')
+        )
 
     @sync_to_async
     def save_campaign_status(self, campaign, status):
@@ -220,29 +212,17 @@ class Command(BaseCommand):
         try:
             async with self.rate_limit:
                 async with session.delete(url, headers=headers) as response:
-                    response_text = await response.text()
-                    try:
-                        response_data = json.loads(response_text)
-                    except json.JSONDecodeError:
-                        response_data = response_text
-
                     if response.status == 200:
                         self.stdout.write(f"  ✓ Successfully deleted campaign {campaign_id} from Instantly")
                         return True
                     else:
+                        error_detail = await response.text()
                         self.stdout.write(self.style.ERROR(
-                            f"  ✗ Failed to delete campaign {campaign_id}:\n"
-                            f"    Status: {response.status}\n"
-                            f"    Response: {response_data}\n"
-                            f"    Headers: {dict(response.headers)}"
+                            f"  ✗ Failed to delete campaign {campaign_id}: {response.status} - {error_detail}"
                         ))
                         return False
         except Exception as e:
-            self.stdout.write(self.style.ERROR(
-                f"  ✗ Error deleting campaign {campaign_id}:\n"
-                f"    Error: {str(e)}\n"
-                f"    Type: {type(e).__name__}"
-            ))
+            self.stdout.write(self.style.ERROR(f"  ✗ Error deleting campaign {campaign_id}: {str(e)}"))
             return False
 
     async def process_campaign(self, session, campaign, user_settings):
@@ -273,7 +253,10 @@ class Command(BaseCommand):
                 self.stdout.write(f"  Outlook Score: {outlook_score}")
 
                 # Evaluate conditions first
-                is_good = self.evaluate_conditions(campaign.spamcheck, google_score, outlook_score, campaign.account_id.email_account) if campaign.spamcheck.conditions else self.evaluate_default_condition(google_score, outlook_score)
+                if campaign.spamcheck.conditions:
+                    is_good = self.evaluate_conditions(campaign.spamcheck, google_score, outlook_score, campaign.account_id.email_account)
+                else:
+                    is_good = self.evaluate_default_condition(google_score, outlook_score)
 
                 # Create or update report using the sync function
                 report = await asyncio.to_thread(
@@ -322,14 +305,14 @@ class Command(BaseCommand):
         try:
             self.stdout.write(f"\nProcessing Spamcheck ID: {spamcheck.id}")
             
-            # Get user settings using sync_to_async wrapper
+            # Get user settings using the async helper
             try:
                 user_settings = await self.get_user_settings(spamcheck.user)
             except UserSettings.DoesNotExist:
                 self.stdout.write(self.style.ERROR("User settings not found"))
                 return False
 
-            # Get campaigns with prefetched data
+            # Get campaigns with related data prefetched
             campaigns = await self.get_campaigns(spamcheck)
 
             if not campaigns:
@@ -342,10 +325,10 @@ class Command(BaseCommand):
                 for campaign in campaigns
             ])
 
-            # Update spamcheck status based on results
+            # Only mark spamcheck as completed if all campaigns were processed successfully
             if all(results):
-                await sync_to_async(spamcheck.save)(update_fields=['status'])
                 spamcheck.status = 'completed'
+                await asyncio.to_thread(spamcheck.save)
                 self.stdout.write(self.style.SUCCESS(f"All reports generated successfully. Spamcheck {spamcheck.id} marked as completed"))
                 return True
             else:
@@ -366,7 +349,13 @@ class Command(BaseCommand):
                 (
                     Q(reports_waiting_time__isnull=True) |  # No waiting time specified (uses default 1h)
                     Q(reports_waiting_time=0) |  # Immediate generation
-                    Q(updated_at__lte=now - timedelta(hours=F('reports_waiting_time')))  # Enough time has passed
+                    Q(updated_at__lte=now - timedelta(hours=1), reports_waiting_time=1.0) |  # Default 1h waiting
+                    Q(updated_at__lte=now - timedelta(minutes=30), reports_waiting_time=0.5) |  # 30min waiting
+                    Q(updated_at__lte=now - timedelta(hours=2), reports_waiting_time=2.0) |  # 2h waiting
+                    Q(updated_at__lte=now - timedelta(hours=3), reports_waiting_time=3.0) |  # 3h waiting
+                    Q(updated_at__lte=now - timedelta(hours=4), reports_waiting_time=4.0) |  # 4h waiting
+                    Q(updated_at__lte=now - timedelta(hours=5), reports_waiting_time=5.0) |  # 5h waiting
+                    Q(updated_at__lte=now - timedelta(hours=6), reports_waiting_time=6.0)   # 6h waiting
                 )
             ).select_related('user', 'user_organization'))
         )
