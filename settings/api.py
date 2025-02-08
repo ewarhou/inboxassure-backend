@@ -293,7 +293,7 @@ def check_instantly_status(request: HttpRequest):
                 print(f"✅ Got organization token for: {org['name']}")
                 
                 # Create or update organization
-                instantly_org, created = UserInstantly.objects.update_or_create(
+                instantly_org, created = UserInstantly.objects.get_or_create(
                     user=request.auth,
                     instantly_organization_id=org['id'],
                     defaults={
@@ -302,6 +302,14 @@ def check_instantly_status(request: HttpRequest):
                         'instantly_organization_status': True
                     }
                 )
+                
+                # Update only specific fields if org exists
+                if not created:
+                    instantly_org.instantly_organization_name = org['name']
+                    instantly_org.instantly_organization_token = org_token
+                    instantly_org.instantly_organization_status = True
+                    instantly_org.save()
+                
                 print(f"✅ {'Created' if created else 'Updated'} organization in database: {org['name']}")
                 
                 # Check existing API keys
