@@ -71,7 +71,7 @@ class Command(BaseCommand):
                             '0': 'in_progress',  # Draft
                             '1': 'in_progress',  # Running
                             '2': 'completed',    # Completed
-                            '3': 'failed',       # Failed
+                            '3': 'completed',    # Also Completed
                             '4': 'completed',    # Stopped
                             '5': 'in_progress',  # Paused
                         }
