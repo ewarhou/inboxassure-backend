@@ -27,7 +27,7 @@ from .schema import (
 )
 import requests
 import pytz
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 router = Router(tags=['Settings'])
@@ -38,8 +38,32 @@ profile_router = Router(tags=['Profile'])
 def add_instantly_editor_account(request: HttpRequest, payload: InstantlyEditorAccountSchema):
     try:
         settings, created = UserSettings.objects.get_or_create(user=request.auth)
+        
+        # Try to login with the provided credentials first
+        login_response = requests.post('https://app.instantly.ai/api/auth/login', json={
+            'email': payload.instantly_editor_email,
+            'password': payload.instantly_editor_password
+        })
+        
+        # Check for invalid credentials
+        response_data = login_response.json()
+        if response_data.get('error') == 'Invalid credentials':
+            return 400, {"detail": "Invalid editor account credentials"}
+        
+        if login_response.status_code != 200 or not login_response.cookies:
+            return 400, {"detail": "Failed to authenticate with Instantly"}
+        
+        # Get session token
+        session_token = login_response.cookies.get('__session')
+        if not session_token:
+            return 400, {"detail": "Failed to get session token"}
+        
+        # Store credentials and token only if login was successful
         settings.instantly_editor_email = payload.instantly_editor_email
         settings.instantly_editor_password = payload.instantly_editor_password
+        settings.instantly_user_token = session_token
+        settings.instantly_status = True
+        settings.last_token_refresh = timezone.now()
         settings.save()
         
         return 200, {
@@ -56,8 +80,32 @@ def add_instantly_editor_account(request: HttpRequest, payload: InstantlyEditorA
 def update_instantly_editor_account(request: HttpRequest, payload: InstantlyEditorAccountSchema):
     try:
         settings = get_object_or_404(UserSettings, user=request.auth)
+        
+        # Try to login with the provided credentials first
+        login_response = requests.post('https://app.instantly.ai/api/auth/login', json={
+            'email': payload.instantly_editor_email,
+            'password': payload.instantly_editor_password
+        })
+        
+        # Check for invalid credentials
+        response_data = login_response.json()
+        if response_data.get('error') == 'Invalid credentials':
+            return 400, {"detail": "Invalid editor account credentials"}
+        
+        if login_response.status_code != 200 or not login_response.cookies:
+            return 400, {"detail": "Failed to authenticate with Instantly"}
+        
+        # Get session token
+        session_token = login_response.cookies.get('__session')
+        if not session_token:
+            return 400, {"detail": "Failed to get session token"}
+        
+        # Store credentials and token only if login was successful
         settings.instantly_editor_email = payload.instantly_editor_email
         settings.instantly_editor_password = payload.instantly_editor_password
+        settings.instantly_user_token = session_token
+        settings.instantly_status = True
+        settings.last_token_refresh = timezone.now()
         settings.save()
         
         return 200, {
@@ -327,16 +375,10 @@ def check_instantly_status(request: HttpRequest):
                 print(f"📡 List Keys Response Status: {list_keys_response.status_code}")
                 print(f"📄 List Keys Response Body: {list_keys_response.text}")
                 
-                should_create_key = True  # Flag to control key creation
-                if list_keys_response.status_code == 200:
-                    keys_data = list_keys_response.json()
-                    for key in keys_data.get('items', []):
-                        if key.get('name') == 'InboxAssure':
-                            print(f"✅ Found existing InboxAssure API key for organization: {org['name']}")
-                            should_create_key = False  # Don't create new key if InboxAssure exists
-                            break  # Exit loop, don't modify anything in DB
+                # Only create new key if organization doesn't have an API key at all
+                should_create_key = not instantly_org.instantly_api_key
                 
-                if should_create_key:  # Only create new key if no InboxAssure key exists
+                if should_create_key:  # Only create new key if org has no API key
                     # Create new API key if none exists
                     api_key_data = {
                         'name': 'InboxAssure',
