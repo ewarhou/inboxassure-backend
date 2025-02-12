@@ -225,7 +225,12 @@ class Command(BaseCommand):
                 'google_pro_score': google_score,
                 'outlook_pro_score': outlook_score,
                 'report_link': f"https://app.emailguard.io/inbox-placement-tests/{campaign.emailguard_tag}",
-                'is_good': is_good
+                'is_good': is_good,
+                'used_subject': campaign.spamcheck.options.subject if campaign.spamcheck.options else None,
+                'used_body': campaign.spamcheck.options.body if campaign.spamcheck.options else None,
+                'sending_limit': int(campaign.spamcheck.conditions.split('sending=')[1].split('/')[0]) if campaign.spamcheck.conditions and 'sending=' in campaign.spamcheck.conditions else None,
+                'instantly_workspace_uuid': campaign.organization.instantly_organization_id,
+                'bison_workspace_uuid': campaign.organization.bison_organization_api_key if hasattr(campaign.organization, 'bison_organization_api_key') else None
             }
         )
 

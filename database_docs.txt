@@ -235,6 +235,12 @@ google_pro_score (decimal): Google score (0-4, 1 decimal place)
 outlook_pro_score (decimal): Outlook score (0-4, 1 decimal place)
 is_good (boolean): Whether this account meets the spamcheck conditions (default: False)
 spamcheck_instantly_id (BigInt, FK, nullable): Reference to user_spamcheck_instantly
+used_subject (text, nullable): Subject used in the spamcheck campaign
+used_body (text, nullable): Body used in the spamcheck campaign
+sending_limit (integer, nullable): Sending limit used in the campaign
+tags_uuid_list (text, nullable): List of tag UUIDs used in the campaign
+instantly_workspace_uuid (varchar, nullable): UUID of the Instantly workspace
+bison_workspace_uuid (varchar, nullable): UUID of the Bison workspace
 created_at (timestamp): Creation timestamp
 
 Example Row:
@@ -245,6 +251,12 @@ Example Row:
   "google_pro_score": 3.5,
   "outlook_pro_score": 4.0,
   "is_good": true,
+  "used_subject": "Test Email Campaign",
+  "used_body": "This is a test email body...",
+  "sending_limit": 25,
+  "tags_uuid_list": "uuid1,uuid2,uuid3",
+  "instantly_workspace_uuid": "ws_123456",
+  "bison_workspace_uuid": "bison_123456",
   "created_at": "2024-03-20T10:30:00Z"
 }
 

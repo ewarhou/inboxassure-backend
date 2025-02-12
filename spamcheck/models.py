@@ -148,6 +148,12 @@ class UserSpamcheckReport(models.Model):
         blank=True,
         related_name='reports'
     )
+    used_subject = models.TextField(null=True, blank=True, help_text='Subject used in the spamcheck campaign')
+    used_body = models.TextField(null=True, blank=True, help_text='Body used in the spamcheck campaign')
+    sending_limit = models.IntegerField(null=True, blank=True, help_text='Sending limit used in the campaign')
+    tags_uuid_list = models.TextField(null=True, blank=True, help_text='List of tag UUIDs used in the campaign')
+    instantly_workspace_uuid = models.CharField(max_length=255, null=True, blank=True, help_text='UUID of the Instantly workspace')
+    bison_workspace_uuid = models.CharField(max_length=255, null=True, blank=True, help_text='UUID of the Bison workspace')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
