@@ -1,5 +1,5 @@
 """
-This command generates reports for completed spamcheck campaigns.
+This command generates comprehensive reports for completed spamcheck campaigns.
 
 Purpose:
 - Finds spamchecks in 'generating_reports' status
@@ -9,7 +9,13 @@ Purpose:
   * 1 hour: Wait 1 hour after last update (default)
   * Any custom hours value (2h, 3h, 4h, 5h, 6h)
 - Gets report data from EmailGuard API
-- Creates/updates reports in database
+- Creates/updates reports in database with:
+  * Google and Outlook scores
+  * Account status (good/bad)
+  * Used email subject and body
+  * Account tags (as UUID list)
+  * Sending limits based on conditions
+  * Workspace UUIDs (Instantly and Bison)
 - Updates account sending limits based on results
 - Handles domain-based spamchecks
 - Deletes completed campaigns from Instantly to clean up resources
@@ -21,10 +27,17 @@ Flow:
      * No waiting time specified (uses default 1h)
      * Waiting time is 0 (immediate)
      * Enough time has passed since last update (updated_at + waiting_time <= now)
+
 2. For each spamcheck:
    - Gets EmailGuard report data
    - Calculates scores
-   - Creates reports
+   - Fetches account tags from Instantly API
+   - Creates comprehensive reports with:
+     * Email scores and status
+     * Campaign content (subject/body)
+     * Account tags
+     * Sending limits
+     * Workspace identifiers
    - Updates sending limits based on conditions:
      * Format: google>0.5andoutlook>0.3sending=23/3
      * Example: If Google score > 0.5 AND Outlook score > 0.3:
@@ -33,6 +46,7 @@ Flow:
    - Handles domain-based reporting
    - Deletes campaign from Instantly using campaign ID
    - Marks campaign as 'deleted' in database
+
 3. Marks spamchecks as completed when done
 
 Features:
@@ -43,12 +57,16 @@ Features:
 - Bulk operations
 - Campaign cleanup
 - Automatic deletion of completed campaigns
-- Configurable waiting time (0 for immediate, 0.5 for 30min, 1 for 1h)
+- Configurable waiting time
+- Account tag tracking
+- Comprehensive reporting
+- Cross-platform workspace tracking
 
-API Endpoints:
+API Integrations:
 1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
-2. Instantly Update Account: POST https://app.instantly.ai/backend/api/v1/account/update/bulk
-3. Instantly Delete Campaign: DELETE https://api.instantly.ai/api/v2/campaigns/{id}
+2. Instantly Account List: POST https://app.instantly.ai/api/v1/account/list
+3. Instantly Update Account: POST https://app.instantly.ai/backend/api/v1/account/update/bulk
+4. Instantly Delete Campaign: DELETE https://api.instantly.ai/api/v2/campaigns/{id}
 """
 
 from django.core.management.base import BaseCommand
@@ -215,8 +233,44 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"  ✗ Error updating sending limit: {str(e)}"))
 
-    def create_report_sync(self, campaign, google_score, outlook_score, is_good):
-        """Synchronous function to create/update report"""
+    async def get_account_tags(self, session, email, organization, user_settings):
+        """Get tags for a specific email account"""
+        try:
+            url = "https://app.instantly.ai/api/v1/account/list"
+            headers = {
+                "Cookie": f"__session={user_settings.instantly_user_token}",
+                "X-Org-Auth": organization.instantly_organization_token,
+                "Content-Type": "application/json"
+            }
+            
+            data = {
+                "search": email,
+                "limit": 1,
+                "include_tags": True
+            }
+            
+            response = await asyncio.to_thread(
+                requests.post,
+                url,
+                headers=headers,
+                json=data
+            )
+            
+            if response.status_code == 200:
+                accounts = response.json().get('accounts', [])
+                if accounts:
+                    account = accounts[0]
+                    tags = account.get('tags', [])
+                    return [tag['id'] for tag in tags]  # Return list of tag UUIDs
+            
+            return []
+            
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"Error fetching account tags: {str(e)}"))
+            return []
+
+    def create_report_sync(self, campaign, google_score, outlook_score, is_good, sending_limit, tags_uuid_list):
+        """Synchronous function to create/update report with additional fields"""
         return UserSpamcheckReport.objects.update_or_create(
             spamcheck_instantly=campaign.spamcheck,
             email_account=campaign.account_id.email_account,
@@ -228,8 +282,9 @@ class Command(BaseCommand):
                 'is_good': is_good,
                 'used_subject': campaign.spamcheck.options.subject if campaign.spamcheck.options else None,
                 'used_body': campaign.spamcheck.options.body if campaign.spamcheck.options else None,
-                'sending_limit': int(campaign.spamcheck.conditions.split('sending=')[1].split('/')[0]) if campaign.spamcheck.conditions and 'sending=' in campaign.spamcheck.conditions else None,
-                'instantly_workspace_uuid': campaign.organization.instantly_organization_id,
+                'sending_limit': sending_limit,
+                'tags_uuid_list': ','.join(tags_uuid_list) if tags_uuid_list else None,
+                'instantly_workspace_uuid': campaign.organization.instantly_organization_id,  # This is the UUID
                 'bison_workspace_uuid': campaign.organization.bison_organization_api_key if hasattr(campaign.organization, 'bison_organization_api_key') else None
             }
         )
@@ -278,7 +333,7 @@ class Command(BaseCommand):
             return False
 
     async def process_campaign(self, session, campaign, user_settings):
-        """Process a single campaign and generate report"""
+        """Process a single campaign and generate report with additional data"""
         try:
             self.stdout.write(f"\n  Campaign ID: {campaign.instantly_campaign_id}")
             self.stdout.write(f"  EmailGuard Tag: {campaign.emailguard_tag}")
@@ -307,17 +362,31 @@ class Command(BaseCommand):
                 # Evaluate conditions and get appropriate sending limit
                 is_good, sending_limit = self.evaluate_conditions(campaign.spamcheck, google_score, outlook_score, campaign.account_id.email_account)
 
+                # Get account tags
+                self.stdout.write("  Fetching account tags...")
+                tags_uuid_list = await self.get_account_tags(
+                    session,
+                    campaign.account_id.email_account,
+                    campaign.organization,
+                    user_settings
+                )
+                self.stdout.write(f"  Found {len(tags_uuid_list)} tags")
+
                 # Create or update report using the sync function
                 report = await asyncio.to_thread(
                     self.create_report_sync,
                     campaign,
                     google_score,
                     outlook_score,
-                    is_good
+                    is_good,
+                    sending_limit,
+                    tags_uuid_list
                 )
 
                 self.stdout.write(f"  Report {'created' if report[1] else 'updated'} successfully")
                 self.stdout.write(f"  Account status: {'✓ Good' if is_good else '✗ Bad'}")
+                self.stdout.write(f"  Sending limit set to: {sending_limit}")
+                self.stdout.write(f"  Tags stored: {tags_uuid_list}")
 
                 # Update sending limit based on conditions
                 await self.update_sending_limit(campaign.organization, campaign.account_id.email_account, sending_limit)
