@@ -236,7 +236,7 @@ class Command(BaseCommand):
     async def get_account_tags(self, session, email, organization, user_settings):
         """Get tags for a specific email account"""
         try:
-            url = "https://app.instantly.ai/api/v1/account/list"
+            url = "https://app.instantly.ai/backend/api/v1/account/list"
             headers = {
                 "Cookie": f"__session={user_settings.instantly_user_token}",
                 "X-Org-Auth": organization.instantly_organization_token,
@@ -249,6 +249,7 @@ class Command(BaseCommand):
                 "include_tags": True
             }
             
+            self.stdout.write(f"  Fetching tags for email: {email}")
             response = await asyncio.to_thread(
                 requests.post,
                 url,
@@ -257,16 +258,38 @@ class Command(BaseCommand):
             )
             
             if response.status_code == 200:
-                accounts = response.json().get('accounts', [])
+                response_data = response.json()
+                self.stdout.write(f"  Raw Account Response: {json.dumps(response_data, indent=2)}")
+                
+                accounts = response_data.get('accounts', [])
                 if accounts:
                     account = accounts[0]
                     tags = account.get('tags', [])
-                    return [tag['id'] for tag in tags]  # Return list of tag UUIDs
+                    
+                    # Extract tag information
+                    tag_info = [
+                        {
+                            'id': tag['id'],
+                            'label': tag['label']
+                        } for tag in tags
+                    ]
+                    
+                    # Log found tags
+                    self.stdout.write("  Found tags:")
+                    for tag in tag_info:
+                        self.stdout.write(f"    - {tag['label']} (ID: {tag['id']})")
+                    
+                    # Return only the UUIDs
+                    return [tag['id'] for tag in tags]
+                else:
+                    self.stdout.write("  No account found with this email")
+            else:
+                self.stdout.write(self.style.ERROR(f"  API call failed: {response.status_code} - {response.text}"))
             
             return []
             
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"Error fetching account tags: {str(e)}"))
+            self.stdout.write(self.style.ERROR(f"  Error fetching account tags: {str(e)}"))
             return []
 
     def create_report_sync(self, campaign, google_score, outlook_score, is_good, sending_limit, tags_uuid_list):
