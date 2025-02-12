@@ -10,17 +10,7 @@ api = NinjaAPI(urls_namespace="auth")
 def test_endpoint(request: HttpRequest):
     """Test endpoint to verify deployment"""
     return {
-        "status": "success",
-        "message": "API is working correctly!",
-        "environment": "production",
-        "server_time": "UTC",
-        "endpoints_available": [
-            "/api/test",
-            "/api/auth/*",
-            "/api/profile/*",
-            "/api/settings/*",
-            "/api/spamcheck/*"
-        ]
+        "message": "Hi Amine"
     }
 
 api.add_router("/auth/", auth_router)
