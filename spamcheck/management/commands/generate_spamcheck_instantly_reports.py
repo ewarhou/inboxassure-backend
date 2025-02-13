@@ -353,11 +353,11 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"  Error fetching account tags: {str(e)}"))
             return []
 
-    def create_report_sync(self, campaign, google_score, outlook_score, is_good, sending_limit, tags_uuid_list):
+    def create_report_sync(self, campaign, google_score, outlook_score, is_good, sending_limit, tags_uuid_list, email_account=None):
         """Synchronous function to create/update report with additional fields"""
         return UserSpamcheckReport.objects.update_or_create(
             spamcheck_instantly=campaign.spamcheck,
-            email_account=campaign.account_id.email_account,
+            email_account=email_account or campaign.account_id.email_account,
             defaults={
                 'organization': campaign.organization,
                 'google_pro_score': google_score,
@@ -511,7 +511,8 @@ class Command(BaseCommand):
                             outlook_score,
                             is_good,
                             sending_limit,
-                            tags_uuid_list
+                            tags_uuid_list,
+                            email_account=account.email_account  # Pass the individual account's email
                         )
                         accounts_to_update.append(account.email_account)
                 else:
