@@ -19,6 +19,10 @@ You need to deploy to github and to the server (via SSH) after each change.
 to run command on the server, you need to use the following command : 
 ssh -i ~/.ssh/inboxassure root@68.183.98.54 "your_command_here"
 
+
+To deploy use this : 
+ssh -i ~/.ssh/inboxassure root@68.183.98.54 "cd /var/www/inboxassure-backend && git pull origin main && ./deploy.sh"
+
 We're connecting to Mysql database with the following credentials : 
     - host : 64.227.20.217
     - port : default

@@ -475,47 +475,59 @@ class Command(BaseCommand):
                 )
                 self.stdout.write(f"  Found {len(tags_uuid_list)} tags")
 
+                # Initialize list of accounts to update
+                accounts_to_update = []
+
                 # Process domain-based accounts if enabled
-                accounts_to_update = [campaign.account_id.email_account]
                 if campaign.spamcheck.is_domain_based:
-                    domain = self.get_domain_from_email(campaign.account_id.email_account)
-                    if domain:
-                        self.stdout.write(f"\n  Domain-based spamcheck enabled for domain: {domain}")
-                        domain_accounts = await self.get_domain_accounts(campaign.spamcheck, domain)
+                    # Get all accounts from the spamcheck
+                    all_accounts = await self.get_all_spamcheck_accounts(campaign.spamcheck)
+                    
+                    # Group accounts by domain
+                    accounts_by_domain = {}
+                    for account in all_accounts:
+                        domain = self.get_domain_from_email(account.email_account)
+                        if domain:
+                            if domain not in accounts_by_domain:
+                                accounts_by_domain[domain] = []
+                            accounts_by_domain[domain].append(account)
+                    
+                    # Process each domain group
+                    for domain, domain_accounts in accounts_by_domain.items():
+                        self.stdout.write(f"\n  Processing domain group: {domain}")
+                        self.stdout.write(f"  Found {len(domain_accounts)} accounts in this domain")
                         
-                        # Create reports for all domain accounts
+                        # Create reports for all accounts in this domain
                         for account in domain_accounts:
-                            if account.email_account != campaign.account_id.email_account:  # Skip the main account
-                                self.stdout.write(f"  Creating report for domain account: {account.email_account}")
-                                await asyncio.to_thread(
-                                    self.create_report_sync,
-                                    campaign,
-                                    google_score,
-                                    outlook_score,
-                                    is_good,
-                                    sending_limit,
-                                    tags_uuid_list
-                                )
-                                accounts_to_update.append(account.email_account)
-
-                # Create or update report for the main account
-                report = await asyncio.to_thread(
-                    self.create_report_sync,
-                    campaign,
-                    google_score,
-                    outlook_score,
-                    is_good,
-                    sending_limit,
-                    tags_uuid_list
-                )
-
-                self.stdout.write(f"  Report {'created' if report[1] else 'updated'} successfully")
-                self.stdout.write(f"  Account status: {'✓ Good' if is_good else '✗ Bad'}")
-                self.stdout.write(f"  Sending limit set to: {sending_limit}")
-                self.stdout.write(f"  Tags stored: {tags_uuid_list}")
+                            self.stdout.write(f"  Creating report for account: {account.email_account}")
+                            await asyncio.to_thread(
+                                self.create_report_sync,
+                                campaign,
+                                google_score,
+                                outlook_score,
+                                is_good,
+                                sending_limit,
+                                tags_uuid_list
+                            )
+                            accounts_to_update.append(account.email_account)
+                else:
+                    # If not domain-based, just create report for the campaign account
+                    self.stdout.write(f"  Creating report for single account: {campaign.account_id.email_account}")
+                    await asyncio.to_thread(
+                        self.create_report_sync,
+                        campaign,
+                        google_score,
+                        outlook_score,
+                        is_good,
+                        sending_limit,
+                        tags_uuid_list
+                    )
+                    accounts_to_update.append(campaign.account_id.email_account)
 
                 # Update sending limit for all accounts
-                await self.update_sending_limit(campaign.organization, accounts_to_update, sending_limit)
+                if accounts_to_update:
+                    self.stdout.write(f"\n  Updating sending limits for {len(accounts_to_update)} accounts")
+                    await self.update_sending_limit(campaign.organization, accounts_to_update, sending_limit)
 
                 # Delete campaign from Instantly
                 self.stdout.write("\n  Deleting campaign from Instantly...")
@@ -542,6 +554,13 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"  Error processing campaign: {str(e)}"))
             return False
+
+    @sync_to_async
+    def get_all_spamcheck_accounts(self, spamcheck):
+        """Get all accounts associated with a spamcheck"""
+        return list(UserSpamcheckAccounts.objects.filter(
+            spamcheck=spamcheck
+        ).select_related('organization'))
 
     async def process_spamcheck(self, session, spamcheck):
         """Process a single spamcheck"""
