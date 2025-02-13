@@ -17,7 +17,10 @@ Purpose:
   * Sending limits based on conditions
   * Workspace UUIDs (Instantly and Bison)
 - Updates account sending limits based on results
-- Handles domain-based spamchecks
+- Handles domain-based spamchecks:
+  * When enabled, applies same scores and limits to all accounts with same domain
+  * Only processes accounts that are part of the same spamcheck
+  * Maintains consistency across domain-based reporting
 - Deletes completed campaigns from Instantly to clean up resources
 
 Flow:
@@ -43,7 +46,10 @@ Flow:
      * Example: If Google score > 0.5 AND Outlook score > 0.3:
        - Set sending limit to 23 for good accounts
        - Set sending limit to 3 for bad accounts
-   - Handles domain-based reporting
+   - If domain-based is enabled:
+     * Finds all accounts in same spamcheck with same domain
+     * Applies same scores and limits to all domain accounts
+     * Creates reports for all domain accounts
    - Deletes campaign from Instantly using campaign ID
    - Marks campaign as 'deleted' in database
 
@@ -53,7 +59,7 @@ Features:
 - Async/await for better performance
 - Rate limiting
 - Error handling
-- Domain-based reporting
+- Domain-based reporting with consistent scores
 - Bulk operations
 - Campaign cleanup
 - Automatic deletion of completed campaigns
@@ -64,7 +70,7 @@ Features:
 
 API Integrations:
 1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
-2. Instantly Account List: POST https://app.instantly.ai/api/v1/account/list
+2. Instantly Account List: POST https://app.instantly.ai/backend/api/v1/account/list
 3. Instantly Update Account: POST https://app.instantly.ai/backend/api/v1/account/update/bulk
 4. Instantly Delete Campaign: DELETE https://api.instantly.ai/api/v2/campaigns/{id}
 """
@@ -72,7 +78,7 @@ API Integrations:
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.db.models import Q, F
-from spamcheck.models import UserSpamcheck, UserSpamcheckCampaigns, UserSpamcheckReport
+from spamcheck.models import UserSpamcheck, UserSpamcheckCampaigns, UserSpamcheckReport, UserSpamcheckAccounts
 from settings.models import UserSettings
 from asgiref.sync import sync_to_async  # For safe DB calls in async context
 import aiohttp
@@ -122,12 +128,21 @@ class Command(BaseCommand):
         Returns: {
             'google': 0.5,
             'outlook': 0.3,
-            'good_limit': 23,  # sending limit for accounts that meet conditions
-            'bad_limit': 3     # sending limit for accounts that don't meet conditions
+            'good_limit': 23,
+            'bad_limit': 3,
+            'google_operator': '>', # Can be '>', '>=', '<', '<='
+            'outlook_operator': '>' # Can be '>', '>=', '<', '<='
         }
         """
         if not conditions_str:
-            return {'google': 0.5, 'outlook': 0.5, 'good_limit': 25, 'bad_limit': 3}
+            return {
+                'google': 0.5, 
+                'outlook': 0.5, 
+                'good_limit': 25, 
+                'bad_limit': 3,
+                'google_operator': '>=',
+                'outlook_operator': '>='
+            }
 
         conditions = {}
         
@@ -140,10 +155,34 @@ class Command(BaseCommand):
             # Parse scores
             score_parts = scores_part.split('and')
             for part in score_parts:
-                if 'google>' in part:
-                    conditions['google'] = float(part.split('>')[1])
-                elif 'outlook>' in part:
-                    conditions['outlook'] = float(part.split('>')[1])
+                if 'google' in part:
+                    # Check for all possible operators
+                    if '>=' in part:
+                        conditions['google'] = float(part.split('>=')[1])
+                        conditions['google_operator'] = '>='
+                    elif '<=' in part:
+                        conditions['google'] = float(part.split('<=')[1])
+                        conditions['google_operator'] = '<='
+                    elif '>' in part:
+                        conditions['google'] = float(part.split('>')[1])
+                        conditions['google_operator'] = '>'
+                    elif '<' in part:
+                        conditions['google'] = float(part.split('<')[1])
+                        conditions['google_operator'] = '<'
+                elif 'outlook' in part:
+                    # Check for all possible operators
+                    if '>=' in part:
+                        conditions['outlook'] = float(part.split('>=')[1])
+                        conditions['outlook_operator'] = '>='
+                    elif '<=' in part:
+                        conditions['outlook'] = float(part.split('<=')[1])
+                        conditions['outlook_operator'] = '<='
+                    elif '>' in part:
+                        conditions['outlook'] = float(part.split('>')[1])
+                        conditions['outlook_operator'] = '>'
+                    elif '<' in part:
+                        conditions['outlook'] = float(part.split('<')[1])
+                        conditions['outlook_operator'] = '<'
             
             # Parse sending limits
             if '/' in limits_part:
@@ -157,8 +196,10 @@ class Command(BaseCommand):
         # Set defaults for any missing values
         if 'google' not in conditions:
             conditions['google'] = 0.5
+            conditions['google_operator'] = '>='
         if 'outlook' not in conditions:
             conditions['outlook'] = 0.5
+            conditions['outlook_operator'] = '>='
         if 'good_limit' not in conditions:
             conditions['good_limit'] = 25
         if 'bad_limit' not in conditions:
@@ -174,9 +215,29 @@ class Command(BaseCommand):
         conditions = self.parse_conditions(spamcheck.conditions)
         self.stdout.write(f"  Parsed conditions: {json.dumps(conditions, indent=2)}")
         
-        # Check if scores meet thresholds
-        google_ok = google_score >= conditions.get('google', 0.5)
-        outlook_ok = outlook_score >= conditions.get('outlook', 0.5)
+        # Helper function to evaluate a single condition
+        def evaluate_condition(score, target, operator):
+            if operator == '>':
+                return score > target
+            elif operator == '>=':
+                return score >= target
+            elif operator == '<':
+                return score < target
+            elif operator == '<=':
+                return score <= target
+            return False  # Invalid operator
+        
+        # Check if scores meet thresholds with proper operators
+        google_ok = evaluate_condition(
+            google_score,
+            conditions['google'],
+            conditions['google_operator']
+        )
+        outlook_ok = evaluate_condition(
+            outlook_score,
+            conditions['outlook'],
+            conditions['outlook_operator']
+        )
         
         self.conditions_met = google_ok and outlook_ok
         
@@ -355,6 +416,20 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"  ✗ Error deleting campaign {campaign_id}: {str(e)}"))
             return False
 
+    def get_domain_from_email(self, email):
+        """Extract domain from email address"""
+        return email.split('@')[1] if '@' in email else None
+
+    @sync_to_async
+    def get_domain_accounts(self, spamcheck, domain):
+        """Get all accounts in the same spamcheck with the same domain"""
+        return list(
+            UserSpamcheckAccounts.objects.filter(
+                spamcheck=spamcheck,
+                email_account__iendswith=f'@{domain}'
+            ).select_related('organization')
+        )
+
     async def process_campaign(self, session, campaign, user_settings):
         """Process a single campaign and generate report with additional data"""
         try:
@@ -383,7 +458,12 @@ class Command(BaseCommand):
                 self.stdout.write(f"  Outlook Score: {outlook_score}")
 
                 # Evaluate conditions and get appropriate sending limit
-                is_good, sending_limit = self.evaluate_conditions(campaign.spamcheck, google_score, outlook_score, campaign.account_id.email_account)
+                is_good, sending_limit = self.evaluate_conditions(
+                    campaign.spamcheck, 
+                    google_score, 
+                    outlook_score, 
+                    campaign.account_id.email_account
+                )
 
                 # Get account tags
                 self.stdout.write("  Fetching account tags...")
@@ -395,7 +475,30 @@ class Command(BaseCommand):
                 )
                 self.stdout.write(f"  Found {len(tags_uuid_list)} tags")
 
-                # Create or update report using the sync function
+                # Process domain-based accounts if enabled
+                accounts_to_update = [campaign.account_id.email_account]
+                if campaign.spamcheck.is_domain_based:
+                    domain = self.get_domain_from_email(campaign.account_id.email_account)
+                    if domain:
+                        self.stdout.write(f"\n  Domain-based spamcheck enabled for domain: {domain}")
+                        domain_accounts = await self.get_domain_accounts(campaign.spamcheck, domain)
+                        
+                        # Create reports for all domain accounts
+                        for account in domain_accounts:
+                            if account.email_account != campaign.account_id.email_account:  # Skip the main account
+                                self.stdout.write(f"  Creating report for domain account: {account.email_account}")
+                                await asyncio.to_thread(
+                                    self.create_report_sync,
+                                    campaign,
+                                    google_score,
+                                    outlook_score,
+                                    is_good,
+                                    sending_limit,
+                                    tags_uuid_list
+                                )
+                                accounts_to_update.append(account.email_account)
+
+                # Create or update report for the main account
                 report = await asyncio.to_thread(
                     self.create_report_sync,
                     campaign,
@@ -411,8 +514,8 @@ class Command(BaseCommand):
                 self.stdout.write(f"  Sending limit set to: {sending_limit}")
                 self.stdout.write(f"  Tags stored: {tags_uuid_list}")
 
-                # Update sending limit based on conditions
-                await self.update_sending_limit(campaign.organization, campaign.account_id.email_account, sending_limit)
+                # Update sending limit for all accounts
+                await self.update_sending_limit(campaign.organization, accounts_to_update, sending_limit)
 
                 # Delete campaign from Instantly
                 self.stdout.write("\n  Deleting campaign from Instantly...")

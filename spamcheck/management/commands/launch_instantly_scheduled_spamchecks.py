@@ -3,7 +3,13 @@ LAUNCH SPAMCHECK SCRIPT
 ======================
 Launches scheduled spamchecks by:
 1. Finding pending spamchecks
-2. For each account in spamcheck:
+2. For each spamcheck:
+   - If domain-based is enabled:
+     * Groups accounts by domain
+     * Randomly selects one account per domain
+   - If domain-based is disabled:
+     * Uses all accounts as is
+3. For each selected account:
    - Updates account sending limit to 100
    - Gets EmailGuard tag
    - Creates Instantly campaign
@@ -16,6 +22,7 @@ Key Functions:
 - create_instantly_campaign: Sets up campaign with EmailGuard filter phrase in body
 - add_leads: Adds test emails to campaign
 - launch_campaign: Activates the campaign
+- filter_domain_accounts: Groups accounts by domain and randomly selects one per domain
 
 Critical Settings:
 - Rate limit: 10 requests/second
@@ -23,6 +30,13 @@ Critical Settings:
 - Email gap: 1
 - Campaign daily limit: 100
 - Account sending limit: 100 (set before campaign creation)
+
+Domain-based Features:
+- Detects if spamcheck is domain-based
+- Groups accounts by domain (@gmail.com, @outlook.com, etc.)
+- Randomly selects one account per domain
+- Only launches campaigns for selected accounts
+- Other accounts with same domain get results in report phase
 
 Runs via cron: * * * * * (every minute)
 """
@@ -39,6 +53,9 @@ import logging
 from datetime import timedelta
 import pytz
 import requests
+import random
+from itertools import groupby
+from operator import attrgetter
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +65,37 @@ class Command(BaseCommand):
     def __init__(self):
         super().__init__()
         self.rate_limit = asyncio.Semaphore(10)  # Rate limit: 10 requests per second
+
+    def get_domain_from_email(self, email):
+        """Extract domain from email address"""
+        return email.split('@')[1] if '@' in email else None
+
+    def filter_domain_accounts(self, accounts, is_domain_based):
+        """Filter accounts based on domain settings
+        If domain-based is enabled:
+        - Groups accounts by domain
+        - Randomly selects one account per domain
+        If domain-based is disabled:
+        - Returns all accounts as is
+        """
+        if not is_domain_based:
+            return accounts
+
+        # Group accounts by domain
+        accounts_by_domain = {}
+        for account in accounts:
+            domain = self.get_domain_from_email(account.email_account)
+            if domain:
+                if domain not in accounts_by_domain:
+                    accounts_by_domain[domain] = []
+                accounts_by_domain[domain].append(account)
+
+        # Randomly select one account per domain
+        selected_accounts = []
+        for domain, domain_accounts in accounts_by_domain.items():
+            selected_accounts.append(random.choice(domain_accounts))
+
+        return selected_accounts
 
     async def get_emailguard_tag(self, session, campaign_name, emailguard_api_key):
         """Get EmailGuard tag for campaign"""
@@ -204,13 +252,24 @@ class Command(BaseCommand):
             )
 
             # Get accounts to check
-            accounts = await asyncio.to_thread(
+            all_accounts = await asyncio.to_thread(
                 lambda: list(spamcheck.accounts.all())
             )
 
-            if not accounts:
+            if not all_accounts:
                 self.stdout.write("No accounts to check")
                 return False
+
+            # Filter accounts based on domain settings
+            accounts = self.filter_domain_accounts(all_accounts, spamcheck.is_domain_based)
+            
+            if spamcheck.is_domain_based:
+                self.stdout.write(f"\nDomain-based spamcheck enabled:")
+                self.stdout.write(f"- Total accounts: {len(all_accounts)}")
+                self.stdout.write(f"- Selected accounts (one per domain): {len(accounts)}")
+                for account in accounts:
+                    domain = self.get_domain_from_email(account.email_account)
+                    self.stdout.write(f"  * {domain}: {account.email_account}")
 
             # Process each account
             for account in accounts:
