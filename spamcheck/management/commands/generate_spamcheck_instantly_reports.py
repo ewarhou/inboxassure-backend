@@ -418,17 +418,29 @@ class Command(BaseCommand):
 
     def get_domain_from_email(self, email):
         """Extract domain from email address"""
-        return email.split('@')[1] if '@' in email else None
+        try:
+            return email.split('@')[1]
+        except:
+            return None
 
     @sync_to_async
-    def get_domain_accounts(self, spamcheck, domain):
-        """Get all accounts in the same spamcheck with the same domain"""
-        return list(
-            UserSpamcheckAccounts.objects.filter(
-                spamcheck=spamcheck,
-                email_account__iendswith=f'@{domain}'
-            ).select_related('organization')
-        )
+    def get_all_spamcheck_accounts(self, spamcheck):
+        """Get all accounts associated with a spamcheck"""
+        return list(UserSpamcheckAccounts.objects.filter(
+            spamcheck=spamcheck
+        ).select_related('organization'))
+
+    async def get_domain_accounts(self, spamcheck, domain):
+        """Get all accounts from a spamcheck that share the same domain"""
+        accounts = await self.get_all_spamcheck_accounts(spamcheck)
+        domain_accounts = []
+        
+        for account in accounts:
+            account_domain = self.get_domain_from_email(account.email_account)
+            if account_domain == domain:
+                domain_accounts.append(account)
+                
+        return domain_accounts
 
     async def process_campaign(self, session, campaign, user_settings):
         """Process a single campaign and generate report with additional data"""
@@ -480,36 +492,28 @@ class Command(BaseCommand):
 
                 # Process domain-based accounts if enabled
                 if campaign.spamcheck.is_domain_based:
-                    # Get all accounts from the spamcheck
-                    all_accounts = await self.get_all_spamcheck_accounts(campaign.spamcheck)
+                    # Get domain of the campaign account
+                    campaign_domain = self.get_domain_from_email(campaign.account_id.email_account)
                     
-                    # Group accounts by domain
-                    accounts_by_domain = {}
-                    for account in all_accounts:
-                        domain = self.get_domain_from_email(account.email_account)
-                        if domain:
-                            if domain not in accounts_by_domain:
-                                accounts_by_domain[domain] = []
-                            accounts_by_domain[domain].append(account)
+                    # Get all accounts with the same domain from the spamcheck
+                    domain_accounts = await self.get_domain_accounts(campaign.spamcheck, campaign_domain)
                     
-                    # Process each domain group
-                    for domain, domain_accounts in accounts_by_domain.items():
-                        self.stdout.write(f"\n  Processing domain group: {domain}")
-                        self.stdout.write(f"  Found {len(domain_accounts)} accounts in this domain")
-                        
-                        # Create reports for all accounts in this domain
-                        for account in domain_accounts:
-                            self.stdout.write(f"  Creating report for account: {account.email_account}")
-                            await asyncio.to_thread(
-                                self.create_report_sync,
-                                campaign,
-                                google_score,
-                                outlook_score,
-                                is_good,
-                                sending_limit,
-                                tags_uuid_list
-                            )
-                            accounts_to_update.append(account.email_account)
+                    self.stdout.write(f"\n  Processing domain: {campaign_domain}")
+                    self.stdout.write(f"  Found {len(domain_accounts)} accounts in this domain")
+                    
+                    # Create reports for all accounts in this domain
+                    for account in domain_accounts:
+                        self.stdout.write(f"  Creating report for account: {account.email_account}")
+                        await asyncio.to_thread(
+                            self.create_report_sync,
+                            campaign,
+                            google_score,
+                            outlook_score,
+                            is_good,
+                            sending_limit,
+                            tags_uuid_list
+                        )
+                        accounts_to_update.append(account.email_account)
                 else:
                     # If not domain-based, just create report for the campaign account
                     self.stdout.write(f"  Creating report for single account: {campaign.account_id.email_account}")
@@ -554,13 +558,6 @@ class Command(BaseCommand):
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"  Error processing campaign: {str(e)}"))
             return False
-
-    @sync_to_async
-    def get_all_spamcheck_accounts(self, spamcheck):
-        """Get all accounts associated with a spamcheck"""
-        return list(UserSpamcheckAccounts.objects.filter(
-            spamcheck=spamcheck
-        ).select_related('organization'))
 
     async def process_spamcheck(self, session, spamcheck):
         """Process a single spamcheck"""
