@@ -1,34 +1,58 @@
 from datetime import datetime, timedelta
 from typing import List
-from ninja import Router
+from ninja import Router, Schema
 from ninja.security import HttpBearer
 from django.db.models import Avg
 from django.utils import timezone
 from .models import InboxassureReports, ProviderPerformance, ClientOrganizations, InboxassureOrganizations
-from pydantic import BaseModel
 import uuid
 from django.db import connections
 import logging
 from django.db import connection
 from django.db.models.sql import Query
 from django.db.models import Q
+from spamcheck.models import UserSpamcheckReport
+from authentication.authorization import AuthBearer
 
 logger = logging.getLogger(__name__)
 
-router = Router()
+router = Router(tags=["Analytics"])
 
-class OrganizationData(BaseModel):
+class OrganizationData(Schema):
+    """Organization data container"""
     organization_id: str
     organization_name: str
     data: dict
 
-class SendingPowerResponse(BaseModel):
+    class Config:
+        schema_extra = {
+            "example": {
+                "organization_id": "123e4567-e89b-12d3-a456-426614174000",
+                "organization_name": "Example Org",
+                "data": {}
+            }
+        }
+
+class SendingPowerResponse(Schema):
+    """Response model for sending power metrics"""
     organization_id: str
     organization_name: str
     datetime: datetime
     sending_power: int
 
-class AccountPerformanceResponse(BaseModel):
+    class Config:
+        schema_extra = {
+            "description": "Sending power metrics response",
+            "fields": {
+                "organization_id": "Organization's unique identifier",
+                "organization_name": "Name of the organization",
+                "datetime": "Timestamp of the measurement",
+                "sending_power": "Sending power value"
+            }
+        }
+
+class AccountPerformanceResponse(Schema):
+    """Response model for account performance metrics"""
     organization_id: str
     organization_name: str
     date: datetime
@@ -37,7 +61,22 @@ class AccountPerformanceResponse(BaseModel):
     outlook_good: int
     outlook_bad: int
 
-class ProviderPerformanceResponse(BaseModel):
+    class Config:
+        schema_extra = {
+            "description": "Account performance metrics",
+            "fields": {
+                "organization_id": "Organization's unique identifier",
+                "organization_name": "Name of the organization",
+                "date": "Date of the performance measurement",
+                "google_good": "Number of good Google deliveries",
+                "google_bad": "Number of bad Google deliveries",
+                "outlook_good": "Number of good Outlook deliveries",
+                "outlook_bad": "Number of bad Outlook deliveries"
+            }
+        }
+
+class ProviderPerformanceResponse(Schema):
+    """Response model for provider performance metrics"""
     organization_id: str
     organization_name: str
     provider: str
@@ -46,6 +85,53 @@ class ProviderPerformanceResponse(BaseModel):
     google_score: float
     outlook_score: float
     overall_score: float
+
+    class Config:
+        schema_extra = {
+            "description": "Provider performance metrics",
+            "fields": {
+                "organization_id": "Organization's unique identifier",
+                "organization_name": "Name of the organization",
+                "provider": "Name of the email provider",
+                "reply_rate": "Email reply rate percentage",
+                "bounce_rate": "Email bounce rate percentage",
+                "google_score": "Google delivery score",
+                "outlook_score": "Outlook delivery score",
+                "overall_score": "Combined delivery score"
+            }
+        }
+
+class OrganizationSummaryResponse(Schema):
+    """Response model for organization dashboard summary metrics"""
+    organization_id: str
+    organization_name: str
+    checked_accounts: int
+    at_risk_accounts: int
+    protected_accounts: int
+    spam_emails_count: int
+    inbox_emails_count: int
+    spam_emails_percentage: float
+    inbox_emails_percentage: float
+    overall_deliverability: float
+    last_check_date: str
+
+    class Config:
+        schema_extra = {
+            "description": "Organization dashboard summary metrics",
+            "fields": {
+                "organization_id": "Organization's workspace UUID",
+                "organization_name": "Organization name",
+                "checked_accounts": "Total number of checked accounts",
+                "at_risk_accounts": "Number of accounts at risk",
+                "protected_accounts": "Number of protected accounts",
+                "spam_emails_count": "Estimated number of emails going to spam based on sending limit",
+                "inbox_emails_count": "Estimated number of emails going to inbox based on sending limit",
+                "spam_emails_percentage": "Percentage of emails going to spam",
+                "inbox_emails_percentage": "Percentage of emails going to inbox",
+                "overall_deliverability": "Overall deliverability score",
+                "last_check_date": "ISO formatted date of the last check"
+            }
+        }
 
 def get_client_uuid(auth_id: str):
     """Helper function to get client UUID from auth ID"""
@@ -137,7 +223,13 @@ class AuthBearer(HttpBearer):
             logger.error(f"Authentication error: {str(e)}")
             return None
 
-@router.get("/get-sending-power", response=List[SendingPowerResponse], auth=AuthBearer())
+@router.get(
+    "/get-sending-power", 
+    response=List[SendingPowerResponse], 
+    auth=AuthBearer(),
+    summary="Sending Power History",
+    description="Get sending power metrics over time for all client organizations"
+)
 def get_sending_power(request):
     """Get sending power over time for all client organizations"""
     print("\n=== Starting get-sending-power endpoint ===")
@@ -222,7 +314,13 @@ def get_sending_power(request):
     
     return result
 
-@router.get("/get-account-performance", response=List[AccountPerformanceResponse], auth=AuthBearer())
+@router.get(
+    "/get-account-performance", 
+    response=List[AccountPerformanceResponse], 
+    auth=AuthBearer(),
+    summary="Account Performance",
+    description="Get daily account performance metrics including Google and Outlook performance for all client organizations"
+)
 def get_account_performance(request):
     """Get daily account performance metrics for all client organizations"""
     print("\n=== Starting get-account-performance endpoint ===")
@@ -314,7 +412,13 @@ def get_account_performance(request):
     
     return result
 
-@router.get("/get-provider-performance", response=List[ProviderPerformanceResponse], auth=AuthBearer())
+@router.get(
+    "/get-provider-performance", 
+    response=List[ProviderPerformanceResponse], 
+    auth=AuthBearer(),
+    summary="Provider Performance",
+    description="Get provider performance metrics over the last 14 days including reply rates, bounce rates, and provider scores"
+)
 def get_provider_performance(request):
     """Get provider performance metrics over last 14 days for all client organizations"""
     print("\n=== Starting get-provider-performance endpoint ===")
@@ -433,3 +537,88 @@ def get_provider_performance(request):
         print("❌ No results to return")
     
     return result 
+
+@router.get(
+    "/dashboard/summary", 
+    response=List[OrganizationSummaryResponse], 
+    auth=AuthBearer(),
+    summary="Dashboard Summary Per Organization",
+    description="Get summary metrics for the dashboard per organization including account stats and email delivery predictions"
+)
+def get_dashboard_summary(request):
+    """Get dashboard summary metrics per organization using only the latest report for each account"""
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    
+    # Get user from auth
+    user_id = request.auth['client_id']
+    user = User.objects.get(id=user_id)
+    
+    # Use raw SQL for better performance
+    with connection.cursor() as cursor:
+        query = """
+            WITH latest_reports AS (
+                SELECT 
+                    usr.*,
+                    ui.instantly_organization_name,
+                    ui.instantly_organization_id,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY usr.email_account, usr.instantly_workspace_uuid 
+                        ORDER BY usr.created_at DESC
+                    ) as rn
+                FROM user_spamcheck_reports usr
+                JOIN user_instantly ui ON usr.organization_id = ui.id
+                WHERE ui.user_id = %s
+            )
+            SELECT 
+                instantly_workspace_uuid as org_id,
+                instantly_organization_name as org_name,
+                COUNT(*) as checked,
+                COUNT(CASE WHEN is_good = false THEN 1 END) as at_risk,
+                COUNT(CASE WHEN is_good = true THEN 1 END) as protected,
+                COALESCE(AVG(google_pro_score), 0) as avg_google,
+                COALESCE(AVG(outlook_pro_score), 0) as avg_outlook,
+                MAX(created_at) as last_check,
+                COALESCE(MAX(sending_limit), 25) as sending_limit
+            FROM latest_reports
+            WHERE rn = 1
+            GROUP BY instantly_workspace_uuid, instantly_organization_name
+            ORDER BY instantly_organization_name
+        """
+        cursor.execute(query, [user_id])
+        results = cursor.fetchall()
+        
+        if not results:
+            return []
+        
+        summaries = []
+        for result in results:
+            (org_id, org_name, checked, at_risk, protected, avg_google, avg_outlook, 
+             last_check, sending_limit) = result
+            
+            # Calculate email counts using the same sending limit for both
+            spam_emails = at_risk * sending_limit
+            inbox_emails = protected * sending_limit
+            total_emails = spam_emails + inbox_emails
+            
+            # Calculate percentages
+            spam_percentage = round((spam_emails / total_emails * 100), 2) if total_emails > 0 else 0
+            inbox_percentage = round((inbox_emails / total_emails * 100), 2) if total_emails > 0 else 0
+            
+            overall_deliverability = round(((float(avg_google) + float(avg_outlook)) / 2) * 25, 2)
+            
+            summaries.append({
+                "organization_id": org_id,
+                "organization_name": org_name,
+                "checked_accounts": checked or 0,
+                "at_risk_accounts": at_risk or 0,
+                "protected_accounts": protected or 0,
+                "spam_emails_count": spam_emails,
+                "inbox_emails_count": inbox_emails,
+                "spam_emails_percentage": spam_percentage,
+                "inbox_emails_percentage": inbox_percentage,
+                "overall_deliverability": overall_deliverability,
+                "last_check_date": last_check.isoformat() if last_check else None
+            })
+        
+        return summaries 

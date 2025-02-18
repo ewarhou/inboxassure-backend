@@ -2,483 +2,78 @@
 
 Base URL: http://inboxassure-backend.imnodev.com/api
 
-All authenticated endpoints require Bearer token in the Authorization header:
+## Authentication
+All endpoints require Bearer token authentication. Add the following header to your requests:
 ```
-Authorization: Bearer <access_token>
-```
-
-## Authentication Endpoints
-
-### Register
-- **URL**: `/auth/register`
-- **Method**: `POST`
-- **Auth**: No
-- **Payload**:
-```json
-{
-    "username": "string",
-    "email": "string",
-    "password": "string",
-    "first_name": "string (optional)",
-    "last_name": "string (optional)"
-}
-```
-- **Response (200)**:
-```json
-{
-    "access_token": "string",
-    "token_type": "bearer"
-}
+Authorization: Bearer <your_token>
 ```
 
-### Login
-- **URL**: `/auth/login`
-- **Method**: `POST`
-- **Auth**: No
-- **Payload**:
+## Endpoints
+
+### Get Dashboard Summary
+Get comprehensive summary metrics for each organization including account stats and email delivery predictions.
+
+**Endpoint:** `/analytics/dashboard/summary`
+**Method:** GET
+**Authentication:** Required
+
+#### Response
+Array of organization summaries with the following structure for each organization:
+
 ```json
 {
-    "email": "string",
-    "password": "string"
-}
-```
-- **Response (200)**:
-```json
-{
-    "access_token": "string",
-    "token_type": "bearer"
+    "organization_id": "string",        // Organization's workspace UUID
+    "organization_name": "string",      // Name of the organization
+    "checked_accounts": integer,        // Total number of checked accounts
+    "at_risk_accounts": integer,        // Number of accounts at risk
+    "protected_accounts": integer,      // Number of protected accounts
+    "spam_emails_count": integer,       // Estimated number of emails going to spam based on sending limit
+    "inbox_emails_count": integer,      // Estimated number of emails going to inbox based on sending limit
+    "spam_emails_percentage": float,    // Percentage of emails going to spam (0-100)
+    "inbox_emails_percentage": float,   // Percentage of emails going to inbox (0-100)
+    "overall_deliverability": float,    // Overall deliverability score (0-100)
+    "last_check_date": "string"        // ISO formatted date of the last check
 }
 ```
 
-### Password Reset Request
-- **URL**: `/auth/password-reset-request`
-- **Method**: `POST`
-- **Auth**: No
-- **Payload**:
-```json
-{
-    "email": "string"
-}
-```
-- **Response (200)**:
-```json
-{
-    "message": "Password reset email sent"
-}
-```
-
-### Verify Reset Token
-- **URL**: `/auth/password-reset-verify`
-- **Method**: `POST`
-- **Auth**: No
-- **Payload**:
-```json
-{
-    "token": "string"
-}
-```
-- **Response (200)**:
-```json
-{
-    "valid": true
-}
-```
-
-### Confirm Password Reset
-- **URL**: `/auth/password-reset-confirm`
-- **Method**: `POST`
-- **Auth**: No
-- **Payload**:
-```json
-{
-    "token": "string",
-    "new_password": "string"
-}
-```
-- **Response (200)**:
-```json
-{
-    "message": "Password has been reset successfully"
-}
-```
-
-### Change Password
-- **URL**: `/auth/change-password`
-- **Method**: `POST`
-- **Auth**: Yes
-- **Payload**:
-```json
-{
-    "old_password": "string",
-    "new_password": "string"
-}
-```
-- **Response (200)**:
-```json
-{
-    "message": "Password changed successfully"
-}
-```
-
-## Profile Endpoints
-
-### Get Profile
-- **URL**: `/profile/`
-- **Method**: `GET`
-- **Auth**: Yes
-- **Response (200)**:
-```json
-{
-    "first_name": "string",
-    "last_name": "string",
-    "email": "string",
-    "profile_picture": "string (URL)",
-    "timezone": "string"
-}
-```
-
-### Update Profile
-- **URL**: `/profile/`
-- **Method**: `PUT`
-- **Auth**: Yes
-- **Payload**:
-```json
-{
-    "first_name": "string (optional)",
-    "last_name": "string (optional)",
-    "timezone": "string (optional)"
-}
-```
-- **Response (200)**:
-```json
-{
-    "first_name": "string",
-    "last_name": "string",
-    "email": "string",
-    "profile_picture": "string (URL)",
-    "timezone": "string"
-}
-```
-
-### Update Profile Picture
-- **URL**: `/profile/picture`
-- **Method**: `PUT`
-- **Auth**: Yes
-- **Payload**: Form Data with 'file' field containing image
-- **Response (200)**:
-```json
-{
-    "first_name": "string",
-    "last_name": "string",
-    "email": "string",
-    "profile_picture": "string (URL)",
-    "timezone": "string"
-}
-```
-
-## Settings Endpoints
-
-### Instantly Editor Account
-
-#### Add Instantly Editor Account
-- **URL**: `/settings/add-instantly-editor-account`
-- **Method**: `POST`
-- **Auth**: Yes
-- **Payload**:
-```json
-{
-    "instantly_editor_email": "string",
-    "instantly_editor_password": "string"
-}
-```
-- **Response (200)**:
-```json
-{
-    "message": "Instantly editor account added successfully",
-    "data": {
-        "instantly_editor_email": "string",
-        "instantly_editor_password": "string"
-    }
-}
-```
-
-#### Update Instantly Editor Account
-- **URL**: `/settings/update-instantly-editor-account`
-- **Method**: `PUT`
-- **Auth**: Yes
-- **Payload**: Same as Add
-- **Response (200)**: Same as Add
-
-#### Delete Instantly Editor Account
-- **URL**: `/settings/delete-instantly-editor-account`
-- **Method**: `DELETE`
-- **Auth**: Yes
-- **Response (200)**:
-```json
-{
-    "message": "Instantly editor account deleted successfully",
-    "data": {}
-}
-```
-
-### Instantly API Key
-
-#### Add Instantly API Key
-- **URL**: `/settings/add-instantly-api-key`
-- **Method**: `POST`
-- **Auth**: Yes
-- **Payload**:
-```json
-{
-    "organization_id": "integer",
-    "instantly_api_key": "string"
-}
-```
-- **Response (200)**:
-```json
-{
-    "message": "Instantly API key added successfully",
-    "data": {
-        "organization_id": "string",
-        "organization_name": "string",
-        "instantly_api_key": "string"
-    }
-}
-```
-
-#### Check Instantly API Key
-- **URL**: `/settings/check-instantly-api-key/{org_id}`
-- **Method**: `GET`
-- **Auth**: Yes
-- **Response (200)**:
-```json
-{
-    "status": "boolean",
-    "message": "string"
-}
-```
-
-### EmailGuard API Key
-
-#### Add EmailGuard API Key
-- **URL**: `/settings/add-emailguard-api-key`
-- **Method**: `POST`
-- **Auth**: Yes
-- **Payload**:
-```json
-{
-    "emailguard_api_key": "string"
-}
-```
-- **Response (200)**:
-```json
-{
-    "message": "EmailGuard API key added successfully",
-    "data": {
-        "emailguard_api_key": "string"
-    }
-}
-```
-
-#### Update EmailGuard API Key
-- **URL**: `/settings/update-emailguard-api-key`
-- **Method**: `PUT`
-- **Auth**: Yes
-- **Payload**: Same as Add
-- **Response (200)**: Same as Add
-
-#### Delete EmailGuard API Key
-- **URL**: `/settings/delete-emailguard-api-key`
-- **Method**: `DELETE`
-- **Auth**: Yes
-- **Response (200)**:
-```json
-{
-    "message": "EmailGuard API key deleted successfully",
-    "data": {}
-}
-```
-
-### Bison Organizations
-
-#### Add Bison Organization
-- **URL**: `/settings/add-bison-organization`
-- **Method**: `POST`
-- **Auth**: Yes
-- **Payload**:
-```json
-{
-    "bison_organization_id": "string",
-    "bison_organization_name": "string",
-    "bison_api_key": "string"
-}
-```
-- **Response (200)**:
-```json
-{
-    "message": "Bison organization added successfully",
-    "data": {
-        "bison_organization_id": "string",
-        "bison_organization_name": "string",
-        "bison_api_key": "string"
-    }
-}
-```
-
-#### Update Bison Organization
-- **URL**: `/settings/update-bison-organization/{org_id}`
-- **Method**: `PUT`
-- **Auth**: Yes
-- **Payload**: Same as Add
-- **Response (200)**: Same as Add
-
-#### Delete Bison Organization
-- **URL**: `/settings/delete-bison-organization/{org_id}`
-- **Method**: `DELETE`
-- **Auth**: Yes
-- **Response (200)**:
-```json
-{
-    "message": "Bison organization deleted successfully",
-    "data": {}
-}
-```
-
-#### List Organizations
-- **URL**: `/settings/list-bison-organizations`
-- **Method**: `GET`
-- **Auth**: Yes
-- **Response (200)**:
+#### Example Response
 ```json
 [
     {
-        "id": "integer",
-        "bison_organization_id": "string",
-        "bison_organization_name": "string",
-        "bison_api_key": "string",
-        "bison_organization_status": "boolean"
+        "organization_id": "4e8aadb2-0697-4750-8035-432d47e06815",
+        "organization_name": "findymail",
+        "checked_accounts": 775,
+        "at_risk_accounts": 43,
+        "protected_accounts": 732,
+        "spam_emails_count": 1075,
+        "inbox_emails_count": 18300,
+        "spam_emails_percentage": 5.55,
+        "inbox_emails_percentage": 94.45,
+        "overall_deliverability": 23.93,
+        "last_check_date": "2025-02-13T07:41:40.065435"
     }
 ]
 ```
 
-#### List Instantly Organizations
-- **URL**: `/settings/list-instantly-organizations`
-- **Method**: `GET`
-- **Auth**: Yes
-- **Response (200)**:
-```json
-[
-    {
-        "id": "integer",
-        "instantly_organization_id": "string",
-        "instantly_organization_name": "string",
-        "instantly_api_key": "string",
-        "instantly_organization_status": "boolean"
-    }
-]
-```
+#### Field Descriptions
+- `checked_accounts`: Total number of email accounts being monitored (sum of at_risk and protected)
+- `at_risk_accounts`: Number of accounts that failed deliverability checks
+- `protected_accounts`: Number of accounts that passed deliverability checks
+- `spam_emails_count`: Estimated daily emails going to spam (at_risk_accounts × sending_limit)
+- `inbox_emails_count`: Estimated daily emails reaching inbox (protected_accounts × sending_limit)
+- `spam_emails_percentage`: Percentage of total emails likely to go to spam
+- `inbox_emails_percentage`: Percentage of total emails likely to reach inbox
+- `overall_deliverability`: Combined score based on Google and Outlook performance (0-100)
+- `last_check_date`: Timestamp of the most recent check for any account
 
-### Status Checks
+#### Notes
+- All counts and estimates are based on the latest check for each account
+- Sending limits are used to calculate email counts (default: 25 if not specified)
+- Percentages are rounded to 2 decimal places
+- The overall deliverability score is calculated as: ((avg_google_score + avg_outlook_score) / 2) × 25
 
-#### Check Instantly Status
-- **URL**: `/settings/check-instantly-status`
-- **Method**: `GET`
-- **Auth**: Yes
-- **Response (200)**:
-```json
-{
-    "status": "boolean",
-    "message": "string",
-    "user_id": "string",
-    "organizations": []
-}
-```
-
-#### Check EmailGuard Status
-- **URL**: `/settings/check-emailguard-status`
-- **Method**: `GET`
-- **Auth**: Yes
-- **Response (200)**:
-```json
-{
-    "status": "boolean",
-    "message": "string"
-}
-```
-
-#### Check Bison Organization Status
-- **URL**: `/settings/check-bison-organization-status/{org_id}`
-- **Method**: `POST`
-- **Auth**: Yes
-- **Response (200)**:
-```json
-{
-    "status": "boolean",
-    "message": "string"
-}
-```
-
-### Get Stored Keys/Accounts
-
-#### Get Instantly Editor Account
-- **URL**: `/settings/instantly-editor`
-- **Method**: `GET`
-- **Auth**: Yes
-- **Response (200)**:
-```json
-{
-    "instantly_editor_email": "string",
-    "instantly_editor_password": "string"
-}
-```
-
-#### Get EmailGuard Key
-- **URL**: `/settings/emailguard-key`
-- **Method**: `GET`
-- **Auth**: Yes
-- **Response (200)**:
-```json
-{
-    "emailguard_api_key": "string"
-}
-```
-
-#### Get Bison Organizations
-- **URL**: `/settings/bison-organizations`
-- **Method**: `GET`
-- **Auth**: Yes
-- **Response (200)**:
-```json
-[
-    {
-        "bison_organization_id": "string",
-        "bison_organization_name": "string",
-        "bison_api_key": "string"
-    }
-]
-```
-
-## Error Responses
-
-All endpoints may return these error responses:
-
-### 400 Bad Request
-```json
-{
-    "detail": "Error message"
-}
-```
-
-### 401 Unauthorized
-```json
-{
-    "detail": "Invalid credentials"
-}
-```
-
-### 404 Not Found
-```json
-{
-    "detail": "Resource not found"
-}
-``` 
+#### Possible HTTP Status Codes
+- 200: Successful request
+- 401: Unauthorized (invalid or missing token)
+- 403: Forbidden (valid token but insufficient permissions)
+- 500: Internal server error
