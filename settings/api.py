@@ -276,9 +276,13 @@ def check_instantly_status(request: HttpRequest):
         organizations = orgs_response.json()
         org_list = []
         
+        # Keep track of fetched organization IDs for cleanup
+        fetched_org_ids = []
+        
         # Store each organization
         for org in organizations:
             print(f"\n4️⃣ Processing Organization: {org['name']}")
+            fetched_org_ids.append(org['id'])
             # Get organization token
             auth_response = requests.post(
                 'https://app.instantly.ai/api/organization/auth_workspace',
@@ -389,6 +393,14 @@ def check_instantly_status(request: HttpRequest):
             else:
                 print(f"❌ Failed to get organization token for: {org['name']}")
         
+        # Delete organizations that weren't returned by the API
+        UserInstantly.objects.filter(
+            user=request.auth
+        ).exclude(
+            instantly_organization_id__in=fetched_org_ids
+        ).delete()
+        print(f"\n🧹 Cleaned up organizations not present in Instantly.ai")
+
         settings.instantly_status = True
         settings.save()
         
