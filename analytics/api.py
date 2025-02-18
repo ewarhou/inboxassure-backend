@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from ninja import Router, Schema
 from ninja.security import HttpBearer
 from django.db.models import Avg
@@ -40,6 +40,99 @@ class OrganizationSummaryResponse(Schema):
                 "last_check_date": "ISO formatted date of the last check"
             }
         }
+
+class SendingPowerData(Schema):
+    """Data model for sending power entry"""
+    date: str
+    workspace_name: str
+    sending_power: int
+
+class SendingPowerResponse(Schema):
+    """Response model for sending power endpoint"""
+    data: List[SendingPowerData]
+
+    class Config:
+        schema_extra = {
+            "description": "Daily sending power per workspace",
+            "example": {
+                "data": [
+                    {
+                        "date": "2024-02-18",
+                        "workspace_name": "Example Workspace",
+                        "sending_power": 1250
+                    }
+                ]
+            }
+        }
+
+@router.get(
+    "/dashboard/sending-power",
+    response=SendingPowerResponse,
+    auth=AuthBearer(),
+    summary="Daily Sending Power",
+    description="Get daily sending power (good accounts × sending limit) per workspace within a date range"
+)
+def get_sending_power(
+    request,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    """Get daily sending power metrics per workspace
+    
+    Args:
+        start_date: Optional start date (YYYY-MM-DD)
+        end_date: Optional end date (YYYY-MM-DD)
+    """
+    user = request.auth
+    
+    # Set default date range if not provided (last 30 days)
+    if not end_date:
+        end_date = timezone.now().date().isoformat()
+    if not start_date:
+        start_date = (timezone.now() - timezone.timedelta(days=30)).date().isoformat()
+    
+    with connection.cursor() as cursor:
+        query = """
+            WITH daily_reports AS (
+                SELECT 
+                    usr.*,
+                    ui.instantly_organization_name,
+                    DATE(usr.created_at) as report_date,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY usr.email_account, usr.instantly_workspace_uuid, DATE(usr.created_at)
+                        ORDER BY usr.created_at DESC
+                    ) as rn
+                FROM user_spamcheck_reports usr
+                JOIN user_instantly ui ON usr.organization_id = ui.id
+                WHERE ui.user_id = %s
+                AND DATE(usr.created_at) BETWEEN %s AND %s
+            )
+            SELECT 
+                report_date,
+                instantly_organization_name,
+                COUNT(CASE WHEN is_good = true THEN 1 END) * COALESCE(MAX(sending_limit), 25) as daily_power
+            FROM daily_reports
+            WHERE rn = 1
+            GROUP BY report_date, instantly_organization_name
+            ORDER BY report_date DESC, instantly_organization_name
+        """
+        
+        cursor.execute(query, [user.id, start_date, end_date])
+        results = cursor.fetchall()
+        
+        if not results:
+            return {"data": []}
+        
+        data = []
+        for result in results:
+            report_date, workspace_name, sending_power = result
+            data.append({
+                "date": report_date.isoformat(),
+                "workspace_name": workspace_name,
+                "sending_power": sending_power or 0
+            })
+        
+        return {"data": data}
 
 @router.get(
     "/dashboard/summary", 
