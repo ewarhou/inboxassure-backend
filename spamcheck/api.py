@@ -1028,7 +1028,7 @@ def get_accounts(
             instantly_organization_name as workspace,
             id as check_id,
             created_at as check_date,
-            emailguard_test_url as reports_link,
+            report_link as reports_link,
             COUNT(*) OVER() as total_count
         FROM latest_checks
         WHERE rn = 1
