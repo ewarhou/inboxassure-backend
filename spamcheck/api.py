@@ -1,7 +1,8 @@
-from typing import List
-from ninja import Router
+from typing import List, Optional
+from ninja import Router, Schema
+from ninja.pagination import paginate
 from django.shortcuts import get_object_or_404
-from django.db import transaction, IntegrityError
+from django.db import transaction, IntegrityError, connection
 from django.core.exceptions import ObjectDoesNotExist
 from authentication.authorization import AuthBearer
 from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema, ListAccountsRequestSchema, ListAccountsResponseSchema, ListSpamchecksResponseSchema
@@ -13,8 +14,37 @@ from datetime import datetime
 from django.utils import timezone
 import pytz
 from ninja.errors import HttpError
+from settings.api import log_to_terminal
 
 router = Router(tags=["spamcheck"])
+
+class LastCheckData(Schema):
+    """Schema for last check information"""
+    id: str
+    date: str
+
+class AccountData(Schema):
+    """Schema for account data"""
+    email: str
+    domain: str
+    sends_per_day: int
+    google_score: float
+    outlook_score: float
+    status: str
+    workspace: str
+    last_check: LastCheckData
+
+class PaginationMeta(Schema):
+    """Schema for pagination metadata"""
+    total: int
+    page: int
+    per_page: int
+    total_pages: int
+
+class AccountsResponse(Schema):
+    """Schema for accounts endpoint response"""
+    data: List[AccountData]
+    meta: PaginationMeta
 
 @router.post("/create-spamcheck-instantly", auth=AuthBearer())
 def create_spamcheck_instantly(request, payload: CreateSpamcheckSchema):
@@ -923,4 +953,147 @@ def list_spamchecks(request):
             'success': False,
             'message': f'Error retrieving spamchecks: {str(e)}',
             'data': []
+        }
+
+@router.get(
+    "/accounts",
+    response=AccountsResponse,
+    auth=AuthBearer(),
+    summary="Get Accounts List",
+    description="Get a paginated list of email accounts with their latest check results"
+)
+def get_accounts(
+    request,
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    workspace: Optional[str] = None,
+    filter: Optional[str] = None,
+    page: int = 1,
+    per_page: int = 25
+):
+    """
+    Get a list of email accounts with their latest check results.
+    
+    Args:
+        search: Optional email search term
+        status: Optional status filter (all, Inboxing, Resting)
+        workspace: Optional workspace filter
+        filter: Optional special filter (at-risk, protected)
+        page: Page number (default: 1)
+        per_page: Items per page (default: 25)
+    """
+    user = request.auth
+    offset = (page - 1) * per_page
+    
+    # Build the base query
+    query = """
+        WITH latest_checks AS (
+            SELECT 
+                usr.*,
+                ui.instantly_organization_name,
+                ROW_NUMBER() OVER (
+                    PARTITION BY usr.email_account 
+                    ORDER BY usr.created_at DESC
+                ) as rn
+            FROM user_spamcheck_reports usr
+            JOIN user_instantly ui ON usr.organization_id = ui.id
+            WHERE ui.user_id = %s
+    """
+    params = [user.id]
+    
+    # Add search condition if provided
+    if search:
+        query += " AND usr.email_account LIKE %s"
+        params.append(f"%{search}%")
+    
+    # Add workspace filter if provided
+    if workspace:
+        query += " AND ui.instantly_organization_name = %s"
+        params.append(workspace)
+    
+    # Close the CTE and select from it
+    query += """
+        )
+        SELECT 
+            email_account,
+            SUBSTRING_INDEX(email_account, '@', -1) as domain,
+            COALESCE(sending_limit, 25) as sends_per_day,
+            google_pro_score / 4.0 as google_score,
+            outlook_pro_score / 4.0 as outlook_score,
+            CASE 
+                WHEN is_good THEN 'Inboxing'
+                ELSE 'Resting'
+            END as status,
+            instantly_organization_name as workspace,
+            id as check_id,
+            created_at as check_date,
+            COUNT(*) OVER() as total_count
+        FROM latest_checks
+        WHERE rn = 1
+    """
+    
+    # Add status filter
+    if status and status.lower() != 'all':
+        is_good = "TRUE" if status.lower() == 'inboxing' else "FALSE"
+        query += f" AND is_good = {is_good}"
+    
+    # Add special filters
+    if filter:
+        if filter.lower() == 'at-risk':
+            query += " AND is_good = FALSE"
+        elif filter.lower() == 'protected':
+            query += " AND is_good = TRUE"
+    
+    # Add pagination
+    query += " ORDER BY check_date DESC LIMIT %s OFFSET %s"
+    params.extend([per_page, offset])
+    
+    # Execute query
+    with connection.cursor() as cursor:
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        
+        if not rows:
+            return {
+                "data": [],
+                "meta": {
+                    "total": 0,
+                    "page": page,
+                    "per_page": per_page,
+                    "total_pages": 0
+                }
+            }
+        
+        # Get total count from first row
+        total_count = rows[0][-1]
+        total_pages = (total_count + per_page - 1) // per_page
+        
+        # Format the data
+        data = []
+        for row in rows:
+            (email, domain, sends_per_day, google_score, outlook_score, 
+             status, workspace_name, check_id, check_date, _) = row
+            
+            data.append({
+                "email": email,
+                "domain": domain,
+                "sends_per_day": sends_per_day,
+                "google_score": float(google_score) if google_score else 0.0,
+                "outlook_score": float(outlook_score) if outlook_score else 0.0,
+                "status": status,
+                "workspace": workspace_name,
+                "last_check": {
+                    "id": str(check_id),
+                    "date": check_date.isoformat() if check_date else None
+                }
+            })
+        
+        return {
+            "data": data,
+            "meta": {
+                "total": total_count,
+                "page": page,
+                "per_page": per_page,
+                "total_pages": total_pages
+            }
         } 

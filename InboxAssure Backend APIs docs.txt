@@ -221,3 +221,79 @@ GET /api/analytics/dashboard/provider-performance?start_date=2024-02-01&end_date
 - 401: Unauthorized (invalid or missing token)
 - 403: Forbidden (valid token but insufficient permissions)
 - 500: Internal server error
+
+### Get Accounts List
+Get a paginated list of email accounts with their latest check results.
+
+**Endpoint:** `/api/spamcheck/accounts`
+**Method:** GET
+**Authentication:** Required
+
+#### Query Parameters
+- `search` (optional): String - Search term for email addresses
+- `status` (optional): String - Filter by status (all, Inboxing, Resting)
+- `workspace` (optional): String - Filter by workspace name
+- `filter` (optional): String - Special filters (at-risk, protected)
+- `page` (optional): Integer - Page number (default: 1)
+- `per_page` (optional): Integer - Items per page (default: 25)
+
+#### Response
+```json
+{
+  "data": [
+    {
+      "email": "sales@company.com",      // Email address
+      "domain": "company.com",           // Domain extracted from email
+      "sends_per_day": 25,               // Daily sending limit
+      "google_score": 0.98,              // Google score (0-1)
+      "outlook_score": 0.95,             // Outlook score (0-1)
+      "status": "Inboxing",              // "Inboxing" or "Resting"
+      "workspace": "Sales Society",       // Workspace name
+      "last_check": {
+        "id": "chk_123456",             // Check ID
+        "date": "2024-02-18T10:30:00Z"  // ISO formatted date
+      }
+    }
+  ],
+  "meta": {
+    "total": 100,       // Total number of records
+    "page": 1,          // Current page
+    "per_page": 25,     // Items per page
+    "total_pages": 4    // Total number of pages
+  }
+}
+```
+
+#### Example Request
+```http
+GET /api/spamcheck/accounts?status=Inboxing&workspace=Sales%20Society&page=1&per_page=25
+```
+
+#### Field Descriptions
+- `email`: Email address of the account
+- `domain`: Domain name extracted from the email
+- `sends_per_day`: Daily sending limit (defaults to 25)
+- `google_score`: Google placement score normalized to 0-1 range
+- `outlook_score`: Outlook placement score normalized to 0-1 range
+- `status`: Current account status (Inboxing or Resting)
+- `workspace`: Name of the workspace the account belongs to
+- `last_check`: Information about the most recent check
+  - `id`: Unique identifier of the check
+  - `date`: ISO formatted timestamp of the check
+
+#### Notes
+- Results are ordered by check date (newest first)
+- Scores are normalized from 0-4 scale to 0-1 scale
+- Status is determined by the is_good flag (Inboxing = true, Resting = false)
+- Only the latest check result per email is returned
+- The at-risk filter shows accounts with is_good = false
+- The protected filter shows accounts with is_good = true
+- Search is performed on the email field using LIKE
+- Empty result returns empty data array with zero counts
+
+#### Possible HTTP Status Codes
+- 200: Successful request
+- 400: Invalid parameters
+- 401: Unauthorized (invalid or missing token)
+- 403: Forbidden (valid token but insufficient permissions)
+- 500: Internal server error
