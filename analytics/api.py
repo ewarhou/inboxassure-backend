@@ -6,6 +6,8 @@ from django.db.models import Avg
 from django.utils import timezone
 from django.db import connection
 from authentication.authorization import AuthBearer
+from spamcheck.services.instantly import InstantlyService
+from settings.api import log_to_terminal
 
 router = Router(tags=["Analytics"])
 
@@ -152,33 +154,33 @@ def get_dashboard_summary(request):
     # Use raw SQL for better performance
     with connection.cursor() as cursor:
         query = """
-            WITH latest_reports AS (
-                SELECT 
-                    usr.*,
-                    ui.instantly_organization_name,
-                    ui.instantly_organization_id,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY usr.email_account, usr.instantly_workspace_uuid 
-                        ORDER BY usr.created_at DESC
-                    ) as rn
-                FROM user_spamcheck_reports usr
-                JOIN user_instantly ui ON usr.organization_id = ui.id
-                WHERE ui.user_id = %s
-            )
+        WITH latest_reports AS (
             SELECT 
-                instantly_workspace_uuid as org_id,
-                instantly_organization_name as org_name,
-                COUNT(*) as checked,
-                COUNT(CASE WHEN is_good = false THEN 1 END) as at_risk,
-                COUNT(CASE WHEN is_good = true THEN 1 END) as protected,
-                COALESCE(AVG(google_pro_score), 0) as avg_google,
-                COALESCE(AVG(outlook_pro_score), 0) as avg_outlook,
-                MAX(created_at) as last_check,
-                COALESCE(MAX(sending_limit), 25) as sending_limit
-            FROM latest_reports
-            WHERE rn = 1
-            GROUP BY instantly_workspace_uuid, instantly_organization_name
-            ORDER BY instantly_organization_name
+                usr.*,
+                ui.instantly_organization_name,
+                ui.instantly_organization_id,
+                ROW_NUMBER() OVER (
+                    PARTITION BY usr.email_account, usr.instantly_workspace_uuid 
+                    ORDER BY usr.created_at DESC
+                ) as rn
+            FROM user_spamcheck_reports usr
+            JOIN user_instantly ui ON usr.organization_id = ui.id
+            WHERE ui.user_id = %s
+        )
+        SELECT 
+            instantly_workspace_uuid as org_id,
+            instantly_organization_name as org_name,
+            COUNT(*) as checked,
+            COUNT(CASE WHEN is_good = false THEN 1 END) as at_risk,
+            COUNT(CASE WHEN is_good = true THEN 1 END) as protected,
+            COALESCE(AVG(google_pro_score), 0) as avg_google,
+            COALESCE(AVG(outlook_pro_score), 0) as avg_outlook,
+            MAX(created_at) as last_check,
+            COALESCE(MAX(sending_limit), 25) as sending_limit
+        FROM latest_reports
+        WHERE rn = 1
+        GROUP BY instantly_workspace_uuid, instantly_organization_name
+        ORDER BY instantly_organization_name
         """
         cursor.execute(query, [user.id])
         results = cursor.fetchall()
@@ -216,4 +218,216 @@ def get_dashboard_summary(request):
                 "last_check_date": last_check.isoformat() if last_check else None
             })
         
-        return summaries 
+        return summaries
+
+class ProviderPerformanceData(Schema):
+    """Data model for provider performance metrics"""
+    organization: str
+    provider: str
+    start_date: str
+    end_date: str
+    total_accounts: int
+    reply_rate: Optional[float] = None
+    bounce_rate: Optional[float] = None
+    google_score: float
+    outlook_score: float
+    overall_score: float
+    sending_power: int
+
+    class Config:
+        schema_extra = {
+            "description": "Provider performance metrics",
+            "example": {
+                "organization": "Example Org",
+                "provider": "Gmail",
+                "start_date": "2024-02-01",
+                "end_date": "2024-02-18",
+                "total_accounts": 125,
+                "reply_rate": None,
+                "bounce_rate": None,
+                "google_score": 92.3,
+                "outlook_score": 88.7,
+                "overall_score": 90.5,
+                "sending_power": 3125
+            }
+        }
+
+class ProviderPerformanceResponse(Schema):
+    """Response model for provider performance endpoint"""
+    data: List[ProviderPerformanceData]
+
+@router.get(
+    "/dashboard/provider-performance",
+    response=ProviderPerformanceResponse,
+    auth=AuthBearer(),
+    summary="Provider Performance Metrics",
+    description="Get performance metrics per provider including daily aggregated scores and sending power"
+)
+def get_provider_performance(
+    request,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    """
+    Get provider performance metrics within a date range.
+    Aggregates data daily per provider and averages over the period.
+    
+    Args:
+        start_date: Optional start date (YYYY-MM-DD)
+        end_date: Optional end date (YYYY-MM-DD)
+    """
+    user = request.auth
+    log_to_terminal("Performance", "Request", f"Request for {user.email}")
+    
+    if not end_date:
+        end_date = timezone.now().date().isoformat()
+    if not start_date:
+        start_date = (timezone.now() - timezone.timedelta(days=30)).date().isoformat()
+    
+    log_to_terminal("Performance", "DateRange", f"Range: {start_date} to {end_date}")
+    
+    # Fetch provider tags from Instantly
+    try:
+        instantly = InstantlyService(user)
+        tags = instantly.get_tags()
+        # Build mapping for provider tags only (names starting with "p.")
+        provider_tags = {
+            tag['id']: tag['name'][2:] for tag in tags if tag['name'].startswith('p.')
+        }
+        log_to_terminal("Performance", "Tags", f"Found {len(provider_tags)} provider tags")
+    except Exception as e:
+        log_to_terminal("Performance", "Error", f"Error fetching tags: {str(e)}")
+        provider_tags = {}
+    
+    # Get all reports within date range
+    with connection.cursor() as cursor:
+        query = """
+            SELECT 
+                ui.instantly_organization_name,
+                usr.tags_uuid_list,
+                usr.google_pro_score,
+                usr.outlook_pro_score,
+                usr.email_account,
+                DATE(usr.created_at) as report_date,
+                usr.sending_limit,
+                usr.is_good
+            FROM user_spamcheck_reports usr
+            JOIN user_instantly ui ON usr.organization_id = ui.id
+            WHERE ui.user_id = %s
+              AND DATE(usr.created_at) BETWEEN %s AND %s
+              AND usr.tags_uuid_list IS NOT NULL
+            ORDER BY usr.created_at DESC
+        """
+        cursor.execute(query, [user.id, start_date, end_date])
+        rows = cursor.fetchall()
+        log_to_terminal("Performance", "SQL", f"Found {len(rows)} rows")
+    
+    # Create a nested defaultdict for daily stats
+    from collections import defaultdict
+    from datetime import datetime, timedelta
+    
+    # Helper function to create a new stats dictionary
+    def new_stats_dict():
+        return {
+            'accounts': set(),  # Use set to count unique accounts
+            'good_accounts': 0,
+            'google_sum': 0.0,
+            'outlook_sum': 0.0,
+            'sending_power': 0
+        }
+    
+    # Structure: {org_name: {provider: {date: stats}}}
+    daily_stats = defaultdict(lambda: defaultdict(lambda: defaultdict(new_stats_dict)))
+    
+    # Process each row and aggregate by day
+    for row in rows:
+        (org_name, tags_uuid_list, google_score, outlook_score, 
+         email_account, report_date, sending_limit, is_good) = row
+        
+        # Default sending limit if not specified
+        sending_limit = sending_limit or 25
+        
+        try:
+            account_tags = [tag.strip() for tag in tags_uuid_list.split(',') if tag.strip()]
+            # Get unique provider tags for this account
+            account_provider_tags = set(tag for tag in account_tags if tag in provider_tags)
+            
+            # Process each provider tag
+            for tag in account_provider_tags:
+                provider_name = provider_tags[tag]
+                stats = daily_stats[org_name][provider_name][report_date]
+                
+                # Update daily stats
+                if email_account not in stats['accounts']:
+                    stats['accounts'].add(email_account)
+                    # Only add scores for new accounts to avoid double counting
+                    stats['google_sum'] += float(google_score or 0.0)
+                    stats['outlook_sum'] += float(outlook_score or 0.0)
+                    if is_good:
+                        stats['good_accounts'] += 1
+                        stats['sending_power'] += sending_limit
+                
+        except Exception as e:
+            log_to_terminal("Performance", "Error", 
+                          f"Error processing account {email_account}: {str(e)}")
+            continue
+    
+    # Calculate period averages
+    data = []
+    start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
+    end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+    days_in_period = (end_dt - start_dt).days + 1
+    
+    for org_name, providers in daily_stats.items():
+        for provider_name, daily_data in providers.items():
+            # Initialize period totals
+            period_accounts = set()  # Track unique accounts across period
+            daily_scores = {  # Track daily averages
+                'google': [],
+                'outlook': [],
+                'sending_power': []
+            }
+            
+            # Iterate through each day in the period
+            current_dt = start_dt
+            while current_dt <= end_dt:
+                if current_dt in daily_data:
+                    stats = daily_data[current_dt]
+                    period_accounts.update(stats['accounts'])
+                    
+                    # Calculate daily averages
+                    accounts_count = len(stats['accounts'])
+                    if accounts_count > 0:
+                        # Scores are already summed correctly per day, just divide by accounts
+                        google_score = stats['google_sum'] / accounts_count
+                        outlook_score = stats['outlook_sum'] / accounts_count
+                        # Ensure scores are within valid range (0-4)
+                        daily_scores['google'].append(min(4.0, max(0.0, google_score)))
+                        daily_scores['outlook'].append(min(4.0, max(0.0, outlook_score)))
+                        daily_scores['sending_power'].append(stats['sending_power'])
+                
+                current_dt += timedelta(days=1)
+            
+            # Calculate period averages
+            if daily_scores['google']:  # If we have any data
+                avg_google = round(sum(daily_scores['google']) / len(daily_scores['google']), 2)
+                avg_outlook = round(sum(daily_scores['outlook']) / len(daily_scores['outlook']), 2)
+                avg_sending_power = round(sum(daily_scores['sending_power']) / len(daily_scores['sending_power']))
+                overall_score = round((avg_google + avg_outlook) / 2, 2)
+                
+                data.append({
+                    "organization": org_name,
+                    "provider": provider_name,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "total_accounts": len(period_accounts),
+                    "reply_rate": None,
+                    "bounce_rate": None,
+                    "google_score": avg_google,  # Already capped at 4.0 in daily calculations
+                    "outlook_score": avg_outlook,  # Already capped at 4.0 in daily calculations
+                    "overall_score": overall_score,
+                    "sending_power": avg_sending_power
+                })
+    
+    log_to_terminal("Performance", "Output", f"Returning {len(data)} provider entries")
+    return {"data": data} 
