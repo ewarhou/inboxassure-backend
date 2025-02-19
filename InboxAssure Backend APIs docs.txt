@@ -274,8 +274,8 @@ GET /api/spamcheck/accounts?status=Inboxing&workspace=Sales%20Society&page=1&per
 - `email`: Email address of the account
 - `domain`: Domain name extracted from the email
 - `sends_per_day`: Daily sending limit (defaults to 25)
-- `google_score`: Google placement score normalized to 0-1 range
-- `outlook_score`: Outlook placement score normalized to 0-1 range
+- `google_score`: Google placement score (0-1 range)
+- `outlook_score`: Outlook placement score (0-1 range)
 - `status`: Current account status (Inboxing or Resting)
 - `workspace`: Name of the workspace the account belongs to
 - `last_check`: Information about the most recent check
@@ -285,7 +285,7 @@ GET /api/spamcheck/accounts?status=Inboxing&workspace=Sales%20Society&page=1&per
 
 #### Notes
 - Results are ordered by check date (newest first)
-- Scores are normalized from 0-4 scale to 0-1 scale
+- Scores are already in 0-1 range in the database
 - Status is determined by the is_good flag (Inboxing = true, Resting = false)
 - Only the latest check result per email is returned
 - The at-risk filter shows accounts with is_good = false

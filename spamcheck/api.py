@@ -1019,8 +1019,8 @@ def get_accounts(
             email_account,
             SUBSTRING_INDEX(email_account, '@', -1) as domain,
             COALESCE(sending_limit, 25) as sends_per_day,
-            google_pro_score / 4.0 as google_score,
-            outlook_pro_score / 4.0 as outlook_score,
+            google_pro_score as google_score,
+            outlook_pro_score as outlook_score,
             CASE 
                 WHEN is_good THEN 'Inboxing'
                 ELSE 'Resting'
