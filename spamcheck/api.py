@@ -18,6 +18,22 @@ from settings.api import log_to_terminal
 
 router = Router(tags=["spamcheck"])
 
+def round_to_quarter(score: float) -> float:
+    """Round a score to the nearest quarter (0.25, 0.5, 0.75, 1.0)
+    If score is less than 0.125, return 0
+    """
+    if score is None:
+        return 0.0
+    
+    # Convert to float and ensure it's between 0 and 1
+    score = float(score)
+    if score < 0.125:  # Less than halfway to 0.25
+        return 0.0
+    
+    # Round to nearest quarter
+    quarters = round(score * 4) / 4
+    return min(1.0, max(0.0, quarters))
+
 class LastCheckData(Schema):
     """Schema for last check information"""
     id: str
@@ -1080,8 +1096,8 @@ def get_accounts(
                 "email": email,
                 "domain": domain,
                 "sends_per_day": sends_per_day,
-                "google_score": float(google_score) if google_score else 0.0,
-                "outlook_score": float(outlook_score) if outlook_score else 0.0,
+                "google_score": round_to_quarter(google_score),
+                "outlook_score": round_to_quarter(outlook_score),
                 "status": status,
                 "workspace": workspace_name,
                 "last_check": {
