@@ -33,6 +33,7 @@ class AccountData(Schema):
     status: str
     workspace: str
     last_check: LastCheckData
+    reports_link: str  # Added reports link field
 
 class PaginationMeta(Schema):
     """Schema for pagination metadata"""
@@ -1074,6 +1075,9 @@ def get_accounts(
             (email, domain, sends_per_day, google_score, outlook_score, 
              status, workspace_name, check_id, check_date, _) = row
             
+            # Generate reports link
+            reports_link = f"http://inboxassure-backend.imnodev.com/api/spamcheck/reports?email={email}"
+            
             data.append({
                 "email": email,
                 "domain": domain,
@@ -1085,7 +1089,8 @@ def get_accounts(
                 "last_check": {
                     "id": str(check_id),
                     "date": check_date.isoformat() if check_date else None
-                }
+                },
+                "reports_link": reports_link
             })
         
         return {

@@ -252,7 +252,8 @@ Get a paginated list of email accounts with their latest check results.
       "last_check": {
         "id": "chk_123456",             // Check ID
         "date": "2024-02-18T10:30:00Z"  // ISO formatted date
-      }
+      },
+      "reports_link": "https://example.com/reports/sales@company.com"
     }
   ],
   "meta": {
@@ -280,6 +281,7 @@ GET /api/spamcheck/accounts?status=Inboxing&workspace=Sales%20Society&page=1&per
 - `last_check`: Information about the most recent check
   - `id`: Unique identifier of the check
   - `date`: ISO formatted timestamp of the check
+- `reports_link`: URL to fetch detailed reports for this account
 
 #### Notes
 - Results are ordered by check date (newest first)
