@@ -292,6 +292,7 @@ GET /api/spamcheck/accounts?status=Inboxing&workspace=Sales%20Society&page=1&per
 - The protected filter shows accounts with is_good = true
 - Search is performed on the email field using LIKE
 - Empty result returns empty data array with zero counts
+- Reports link points to EmailGuard test results for detailed placement information
 
 #### Possible HTTP Status Codes
 - 200: Successful request

@@ -1028,6 +1028,7 @@ def get_accounts(
             instantly_organization_name as workspace,
             id as check_id,
             created_at as check_date,
+            emailguard_test_url as reports_link,
             COUNT(*) OVER() as total_count
         FROM latest_checks
         WHERE rn = 1
@@ -1073,10 +1074,7 @@ def get_accounts(
         data = []
         for row in rows:
             (email, domain, sends_per_day, google_score, outlook_score, 
-             status, workspace_name, check_id, check_date, _) = row
-            
-            # Generate reports link
-            reports_link = f"http://inboxassure-backend.imnodev.com/api/spamcheck/reports?email={email}"
+             status, workspace_name, check_id, check_date, reports_link, _) = row
             
             data.append({
                 "email": email,
