@@ -15,7 +15,7 @@ def test_endpoint(request: HttpRequest):
     }
 
 api.add_router("/auth/", auth_router)
-api.add_router("/profile/", profile_router)
+api.add_router("/profile", profile_router)
 api.add_router("/settings/", settings_router)
 api.add_router("/spamcheck/", spamcheck_router)
 api.add_router("/analytics/", analytics_router) 

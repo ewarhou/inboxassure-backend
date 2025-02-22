@@ -1,302 +1,175 @@
 # InboxAssure Backend API Documentation
 
-Base URL: http://inboxassure-backend.imnodev.com/api
+Base URL: `http://inboxassure-backend.imnodev.com/api`
 
-## Authentication
-All endpoints require Bearer token authentication. Add the following header to your requests:
-```
-Authorization: Bearer <your_token>
-```
+## Authentication Endpoints
+// ... existing code ...
 
-## Endpoints
+## Profile Endpoints
 
-### Get Dashboard Summary
-Get comprehensive summary metrics for each organization including account stats and email delivery predictions.
-
-**Endpoint:** `/analytics/dashboard/summary`
-**Method:** GET
-**Authentication:** Required
-
-#### Response
-Array of organization summaries with the following structure for each organization:
-
-```json
-{
-    "organization_id": "string",        // Organization's workspace UUID
-    "organization_name": "string",      // Name of the organization
-    "checked_accounts": integer,        // Total number of checked accounts
-    "at_risk_accounts": integer,        // Number of accounts at risk
-    "protected_accounts": integer,      // Number of protected accounts
-    "spam_emails_count": integer,       // Estimated number of emails going to spam based on sending limit
-    "inbox_emails_count": integer,      // Estimated number of emails going to inbox based on sending limit
-    "spam_emails_percentage": float,    // Percentage of emails going to spam (0-100)
-    "inbox_emails_percentage": float,   // Percentage of emails going to inbox (0-100)
-    "overall_deliverability": float,    // Overall deliverability score (0-100)
-    "last_check_date": "string"        // ISO formatted date of the last check
-}
-```
-
-#### Example Response
-```json
-[
+### Get Profile
+- **URL**: `/api/profile`
+- **Method**: `GET`
+- **Description**: Get the current user's profile information
+- **Headers**: 
+  - `Authorization`: `Bearer <token>`
+- **Success Response**:
+  - **Code**: 200
+  - **Content**:
+    ```json
     {
-        "organization_id": "4e8aadb2-0697-4750-8035-432d47e06815",
-        "organization_name": "findymail",
-        "checked_accounts": 775,
-        "at_risk_accounts": 43,
-        "protected_accounts": 732,
-        "spam_emails_count": 1075,
-        "inbox_emails_count": 18300,
-        "spam_emails_percentage": 5.55,
-        "inbox_emails_percentage": 94.45,
-        "overall_deliverability": 23.93,
-        "last_check_date": "2025-02-13T07:41:40.065435"
+      "id": "integer",
+      "email": "string",
+      "username": "string",
+      "first_name": "string",
+      "last_name": "string",
+      "profile_picture": "string (URL)",
+      "phone_number": "string",
+      "is_active": "boolean",
+      "created_at": "datetime"
     }
-]
-```
-
-#### Field Descriptions
-- `checked_accounts`: Total number of email accounts being monitored (sum of at_risk and protected)
-- `at_risk_accounts`: Number of accounts that failed deliverability checks
-- `protected_accounts`: Number of accounts that passed deliverability checks
-- `spam_emails_count`: Estimated daily emails going to spam (at_risk_accounts × sending_limit)
-- `inbox_emails_count`: Estimated daily emails reaching inbox (protected_accounts × sending_limit)
-- `spam_emails_percentage`: Percentage of total emails likely to go to spam
-- `inbox_emails_percentage`: Percentage of total emails likely to reach inbox
-- `overall_deliverability`: Combined score based on Google and Outlook performance (0-100)
-- `last_check_date`: Timestamp of the most recent check for any account
-
-#### Notes
-- All counts and estimates are based on the latest check for each account
-- Sending limits are used to calculate email counts (default: 25 if not specified)
-- Percentages are rounded to 2 decimal places
-- The overall deliverability score is calculated as: ((avg_google_score + avg_outlook_score) / 2) × 25
-
-#### Possible HTTP Status Codes
-- 200: Successful request
-- 401: Unauthorized (invalid or missing token)
-- 403: Forbidden (valid token but insufficient permissions)
-- 500: Internal server error
-
-### Get Daily Sending Power
-Get daily sending power metrics per workspace within a specified date range.
-
-**Endpoint:** `/analytics/dashboard/sending-power`
-**Method:** GET
-**Authentication:** Required
-
-#### Query Parameters
-- `start_date` (optional): Start date in YYYY-MM-DD format. Defaults to 30 days ago.
-- `end_date` (optional): End date in YYYY-MM-DD format. Defaults to today.
-
-#### Response
-```json
-{
-    "data": [
-        {
-            "date": "string",           // ISO formatted date (YYYY-MM-DD)
-            "workspace_name": "string",  // Name of the workspace
-            "sending_power": integer     // Daily sending power (good_accounts × sending_limit)
-        }
-    ]
-}
-```
-
-#### Example Request
-```http
-GET /api/analytics/dashboard/sending-power?start_date=2024-02-01&end_date=2024-02-18
-```
-
-#### Example Response
-```json
-{
-    "data": [
-        {
-            "date": "2024-02-18",
-            "workspace_name": "findymail",
-            "sending_power": 18300
-        },
-        {
-            "date": "2024-02-17",
-            "workspace_name": "findymail",
-            "sending_power": 18250
-        }
-    ]
-}
-```
-
-#### Notes
-- Sending power is calculated as: number of good accounts × sending limit
-- Default sending limit is 25 if not specified
-- Results are ordered by date (newest first) and workspace name
-- If no date range is provided, returns data for the last 30 days
-- Returns empty data array if no results found
-
-#### Possible HTTP Status Codes
-- 200: Successful request
-- 400: Invalid date format
-- 401: Unauthorized (invalid or missing token)
-- 403: Forbidden (valid token but insufficient permissions)
-- 500: Internal server error
-
-### Get Provider Performance
-Get performance metrics per provider including daily aggregated scores and sending power within a specified date range.
-
-**Endpoint:** `/analytics/dashboard/provider-performance`
-**Method:** GET
-**Authentication:** Required
-
-#### Query Parameters
-- `start_date` (optional): Start date in YYYY-MM-DD format. Defaults to 30 days ago.
-- `end_date` (optional): End date in YYYY-MM-DD format. Defaults to today.
-
-#### Response
-```json
-{
-    "data": [
-        {
-            "organization": "string",      // Organization name
-            "provider": "string",          // Provider name (from provider tags)
-            "start_date": "string",        // Start date of the period (YYYY-MM-DD)
-            "end_date": "string",          // End date of the period (YYYY-MM-DD)
-            "total_accounts": integer,      // Total unique accounts in the period
-            "reply_rate": null,            // Reserved for future use
-            "bounce_rate": null,           // Reserved for future use
-            "google_score": float,         // Average Google score (0-4)
-            "outlook_score": float,        // Average Outlook score (0-4)
-            "overall_score": float,        // Average of Google and Outlook scores (0-4)
-            "sending_power": integer       // Average daily sending power in the period
-        }
-    ]
-}
-```
-
-#### Example Request
-```http
-GET /api/analytics/dashboard/provider-performance?start_date=2024-02-01&end_date=2024-02-18
-```
-
-#### Example Response
-```json
-{
-    "data": [
-        {
-            "organization": "findymail",
-            "provider": "Gmail",
-            "start_date": "2024-02-01",
-            "end_date": "2024-02-18",
-            "total_accounts": 125,
-            "reply_rate": null,
-            "bounce_rate": null,
-            "google_score": 3.8,
-            "outlook_score": 3.6,
-            "overall_score": 3.7,
-            "sending_power": 3125
-        }
-    ]
-}
-```
-
-#### Field Descriptions
-- `organization`: Name of the organization workspace
-- `provider`: Name of the email provider (extracted from provider tags)
-- `total_accounts`: Number of unique accounts monitored during the period
-- `google_score`: Average Google placement score (0-4 scale)
-- `outlook_score`: Average Outlook placement score (0-4 scale)
-- `overall_score`: Average of Google and Outlook scores
-- `sending_power`: Average daily sending power (good_accounts × sending_limit)
-
-#### Notes
-- Scores are calculated as daily averages first, then averaged over the period
-- Each account is counted only once per day, even if it has multiple provider tags
-- Scores are capped at 4.0 (maximum possible score)
-- Sending power is calculated based on "good" accounts only
-- Default sending limit is 25 if not specified
-- If no date range is provided, returns data for the last 30 days
-- Returns empty data array if no results found
-
-#### Possible HTTP Status Codes
-- 200: Successful request
-- 400: Invalid date format
-- 401: Unauthorized (invalid or missing token)
-- 403: Forbidden (valid token but insufficient permissions)
-- 500: Internal server error
-
-### Get Accounts List
-Get a paginated list of email accounts with their latest check results.
-
-**Endpoint:** `/api/spamcheck/accounts`
-**Method:** GET
-**Authentication:** Required
-
-#### Query Parameters
-- `search` (optional): String - Search term for email addresses
-- `status` (optional): String - Filter by status (all, Inboxing, Resting)
-- `workspace` (optional): String - Filter by workspace name
-- `filter` (optional): String - Special filters (at-risk, protected)
-- `page` (optional): Integer - Page number (default: 1)
-- `per_page` (optional): Integer - Items per page (default: 25)
-
-#### Response
-```json
-{
-  "data": [
+    ```
+- **Error Response**:
+  - **Code**: 401
+  - **Content**:
+    ```json
     {
-      "email": "sales@company.com",      // Email address
-      "domain": "company.com",           // Domain extracted from email
-      "sends_per_day": 25,               // Daily sending limit
-      "google_score": 0.98,              // Google score (0-1)
-      "outlook_score": 0.95,             // Outlook score (0-1)
-      "status": "Inboxing",              // "Inboxing" or "Resting"
-      "workspace": "Sales Society",       // Workspace name
-      "last_check": {
-        "id": "chk_123456",             // Check ID
-        "date": "2024-02-18T10:30:00Z"  // ISO formatted date
-      },
-      "reports_link": "https://example.com/reports/sales@company.com"
+      "detail": "Authentication credentials were not provided"
     }
-  ],
-  "meta": {
-    "total": 100,       // Total number of records
-    "page": 1,          // Current page
-    "per_page": 25,     // Items per page
-    "total_pages": 4    // Total number of pages
+    ```
+
+### Update Profile
+- **URL**: `/api/profile`
+- **Method**: `PUT`
+- **Description**: Update the current user's profile information
+- **Headers**: 
+  - `Authorization`: `Bearer <token>`
+- **Request Body**:
+  ```json
+  {
+    "first_name": "string",
+    "last_name": "string",
+    "phone_number": "string"
   }
-}
-```
+  ```
+- **Success Response**:
+  - **Code**: 200
+  - **Content**:
+    ```json
+    {
+      "id": "integer",
+      "email": "string",
+      "username": "string",
+      "first_name": "string",
+      "last_name": "string",
+      "profile_picture": "string (URL)",
+      "phone_number": "string",
+      "is_active": "boolean",
+      "created_at": "datetime"
+    }
+    ```
 
-#### Example Request
-```http
-GET /api/spamcheck/accounts?status=Inboxing&workspace=Sales%20Society&page=1&per_page=25
-```
+### Upload Profile Picture
+- **URL**: `/api/profile/picture`
+- **Method**: `PUT`
+- **Description**: Upload or update profile picture
+- **Headers**: 
+  - `Authorization`: `Bearer <token>`
+  - `Content-Type`: `multipart/form-data`
+- **Request Body**:
+  - `picture`: File (image)
+- **Success Response**:
+  - **Code**: 200
+  - **Content**:
+    ```json
+    {
+      "profile_picture": "string (URL)"
+    }
+    ```
+- **Error Response**:
+  - **Code**: 400
+  - **Content**:
+    ```json
+    {
+      "detail": "Invalid image format"
+    }
+    ```
 
-#### Field Descriptions
-- `email`: Email address of the account
-- `domain`: Domain name extracted from the email
-- `sends_per_day`: Daily sending limit (defaults to 25)
-- `google_score`: Google placement score (0-1 range)
-- `outlook_score`: Outlook placement score (0-1 range)
-- `status`: Current account status (Inboxing or Resting)
-- `workspace`: Name of the workspace the account belongs to
-- `last_check`: Information about the most recent check
-  - `id`: Unique identifier of the check
-  - `date`: ISO formatted timestamp of the check
-- `reports_link`: URL to fetch detailed reports for this account
+## Password Management
 
-#### Notes
-- Results are ordered by check date (newest first)
-- Scores are already in 0-1 range in the database
-- Status is determined by the is_good flag (Inboxing = true, Resting = false)
-- Only the latest check result per email is returned
-- The at-risk filter shows accounts with is_good = false
-- The protected filter shows accounts with is_good = true
-- Search is performed on the email field using LIKE
-- Empty result returns empty data array with zero counts
-- Reports link points to EmailGuard test results for detailed placement information
+### Change Password
+- **URL**: `/api/auth/change-password`
+- **Method**: `POST`
+- **Description**: Change the current user's password
+- **Headers**: 
+  - `Authorization`: `Bearer <token>`
+- **Request Body**:
+  ```json
+  {
+    "current_password": "string",
+    "new_password": "string"
+  }
+  ```
+- **Success Response**:
+  - **Code**: 200
+  - **Content**:
+    ```json
+    {
+      "detail": "Password changed successfully"
+    }
+    ```
+- **Error Response**:
+  - **Code**: 400
+  - **Content**:
+    ```json
+    {
+      "detail": "Current password is incorrect"
+    }
+    ```
 
-#### Possible HTTP Status Codes
-- 200: Successful request
-- 400: Invalid parameters
-- 401: Unauthorized (invalid or missing token)
-- 403: Forbidden (valid token but insufficient permissions)
-- 500: Internal server error
+### Reset Password Request
+- **URL**: `/api/auth/reset-password-request`
+- **Method**: `POST`
+- **Description**: Request a password reset link
+- **Request Body**:
+  ```json
+  {
+    "email": "string"
+  }
+  ```
+- **Success Response**:
+  - **Code**: 200
+  - **Content**:
+    ```json
+    {
+      "detail": "Password reset link sent to your email"
+    }
+    ```
+
+### Reset Password
+- **URL**: `/api/auth/reset-password`
+- **Method**: `POST`
+- **Description**: Reset password using token received in email
+- **Request Body**:
+  ```json
+  {
+    "token": "string",
+    "new_password": "string"
+  }
+  ```
+- **Success Response**:
+  - **Code**: 200
+  - **Content**:
+    ```json
+    {
+      "detail": "Password reset successful"
+    }
+    ```
+- **Error Response**:
+  - **Code**: 400
+  - **Content**:
+    ```json
+    {
+      "detail": "Invalid or expired token"
+    }
+    ```
