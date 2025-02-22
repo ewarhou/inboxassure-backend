@@ -234,7 +234,7 @@ def change_password(request, data: ChangePasswordSchema):
         logger.error(f"Error changing password: {str(e)}")
         return 400, {"message": "Failed to change password"}
 
-@profile_router.get("/", auth=AuthBearer(), response={200: ProfileResponseSchema, 400: ErrorMessage})
+@profile_router.get("", auth=AuthBearer(), response={200: ProfileResponseSchema, 400: ErrorMessage})
 def get_profile(request):
     """Get user's profile information"""
     try:
@@ -262,7 +262,7 @@ def get_profile(request):
         log_to_terminal("Profile", "Error", f"Error getting profile for user {request.auth.username}: {str(e)}")
         return 400, {"message": "Failed to get profile information"}
 
-@profile_router.put("/", auth=AuthBearer(), response={200: ProfileResponseSchema, 400: ErrorMessage})
+@profile_router.put("", auth=AuthBearer(), response={200: ProfileResponseSchema, 400: ErrorMessage})
 def update_profile(request, data: UpdateProfileSchema):
     """Update user's profile information"""
     try:
@@ -378,21 +378,51 @@ def update_profile_picture(request):
         # Delete old profile picture if it exists
         if profile.profile_picture:
             try:
-                old_path = profile.profile_picture.path
-                log_to_terminal("Profile", "Picture", f"Deleting old profile picture: {old_path}")
-                profile.profile_picture.delete(save=False)
+                import os
+                from django.conf import settings
+                
+                # Get the full path of the old file
+                old_file_path = os.path.join(settings.MEDIA_ROOT, str(profile.profile_picture))
+                log_to_terminal("Profile", "Picture", f"Full path of old profile picture: {old_file_path}")
+                
+                # Check if file exists before trying to delete
+                if os.path.isfile(old_file_path):
+                    os.remove(old_file_path)
+                    log_to_terminal("Profile", "Picture", f"Successfully deleted old profile picture: {old_file_path}")
+                else:
+                    log_to_terminal("Profile", "Warning", f"Old profile picture not found at: {old_file_path}")
+                
+                # Clear the field in the model
+                profile.profile_picture = None
+                profile.save()
+                
             except Exception as e:
                 log_to_terminal("Profile", "Warning", f"Error deleting old profile picture: {str(e)}")
         
         # Save new profile picture
         try:
-            log_to_terminal("Profile", "Picture", f"Saving new profile picture: {profile_picture_path(profile, file.name)}")
+            # Generate new filename
+            new_path = profile_picture_path(profile, file.name)
+            log_to_terminal("Profile", "Picture", f"Generated new profile picture path: {new_path}")
+            
+            # Save the file
             profile.profile_picture = file
             profile.save()
             
+            # Verify the file was saved
+            if not profile.profile_picture:
+                raise Exception("Profile picture not saved properly")
+                
             # Build URL with MEDIA_URL prefix
             profile_pic_url = request.build_absolute_uri(f'/media/{profile.profile_picture.name}')
             log_to_terminal("Profile", "Picture", f"New profile picture URL: {profile_pic_url}")
+            
+            # Double check the file exists
+            import os
+            from django.conf import settings
+            new_file_path = os.path.join(settings.MEDIA_ROOT, str(profile.profile_picture))
+            if not os.path.isfile(new_file_path):
+                raise Exception(f"New profile picture file not found at: {new_file_path}")
             
             response_data = {
                 "first_name": user.first_name,
@@ -403,6 +433,7 @@ def update_profile_picture(request):
             }
             log_to_terminal("Profile", "Picture", f"Profile picture updated successfully for user {user.username}")
             return 200, response_data
+            
         except Exception as e:
             log_to_terminal("Profile", "Error", f"Error saving profile picture: {str(e)}")
             return 500, {"message": "Failed to save profile picture. Please try again."}
