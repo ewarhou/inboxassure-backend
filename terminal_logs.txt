@@ -1291,3 +1291,6 @@
 [2025-02-22 18:31:16] [Profile] [Get] User dev@vitalitymarketingfirm.com requested profile info
 [2025-02-22 18:31:16] [Profile] [Get] Profile picture URL generated: http://127.0.0.1:8000/media/profile_pictures/10/1474ece0-fd79-4793-9262-69ede8c35ac6.jpg
 [2025-02-22 18:31:16] [Profile] [Get] Profile data retrieved successfully for user dev@vitalitymarketingfirm.com
+[2025-02-22 18:41:45] [Profile] [Get] User dev@vitalitymarketingfirm.com requested profile info
+[2025-02-22 18:41:46] [Profile] [Get] Profile picture URL generated: http://127.0.0.1:8000/media/profile_pictures/10/1474ece0-fd79-4793-9262-69ede8c35ac6.jpg
+[2025-02-22 18:41:46] [Profile] [Get] Profile data retrieved successfully for user dev@vitalitymarketingfirm.com
