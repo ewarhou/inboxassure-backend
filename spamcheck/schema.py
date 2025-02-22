@@ -96,6 +96,7 @@ class ListAccountsDataSchema(Schema):
     accounts: List[str]
 
 class ListAccountsRequestSchema(Schema):
+    platform: str = Field("instantly", description="Platform to fetch accounts from (instantly or bison)")
     search: Optional[str] = Field(None, description="Filter accounts by content")
     ignore_tag: Optional[str] = Field(None, description="Don't include accounts with this tag title")
     is_active: Optional[bool] = Field(None, description="Include ONLY active accounts")

@@ -2,280 +2,165 @@
 
 Base URL: `http://inboxassure-backend.imnodev.com/api`
 
-## Authentication Endpoints
+## Spamcheck Endpoints
 
-### Register
-- **URL**: `/auth/register`
-- **Method**: `POST`
-- **Description**: Register a new user account
-- **Request Body**:
+### List Accounts
+**Endpoint:** `POST /spamcheck/list-accounts`
+**Authentication:** Bearer Token Required
+
+Retrieves a list of email accounts from either Instantly or Bison platform with filtering options.
+
+#### Request Parameters
+- `organization_id` (integer, required): The ID of the organization to fetch accounts from
+- `payload` (object, required):
   ```json
   {
-    "username": "string",
-    "email": "string",
-    "password": "string",
-    "first_name": "string (optional)",
-    "last_name": "string (optional)"
+    "platform": "string",     // "instantly" or "bison"
+    "search": "string",       // Optional: Search term for filtering accounts
+    "ignore_tag": "string",   // Optional: Tag to exclude from results
+    "is_active": "boolean",   // Optional: Filter only active accounts
+    "limit": "integer"        // Optional: Maximum number of accounts to return
   }
   ```
-- **Success Response**:
-  - **Code**: 200
-  - **Content**:
-    ```json
-    {
-      "access_token": "string",
-      "token_type": "bearer"
-    }
-    ```
-- **Error Response**:
-  - **Code**: 400
-  - **Content**:
-    ```json
-    {
-      "detail": "string"
-    }
-    ```
 
-### Login
-- **URL**: `/auth/login`
-- **Method**: `POST`
-- **Description**: Authenticate a user and receive a JWT token
-- **Request Body**:
-  ```json
-  {
-    "email": "string",
-    "password": "string"
+#### Response Format
+```json
+{
+  "success": "boolean",
+  "message": "string",
+  "data": {
+    "organization_id": "integer",
+    "organization_name": "string",
+    "total_accounts": "integer",
+    "accounts": ["string"]    // Array of email addresses
   }
-  ```
-- **Success Response**:
-  - **Code**: 200
-  - **Content**:
-    ```json
-    {
-      "access_token": "string",
-      "token_type": "bearer"
-    }
-    ```
-- **Error Response**:
-  - **Code**: 401
-  - **Content**:
-    ```json
-    {
-      "detail": "Invalid credentials"
-    }
-    ```
+}
+```
 
-## Profile Endpoints
-
-### Get Profile
-- **URL**: `/profile`
-- **Method**: `GET`
-- **Description**: Get the current user's profile information
-- **Headers**: 
-  - `Authorization`: `Bearer <token>`
-- **Success Response**:
-  - **Code**: 200
-  - **Content**:
-    ```json
-    {
-      "first_name": "string",
-      "last_name": "string",
-      "email": "string",
-      "profile_picture": "string (URL)",
-      "timezone": "string"
-    }
-    ```
-- **Error Response**:
-  - **Code**: 400
-  - **Content**:
-    ```json
-    {
-      "message": "Failed to get profile information"
-    }
-    ```
-
-### Update Profile
-- **URL**: `/profile`
-- **Method**: `PUT`
-- **Description**: Update the current user's profile information
-- **Headers**: 
-  - `Authorization`: `Bearer <token>`
-- **Request Body**:
-  ```json
-  {
-    "first_name": "string (optional)",
-    "last_name": "string (optional)",
-    "timezone": "string (optional)"
+#### Success Response Example
+```json
+{
+  "success": true,
+  "message": "Accounts retrieved successfully",
+  "data": {
+    "organization_id": 123,
+    "organization_name": "My Organization",
+    "total_accounts": 2,
+    "accounts": ["email1@domain.com", "email2@domain.com"]
   }
-  ```
-- **Success Response**:
-  - **Code**: 200
-  - **Content**:
-    ```json
-    {
-      "first_name": "string",
-      "last_name": "string",
-      "email": "string",
-      "profile_picture": "string (URL)",
-      "timezone": "string"
-    }
-    ```
-- **Error Response**:
-  - **Code**: 400 or 500
-  - **Content**:
-    ```json
-    {
-      "message": "string"
-    }
-    ```
+}
+```
 
-### Upload Profile Picture
-- **URL**: `/profile/picture`
-- **Method**: `PUT`
-- **Description**: Upload or update profile picture
-- **Headers**: 
-  - `Authorization`: `Bearer <token>`
-  - `Content-Type`: `multipart/form-data`
-- **Request Body**:
-  - `file`: Image file (JPG, JPEG, PNG, or GIF, max 2.5MB)
-- **Success Response**:
-  - **Code**: 200
-  - **Content**:
-    ```json
-    {
-      "first_name": "string",
-      "last_name": "string",
-      "email": "string",
-      "profile_picture": "string (URL)",
-      "timezone": "string"
-    }
-    ```
-- **Error Response**:
-  - **Code**: 400 or 500
-  - **Content**:
-    ```json
-    {
-      "message": "string"
-    }
-    ```
-
-## Password Management
-
-### Change Password
-- **URL**: `/auth/change-password`
-- **Method**: `POST`
-- **Description**: Change the current user's password
-- **Headers**: 
-  - `Authorization`: `Bearer <token>`
-- **Request Body**:
-  ```json
-  {
-    "old_password": "string",
-    "new_password": "string"
+#### Error Response Example
+```json
+{
+  "success": false,
+  "message": "Organization not found or you don't have permission to access it.",
+  "data": {
+    "organization_id": 123,
+    "organization_name": "",
+    "total_accounts": 0,
+    "accounts": []
   }
-  ```
-- **Success Response**:
-  - **Code**: 200
-  - **Content**:
-    ```json
-    {
-      "message": "Password changed successfully"
-    }
-    ```
-- **Error Response**:
-  - **Code**: 400
-  - **Content**:
-    ```json
-    {
-      "message": "Current password is incorrect"
-    }
-    ```
+}
+```
 
-### Reset Password Request
-- **URL**: `/auth/password-reset-request`
-- **Method**: `POST`
-- **Description**: Request a password reset link
-- **Request Body**:
-  ```json
-  {
-    "email": "string"
-  }
-  ```
-- **Success Response**:
-  - **Code**: 200
-  - **Content**:
-    ```json
-    {
-      "message": "Password reset email sent"
-    }
-    ```
-- **Error Response**:
-  - **Code**: 404
-  - **Content**:
-    ```json
-    {
-      "message": "User with this email does not exist"
-    }
-    ```
+#### Notes
+- For Instantly platform:
+  - Requires valid Instantly organization token
+  - Active accounts have status = 1
+  - Includes tag filtering support
+  
+- For Bison platform:
+  - Requires valid Bison API key
+  - Active accounts have status = "Connected"
+  - Supports pagination (automatically fetches all pages)
+  - Includes tag filtering support
 
-### Verify Reset Token
-- **URL**: `/auth/password-reset-verify`
-- **Method**: `POST`
-- **Description**: Verify if a password reset token is valid
-- **Request Body**:
-  ```json
-  {
-    "token": "string"
-  }
-  ```
-- **Success Response**:
-  - **Code**: 200
-  - **Content**:
-    ```json
-    {
-      "valid": true
-    }
-    ```
-  OR
-    ```json
-    {
-      "valid": false,
-      "message": "Token has expired or has been used"
-    }
-    ```
-- **Error Response**:
-  - **Code**: 404
-  - **Content**:
-    ```json
-    {
-      "message": "Invalid token"
-    }
-    ```
+#### Error Conditions
+- Organization not found
+- Organization exists but is not active
+- Invalid or expired authentication token
+- API errors from Instantly/Bison platforms
+- Network timeouts (30-second timeout limit)
 
-### Reset Password
-- **URL**: `/auth/password-reset-confirm`
-- **Method**: `POST`
-- **Description**: Reset password using token received in email
-- **Request Body**:
-  ```json
-  {
-    "token": "string",
-    "new_password": "string"
-  }
-  ```
-- **Success Response**:
-  - **Code**: 200
-  - **Content**:
-    ```json
+### List Spamchecks
+**Endpoint:** `GET /spamcheck/list-spamchecks`
+**Authentication:** Bearer Token Required
+
+Retrieves all spamchecks for the authenticated user with their details.
+
+#### Response Format
+```json
+{
+  "success": "boolean",
+  "message": "string",
+  "data": [
     {
-      "message": "Password has been reset successfully"
+      "id": "integer",
+      "name": "string",
+      "status": "string",
+      "scheduled_at": "datetime",
+      "recurring_days": "integer",
+      "is_domain_based": "boolean",
+      "conditions": "json",
+      "reports_waiting_time": "integer",
+      "created_at": "datetime",
+      "updated_at": "datetime",
+      "user_organization_id": "integer",
+      "organization_name": "string",
+      "accounts_count": "integer",
+      "campaigns_count": "integer",
+      "options": {
+        "open_tracking": "boolean",
+        "link_tracking": "boolean",
+        "text_only": "boolean",
+        "subject": "string",
+        "body": "string"
+      }
     }
-    ```
-- **Error Response**:
-  - **Code**: 400 or 404
-  - **Content**:
-    ```json
+  ]
+}
+```
+
+#### Success Response Example
+```json
+{
+  "success": true,
+  "message": "Successfully retrieved 2 spamchecks",
+  "data": [
     {
-      "message": "string"
+      "id": 1,
+      "name": "Daily Check",
+      "status": "active",
+      "scheduled_at": "2024-02-20T10:00:00Z",
+      "recurring_days": 1,
+      "is_domain_based": false,
+      "conditions": {},
+      "reports_waiting_time": 30,
+      "created_at": "2024-02-19T15:00:00Z",
+      "updated_at": "2024-02-19T15:00:00Z",
+      "user_organization_id": 123,
+      "organization_name": "My Organization",
+      "accounts_count": 5,
+      "campaigns_count": 2,
+      "options": {
+        "open_tracking": true,
+        "link_tracking": true,
+        "text_only": false,
+        "subject": "Test Subject",
+        "body": "Test Body"
+      }
     }
-    ```
+  ]
+}
+```
+
+#### Error Response Example
+```json
+{
+  "success": false,
+  "message": "Error retrieving spamchecks: [error details]",
+  "data": []
+}
+```
