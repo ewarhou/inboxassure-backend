@@ -3,12 +3,72 @@
 Base URL: `http://inboxassure-backend.imnodev.com/api`
 
 ## Authentication Endpoints
-// ... existing code ...
+
+### Register
+- **URL**: `/auth/register`
+- **Method**: `POST`
+- **Description**: Register a new user account
+- **Request Body**:
+  ```json
+  {
+    "username": "string",
+    "email": "string",
+    "password": "string",
+    "first_name": "string (optional)",
+    "last_name": "string (optional)"
+  }
+  ```
+- **Success Response**:
+  - **Code**: 200
+  - **Content**:
+    ```json
+    {
+      "access_token": "string",
+      "token_type": "bearer"
+    }
+    ```
+- **Error Response**:
+  - **Code**: 400
+  - **Content**:
+    ```json
+    {
+      "detail": "string"
+    }
+    ```
+
+### Login
+- **URL**: `/auth/login`
+- **Method**: `POST`
+- **Description**: Authenticate a user and receive a JWT token
+- **Request Body**:
+  ```json
+  {
+    "email": "string",
+    "password": "string"
+  }
+  ```
+- **Success Response**:
+  - **Code**: 200
+  - **Content**:
+    ```json
+    {
+      "access_token": "string",
+      "token_type": "bearer"
+    }
+    ```
+- **Error Response**:
+  - **Code**: 401
+  - **Content**:
+    ```json
+    {
+      "detail": "Invalid credentials"
+    }
+    ```
 
 ## Profile Endpoints
 
 ### Get Profile
-- **URL**: `/api/profile`
+- **URL**: `/profile`
 - **Method**: `GET`
 - **Description**: Get the current user's profile information
 - **Headers**: 
@@ -18,72 +78,11 @@ Base URL: `http://inboxassure-backend.imnodev.com/api`
   - **Content**:
     ```json
     {
-      "id": "integer",
-      "email": "string",
-      "username": "string",
       "first_name": "string",
       "last_name": "string",
-      "profile_picture": "string (URL)",
-      "phone_number": "string",
-      "is_active": "boolean",
-      "created_at": "datetime"
-    }
-    ```
-- **Error Response**:
-  - **Code**: 401
-  - **Content**:
-    ```json
-    {
-      "detail": "Authentication credentials were not provided"
-    }
-    ```
-
-### Update Profile
-- **URL**: `/api/profile`
-- **Method**: `PUT`
-- **Description**: Update the current user's profile information
-- **Headers**: 
-  - `Authorization`: `Bearer <token>`
-- **Request Body**:
-  ```json
-  {
-    "first_name": "string",
-    "last_name": "string",
-    "phone_number": "string"
-  }
-  ```
-- **Success Response**:
-  - **Code**: 200
-  - **Content**:
-    ```json
-    {
-      "id": "integer",
       "email": "string",
-      "username": "string",
-      "first_name": "string",
-      "last_name": "string",
       "profile_picture": "string (URL)",
-      "phone_number": "string",
-      "is_active": "boolean",
-      "created_at": "datetime"
-    }
-    ```
-
-### Upload Profile Picture
-- **URL**: `/api/profile/picture`
-- **Method**: `PUT`
-- **Description**: Upload or update profile picture
-- **Headers**: 
-  - `Authorization`: `Bearer <token>`
-  - `Content-Type`: `multipart/form-data`
-- **Request Body**:
-  - `picture`: File (image)
-- **Success Response**:
-  - **Code**: 200
-  - **Content**:
-    ```json
-    {
-      "profile_picture": "string (URL)"
+      "timezone": "string"
     }
     ```
 - **Error Response**:
@@ -91,14 +90,79 @@ Base URL: `http://inboxassure-backend.imnodev.com/api`
   - **Content**:
     ```json
     {
-      "detail": "Invalid image format"
+      "message": "Failed to get profile information"
+    }
+    ```
+
+### Update Profile
+- **URL**: `/profile`
+- **Method**: `PUT`
+- **Description**: Update the current user's profile information
+- **Headers**: 
+  - `Authorization`: `Bearer <token>`
+- **Request Body**:
+  ```json
+  {
+    "first_name": "string (optional)",
+    "last_name": "string (optional)",
+    "timezone": "string (optional)"
+  }
+  ```
+- **Success Response**:
+  - **Code**: 200
+  - **Content**:
+    ```json
+    {
+      "first_name": "string",
+      "last_name": "string",
+      "email": "string",
+      "profile_picture": "string (URL)",
+      "timezone": "string"
+    }
+    ```
+- **Error Response**:
+  - **Code**: 400 or 500
+  - **Content**:
+    ```json
+    {
+      "message": "string"
+    }
+    ```
+
+### Upload Profile Picture
+- **URL**: `/profile/picture`
+- **Method**: `PUT`
+- **Description**: Upload or update profile picture
+- **Headers**: 
+  - `Authorization`: `Bearer <token>`
+  - `Content-Type`: `multipart/form-data`
+- **Request Body**:
+  - `file`: Image file (JPG, JPEG, PNG, or GIF, max 2.5MB)
+- **Success Response**:
+  - **Code**: 200
+  - **Content**:
+    ```json
+    {
+      "first_name": "string",
+      "last_name": "string",
+      "email": "string",
+      "profile_picture": "string (URL)",
+      "timezone": "string"
+    }
+    ```
+- **Error Response**:
+  - **Code**: 400 or 500
+  - **Content**:
+    ```json
+    {
+      "message": "string"
     }
     ```
 
 ## Password Management
 
 ### Change Password
-- **URL**: `/api/auth/change-password`
+- **URL**: `/auth/change-password`
 - **Method**: `POST`
 - **Description**: Change the current user's password
 - **Headers**: 
@@ -106,7 +170,7 @@ Base URL: `http://inboxassure-backend.imnodev.com/api`
 - **Request Body**:
   ```json
   {
-    "current_password": "string",
+    "old_password": "string",
     "new_password": "string"
   }
   ```
@@ -115,7 +179,7 @@ Base URL: `http://inboxassure-backend.imnodev.com/api`
   - **Content**:
     ```json
     {
-      "detail": "Password changed successfully"
+      "message": "Password changed successfully"
     }
     ```
 - **Error Response**:
@@ -123,12 +187,12 @@ Base URL: `http://inboxassure-backend.imnodev.com/api`
   - **Content**:
     ```json
     {
-      "detail": "Current password is incorrect"
+      "message": "Current password is incorrect"
     }
     ```
 
 ### Reset Password Request
-- **URL**: `/api/auth/reset-password-request`
+- **URL**: `/auth/password-reset-request`
 - **Method**: `POST`
 - **Description**: Request a password reset link
 - **Request Body**:
@@ -142,12 +206,54 @@ Base URL: `http://inboxassure-backend.imnodev.com/api`
   - **Content**:
     ```json
     {
-      "detail": "Password reset link sent to your email"
+      "message": "Password reset email sent"
+    }
+    ```
+- **Error Response**:
+  - **Code**: 404
+  - **Content**:
+    ```json
+    {
+      "message": "User with this email does not exist"
+    }
+    ```
+
+### Verify Reset Token
+- **URL**: `/auth/password-reset-verify`
+- **Method**: `POST`
+- **Description**: Verify if a password reset token is valid
+- **Request Body**:
+  ```json
+  {
+    "token": "string"
+  }
+  ```
+- **Success Response**:
+  - **Code**: 200
+  - **Content**:
+    ```json
+    {
+      "valid": true
+    }
+    ```
+  OR
+    ```json
+    {
+      "valid": false,
+      "message": "Token has expired or has been used"
+    }
+    ```
+- **Error Response**:
+  - **Code**: 404
+  - **Content**:
+    ```json
+    {
+      "message": "Invalid token"
     }
     ```
 
 ### Reset Password
-- **URL**: `/api/auth/reset-password`
+- **URL**: `/auth/password-reset-confirm`
 - **Method**: `POST`
 - **Description**: Reset password using token received in email
 - **Request Body**:
@@ -162,14 +268,14 @@ Base URL: `http://inboxassure-backend.imnodev.com/api`
   - **Content**:
     ```json
     {
-      "detail": "Password reset successful"
+      "message": "Password has been reset successfully"
     }
     ```
 - **Error Response**:
-  - **Code**: 400
+  - **Code**: 400 or 404
   - **Content**:
     ```json
     {
-      "detail": "Invalid or expired token"
+      "message": "string"
     }
     ```
