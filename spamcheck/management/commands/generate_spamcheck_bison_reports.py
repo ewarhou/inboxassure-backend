@@ -218,21 +218,20 @@ class Command(BaseCommand):
                 json=data
             )
             
-            if response.status_code == 200:
-                self.stdout.write(f"  ✓ Updated sending limit to {daily_limit} for email ID {email_id}")
-                return True
-            else:
-                self.stdout.write(self.style.ERROR(f"  ✗ Failed to update sending limit: {response.text}"))
+            if response.status_code != 200:
+                self.stdout.write(self.style.ERROR(f"❌ Failed to update sending limit for {email_id}: {response.text}"))
                 return False
                 
+            return True
+                
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"  ✗ Error updating sending limit: {str(e)}"))
+            self.stdout.write(self.style.ERROR(f"❌ Error updating sending limit for {email_id}: {str(e)}"))
             return False
 
     async def get_account_tags(self, organization, email):
         """Get tags for a specific email account from Bison API"""
         try:
-            url = f"{organization.base_url}/api/sender-emails/{email}"
+            url = f"{organization.base_url.rstrip('/')}/api/sender-emails/{email}"
             headers = {
                 "Authorization": f"Bearer {organization.bison_organization_api_key}"
             }
@@ -246,20 +245,17 @@ class Command(BaseCommand):
             if response.status_code == 200:
                 data = response.json()
                 if 'data' in data and 'tags' in data['data']:
-                    # Extract tag names and join them with commas
                     tag_names = [tag['name'] for tag in data['data']['tags']]
-                    tags_str = ','.join(tag_names)
-                    self.stdout.write(f"  Found tags: {tags_str}")
-                    return tags_str
+                    return ','.join(tag_names)
                 else:
                     self.stdout.write("  No tags found in response")
                     return None
             else:
-                self.stdout.write(self.style.ERROR(f"  Failed to fetch tags: {response.text}"))
+                self.stdout.write(self.style.ERROR(f"❌ Failed to fetch tags for {email}: {response.text}"))
                 return None
                 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"  Error fetching tags: {str(e)}"))
+            self.stdout.write(self.style.ERROR(f"❌ Error fetching tags for {email}: {str(e)}"))
             return None
 
     def create_report_sync(self, account, google_score, outlook_score, is_good, sending_limit, spamcheck, tags_str):
@@ -319,8 +315,9 @@ class Command(BaseCommand):
     async def process_account(self, account, user_settings):
         """Process a single account and generate report"""
         try:
-            self.stdout.write(f"\n  Processing account: {account.email_account}")
-            self.stdout.write(f"  EmailGuard Tag: {account.last_emailguard_tag}")
+            if not account.last_emailguard_tag:
+                self.stdout.write(self.style.WARNING(f"⚠️ Skipped {account.email_account}: No EmailGuard tag"))
+                return False
             
             # Get EmailGuard report
             url = f"https://app.emailguard.io/api/v1/inbox-placement-tests/{account.last_emailguard_tag}"
@@ -328,19 +325,14 @@ class Command(BaseCommand):
                 "Authorization": f"Bearer {user_settings.emailguard_api_key}"
             }
             
-            self.stdout.write("  Calling EmailGuard API...")
             response = await asyncio.to_thread(requests.get, url, headers=headers)
             
             if response.status_code == 200:
-                self.stdout.write("  API call successful")
                 data = response.json()
 
-                # Calculate scores (now returns scores on 0-4 scale)
+                # Calculate scores
                 google_score = self.calculate_score(data, 'Google')
                 outlook_score = self.calculate_score(data, 'Microsoft')
-
-                self.stdout.write(f"  Google Score: {google_score}/4")
-                self.stdout.write(f"  Outlook Score: {outlook_score}/4")
 
                 # Evaluate conditions and get appropriate sending limit
                 is_good, sending_limit = self.evaluate_conditions(
@@ -357,17 +349,13 @@ class Command(BaseCommand):
                     campaign_domain = self.get_domain_from_email(account.email_account)
                     domain_accounts = await self.get_domain_accounts(account.bison_spamcheck, campaign_domain)
                     
-                    self.stdout.write(f"\n  Processing domain: {campaign_domain}")
-                    self.stdout.write(f"  Found {len(domain_accounts)} accounts in this domain")
-                    
                     # Create reports for all accounts in this domain
-                    processed_emails = set()  # Track processed emails
+                    processed_emails = set()
                     for domain_account in domain_accounts:
                         if domain_account.email_account in processed_emails:
                             continue
                         processed_emails.add(domain_account.email_account)
                         
-                        self.stdout.write(f"  Creating report for account: {domain_account.email_account}")
                         domain_tags_str = await self.get_account_tags(domain_account.organization, domain_account.email_account)
                         
                         # Create/update report
@@ -391,7 +379,9 @@ class Command(BaseCommand):
                         )
                         
                         # Update sending limit
-                        await self.update_sending_limit(domain_account.organization, domain_account.email_account, sending_limit)
+                        success = await self.update_sending_limit(domain_account.organization, domain_account.email_account, sending_limit)
+                        if not success:
+                            self.stdout.write(self.style.WARNING(f"⚠️ Failed to update sending limit for {domain_account.email_account}"))
                 else:
                     # Single account processing
                     report, created = await asyncio.to_thread(
@@ -414,37 +404,37 @@ class Command(BaseCommand):
                     )
                     
                     # Update sending limit
-                    await self.update_sending_limit(account.organization, account.email_account, sending_limit)
+                    success = await self.update_sending_limit(account.organization, account.email_account, sending_limit)
+                    if not success:
+                        self.stdout.write(self.style.WARNING(f"⚠️ Failed to update sending limit for {account.email_account}"))
 
                 return True
             else:
                 self.stdout.write(self.style.ERROR(
-                    f"  API call failed:\n"
-                    f"    Status: {response.status_code}\n"
-                    f"    Response: {response.text}"
+                    f"❌ EmailGuard API call failed for {account.email_account}:\n"
+                    f"  Status: {response.status_code}\n"
+                    f"  Response: {response.text}"
                 ))
                 return False
 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"  Error processing account: {str(e)}"))
+            self.stdout.write(self.style.ERROR(f"❌ Error processing account {account.email_account}: {str(e)}"))
             return False
 
     async def process_spamcheck(self, spamcheck):
         """Process a single spamcheck"""
         try:
-            self.stdout.write(f"\nProcessing Spamcheck ID: {spamcheck.id}")
-            
             try:
                 user_settings = await self.get_user_settings(spamcheck.user)
             except UserSettings.DoesNotExist:
-                self.stdout.write(self.style.ERROR("User settings not found"))
+                self.stdout.write(self.style.ERROR(f"❌ User settings not found for spamcheck {spamcheck.id}"))
                 return False
 
             # Get accounts with related data prefetched
             accounts = await self.get_accounts(spamcheck)
 
             if not accounts:
-                self.stdout.write("No accounts found")
+                self.stdout.write(self.style.WARNING(f"⚠️ No accounts found for spamcheck {spamcheck.id}"))
                 return False
 
             # Update status to generating_reports before processing
@@ -478,14 +468,13 @@ class Command(BaseCommand):
             if all(results):
                 spamcheck.status = 'completed'
                 await asyncio.to_thread(spamcheck.save)
-                self.stdout.write(self.style.SUCCESS(f"All reports generated successfully. Spamcheck {spamcheck.id} marked as completed"))
                 return True
             else:
-                self.stdout.write(self.style.WARNING(f"Some reports failed to generate for spamcheck {spamcheck.id}. Status remains as generating_reports"))
+                self.stdout.write(self.style.WARNING(f"⚠️ Some reports failed to generate for spamcheck {spamcheck.id}"))
                 return False
 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"Error processing spamcheck {spamcheck.id}: {str(e)}"))
+            self.stdout.write(self.style.ERROR(f"❌ Error processing spamcheck {spamcheck.id}: {str(e)}"))
             return False
 
     async def get_ready_spamchecks(self):
@@ -512,23 +501,16 @@ class Command(BaseCommand):
     async def handle_async(self, *args, **options):
         """Async entry point"""
         now = timezone.now()
-
-        self.stdout.write(f"\n=== Starting Bison Report Generation ===")
-        self.stdout.write(f"Current time: {now}")
-        
-        self.stdout.write("\nAPI Endpoints being used:")
-        self.stdout.write("1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}")
-        self.stdout.write("2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}")
-        self.stdout.write("---\n")
+        self.stdout.write(f"🔄 Starting Bison Report Generation at {now}")
 
         # Get spamchecks ready for report generation
         spamchecks = await self.get_ready_spamchecks()
 
         if not spamchecks:
-            self.stdout.write("No spamchecks ready for report generation")
+            self.stdout.write("ℹ️ No spamchecks ready for report generation")
             return
 
-        self.stdout.write(f"Found {len(spamchecks)} spamchecks ready for report generation\n")
+        self.stdout.write(f"📋 Found {len(spamchecks)} spamchecks ready for report generation")
 
         # Process all spamchecks
         results = await asyncio.gather(*[
@@ -538,8 +520,8 @@ class Command(BaseCommand):
 
         # Summary
         success_count = sum(1 for r in results if r)
-        self.stdout.write(f"\n=== Report Generation Complete ===")
-        self.stdout.write(f"Successfully processed {success_count} of {len(spamchecks)} spamchecks")
+        self.stdout.write(f"\n✅ Report Generation Complete")
+        self.stdout.write(f"📊 Successfully processed {success_count} of {len(spamchecks)} spamchecks")
 
     def handle(self, *args, **options):
         """Entry point for the command"""
