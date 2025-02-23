@@ -8,7 +8,6 @@ INSTALLED_APPS = [
     'django_ninja',
     'corsheaders',
     'rest_framework',
-    'django_crontab',
     'spamcheck',
     'accounts',
 ]
