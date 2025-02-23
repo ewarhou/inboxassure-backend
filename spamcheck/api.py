@@ -1474,4 +1474,56 @@ def delete_spamcheck_bison(request, spamcheck_id: int):
         return {
             "success": False,
             "message": f"Error deleting spamcheck: {str(e)}"
+        }
+
+@router.get("/list-spamchecks-bison", auth=AuthBearer())
+def list_spamchecks_bison(request):
+    """
+    Get all Bison spamchecks with their details
+    """
+    user = request.auth
+    
+    try:
+        # Get all spamchecks for the user with related data
+        spamchecks = UserSpamcheckBison.objects.select_related(
+            'user_organization'
+        ).prefetch_related(
+            'accounts'
+        ).filter(user=user).order_by('-created_at')
+        
+        spamcheck_list = []
+        for spamcheck in spamchecks:
+            # Create spamcheck details
+            spamcheck_details = {
+                'id': spamcheck.id,
+                'name': spamcheck.name,
+                'status': spamcheck.status,
+                'scheduled_at': spamcheck.scheduled_at,
+                'recurring_days': spamcheck.recurring_days,
+                'is_domain_based': spamcheck.is_domain_based,
+                'conditions': spamcheck.conditions,
+                'reports_waiting_time': spamcheck.reports_waiting_time,
+                'text_only': spamcheck.plain_text,
+                'subject': spamcheck.subject,
+                'body': spamcheck.body,
+                'created_at': spamcheck.created_at,
+                'updated_at': spamcheck.updated_at,
+                'user_organization_id': spamcheck.user_organization.id,
+                'organization_name': spamcheck.user_organization.bison_organization_name,
+                'accounts_count': spamcheck.accounts.count()
+            }
+            spamcheck_list.append(spamcheck_details)
+        
+        return {
+            'success': True,
+            'message': f'Successfully retrieved {len(spamcheck_list)} spamchecks',
+            'data': spamcheck_list
+        }
+        
+    except Exception as e:
+        log_to_terminal("Spamcheck", "List Bison", f"Error retrieving spamchecks: {str(e)}")
+        return {
+            'success': False,
+            'message': f'Error retrieving spamchecks: {str(e)}',
+            'data': []
         } 

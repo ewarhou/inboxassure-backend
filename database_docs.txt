@@ -619,6 +619,82 @@ jsonCopy{
   "created_at": "2024-03-20T09:00:00Z",
   "updated_at": "2024-03-20T09:00:00Z"
 }
-Ctrl+K to generate a comprehensive database documentation for the following database:
 
-2. Added `
+12. user_spamcheck_bison
+Manages Bison spamcheck configurations and status.
+Columns:
+
+id (BigInt, PK): Auto-generated unique identifier
+user_id (BigInt, FK): Reference to auth_user
+user_organization_id (BigInt, FK): Reference to user_bison
+name (varchar): Name of the spamcheck (unique within user and organization)
+status (varchar): Current status (pending, in_progress, generating_reports, completed, failed, paused)
+is_domain_based (boolean): Whether to filter accounts by domain and use one per domain
+scheduled_at (timestamp): When the spamcheck is scheduled to run
+recurring_days (integer, nullable): Number of days for recurring checks
+conditions (varchar, nullable): Conditions for sending limit (e.g., 'google>=0.5andoutlook>=0.5')
+reports_waiting_time (float, nullable): Time in hours to wait before generating reports (0 for immediate, 0.5 for 30min, 1 for 1h, etc). Default is 1h
+plain_text (boolean): Whether to send text-only emails
+subject (text): Email subject template
+body (text): Email body template
+created_at (timestamp): Creation timestamp
+updated_at (timestamp): Last update timestamp (auto-updated on every save)
+
+Example Row:
+{
+  "id": 1,
+  "name": "Weekly Bison Check",
+  "scheduled_at": "2024-03-20T10:00:00Z",
+  "recurring_days": 7,
+  "status": "pending",
+  "conditions": "google>=0.5andoutlook>=0.5",
+  "reports_waiting_time": 1.0,
+  "is_domain_based": false,
+  "plain_text": true,
+  "subject": "Test Email Subject",
+  "body": "Test Email Body"
+}
+
+13. user_spamcheck_accounts_bison
+Manages email accounts for Bison spamchecks.
+Columns:
+
+id (BigInt, PK): Auto-generated unique identifier
+user_id (BigInt, FK): Reference to auth_user
+organization_id (BigInt, FK): Reference to user_bison
+bison_spamcheck_id (BigInt, FK): Reference to user_spamcheck_bison
+email_account (varchar, nullable): Email account to use (validated)
+created_at (timestamp): Creation timestamp
+updated_at (timestamp): Last update timestamp
+
+Example Row:
+{
+  "id": 1,
+  "email_account": "test@example.com",
+  "created_at": "2024-03-20T09:00:00Z",
+  "updated_at": "2024-03-20T09:00:00Z"
+}
+
+Relationships:
+- user_spamcheck_bison.user_id → auth_user.id (Many-to-One)
+- user_spamcheck_bison.user_organization_id → user_bison.id (Many-to-One)
+- user_spamcheck_accounts_bison.bison_spamcheck_id → user_spamcheck_bison.id (Many-to-One)
+- user_spamcheck_accounts_bison.user_id → auth_user.id (Many-to-One)
+- user_spamcheck_accounts_bison.organization_id → user_bison.id (Many-to-One)
+
+Key Constraints:
+- Spamcheck names must be unique within a user and organization combination
+- Email fields are validated before saving
+- All foreign key relationships maintain referential integrity
+
+Status Workflows for Bison Spamcheck:
+1. pending: Initial state, ready to run
+2. in_progress: Currently running
+3. generating_reports: Collecting and processing results
+4. completed: Finished successfully
+5. failed: Error occurred
+6. paused: Temporarily suspended
+
+
+
+Ctrl+K to generate a comprehensive database documentation for the following database:

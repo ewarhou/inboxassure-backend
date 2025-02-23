@@ -2,128 +2,100 @@
 
 Base URL: `http://inboxassure-backend.imnodev.com/api`
 
-## Spamcheck Endpoints
+## Spamcheck Bison Endpoints
 
-### List Accounts
-**Endpoint:** `POST /spamcheck/list-accounts`
-**Authentication:** Bearer Token Required
+### Create Spamcheck Bison
+`POST /spamcheck/create-spamcheck-bison`
 
-Retrieves a list of email accounts from either Instantly or Bison platform with filtering options.
+Creates a new spamcheck with accounts for Bison.
 
-#### Request Parameters
-- `organization_id` (integer, required): The ID of the organization to fetch accounts from
-- `payload` (object, required):
-  ```json
-  {
-    "platform": "string",     // "instantly" or "bison"
-    "search": "string",       // Optional: Search term for filtering accounts
-    "ignore_tag": "string",   // Optional: Tag to exclude from results
-    "is_active": "boolean",   // Optional: Filter only active accounts
-    "limit": "integer"        // Optional: Maximum number of accounts to return
-  }
-  ```
-
-#### Response Format
+**Request Body:**
 ```json
 {
-  "success": "boolean",
-  "message": "string",
-  "data": {
-    "organization_id": "integer",
-    "organization_name": "string",
-    "total_accounts": "integer",
-    "accounts": ["string"]    // Array of email addresses
-  }
+  "name": "Test Spamcheck",
+  "user_organization_id": 1,
+  "accounts": ["test@example.com"],
+  "text_only": true,
+  "subject": "Test Subject",
+  "body": "Test Body",
+  "scheduled_at": "2025-02-23T00:17:51.315Z",
+  "recurring_days": 0,
+  "is_domain_based": false,
+  "conditions": "google>=0.5andoutlook>=0.5",
+  "reports_waiting_time": 1.0
 }
 ```
 
-#### Success Response Example
+**Response:**
 ```json
 {
   "success": true,
-  "message": "Accounts retrieved successfully",
+  "message": "Spamcheck created successfully",
   "data": {
-    "organization_id": 123,
-    "organization_name": "My Organization",
-    "total_accounts": 2,
-    "accounts": ["email1@domain.com", "email2@domain.com"]
+    "id": 1,
+    "name": "Test Spamcheck",
+    "status": "pending",
+    "accounts_count": 1
   }
 }
 ```
 
-#### Error Response Example
+### Update Spamcheck Bison
+`PUT /spamcheck/update-spamcheck-bison/{spamcheck_id}`
+
+Updates an existing Bison spamcheck. All fields are optional.
+
+**Request Body:**
 ```json
 {
-  "success": false,
-  "message": "Organization not found or you don't have permission to access it.",
+  "name": "Updated Test Spamcheck",
+  "accounts": ["test@example.com"],
+  "text_only": true,
+  "subject": "Updated Subject",
+  "body": "Updated Body",
+  "scheduled_at": "2025-02-23T00:17:51.315Z",
+  "recurring_days": 7,
+  "is_domain_based": false,
+  "conditions": "google>=0.5andoutlook>=0.5",
+  "reports_waiting_time": 1.0
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Spamcheck updated successfully",
   "data": {
-    "organization_id": 123,
-    "organization_name": "",
-    "total_accounts": 0,
-    "accounts": []
+    "id": 1,
+    "name": "Updated Test Spamcheck",
+    "scheduled_at": "2025-02-23T00:17:51.315Z",
+    "recurring_days": 7,
+    "status": "pending",
+    "accounts_updated": true
   }
 }
 ```
 
-#### Notes
-- For Instantly platform:
-  - Requires valid Instantly organization token
-  - Active accounts have status = 1
-  - Includes tag filtering support
-  
-- For Bison platform:
-  - Requires valid Bison API key
-  - Active accounts have status = "Connected"
-  - Supports pagination (automatically fetches all pages)
-  - Includes tag filtering support
+### Delete Spamcheck Bison
+`DELETE /spamcheck/delete-spamcheck-bison/{spamcheck_id}`
 
-#### Error Conditions
-- Organization not found
-- Organization exists but is not active
-- Invalid or expired authentication token
-- API errors from Instantly/Bison platforms
-- Network timeouts (30-second timeout limit)
+Deletes a Bison spamcheck and all its related data.
 
-### List Spamchecks
-**Endpoint:** `GET /spamcheck/list-spamchecks`
-**Authentication:** Bearer Token Required
-
-Retrieves all spamchecks for the authenticated user with their details.
-
-#### Response Format
+**Response:**
 ```json
 {
-  "success": "boolean",
-  "message": "string",
-  "data": [
-    {
-      "id": "integer",
-      "name": "string",
-      "status": "string",
-      "scheduled_at": "datetime",
-      "recurring_days": "integer",
-      "is_domain_based": "boolean",
-      "conditions": "json",
-      "reports_waiting_time": "integer",
-      "created_at": "datetime",
-      "updated_at": "datetime",
-      "user_organization_id": "integer",
-      "organization_name": "string",
-      "accounts_count": "integer",
-      "campaigns_count": "integer",
-      "options": {
-        "open_tracking": "boolean",
-        "link_tracking": "boolean",
-        "text_only": "boolean",
-        "subject": "string",
-        "body": "string"
-      }
-    }
-  ]
+  "success": true,
+  "message": "Spamcheck 'Test Spamcheck' and all related data deleted successfully"
 }
 ```
 
-#### Success Response Example
+### List Spamchecks Bison
+`GET /spamcheck/list-spamchecks-bison`
+
+Retrieves all Bison spamchecks for the authenticated user.
+
+**Response:**
 ```json
 {
   "success": true,
@@ -131,36 +103,59 @@ Retrieves all spamchecks for the authenticated user with their details.
   "data": [
     {
       "id": 1,
-      "name": "Daily Check",
-      "status": "active",
-      "scheduled_at": "2024-02-20T10:00:00Z",
-      "recurring_days": 1,
+      "name": "Test Spamcheck 1",
+      "status": "pending",
+      "scheduled_at": "2025-02-23T00:17:51.315Z",
+      "recurring_days": 7,
       "is_domain_based": false,
-      "conditions": {},
-      "reports_waiting_time": 30,
-      "created_at": "2024-02-19T15:00:00Z",
-      "updated_at": "2024-02-19T15:00:00Z",
-      "user_organization_id": 123,
-      "organization_name": "My Organization",
-      "accounts_count": 5,
-      "campaigns_count": 2,
-      "options": {
-        "open_tracking": true,
-        "link_tracking": true,
-        "text_only": false,
-        "subject": "Test Subject",
-        "body": "Test Body"
-      }
+      "conditions": "google>=0.5andoutlook>=0.5",
+      "reports_waiting_time": 1.0,
+      "text_only": true,
+      "subject": "Test Subject",
+      "body": "Test Body",
+      "created_at": "2024-03-20T09:00:00Z",
+      "updated_at": "2024-03-20T09:00:00Z",
+      "user_organization_id": 1,
+      "organization_name": "Test Bison Organization",
+      "accounts_count": 3
+    },
+    {
+      "id": 2,
+      "name": "Test Spamcheck 2",
+      "status": "completed",
+      "scheduled_at": "2025-02-24T00:17:51.315Z",
+      "recurring_days": 0,
+      "is_domain_based": true,
+      "conditions": "google>=0.7",
+      "reports_waiting_time": 2.0,
+      "text_only": false,
+      "subject": "Another Subject",
+      "body": "Another Body",
+      "created_at": "2024-03-19T09:00:00Z",
+      "updated_at": "2024-03-19T09:00:00Z",
+      "user_organization_id": 1,
+      "organization_name": "Test Bison Organization",
+      "accounts_count": 5
     }
   ]
 }
 ```
 
-#### Error Response Example
+**Error Response:**
 ```json
 {
   "success": false,
-  "message": "Error retrieving spamchecks: [error details]",
+  "message": "Error retrieving spamchecks: <error_message>",
   "data": []
 }
 ```
+
+**Notes:**
+- All endpoints require authentication (Bearer token)
+- `spamcheck_id` in URLs is an integer
+- Status can be: pending, in_progress, generating_reports, completed, failed, paused
+- Updates and deletions are only allowed for spamchecks in certain statuses
+- Spamcheck names must be unique within a user's organization
+- Email accounts are validated before saving
+- All operations use database transactions for data consistency
+
