@@ -162,3 +162,73 @@ class UserSpamcheckReport(models.Model):
 
     def __str__(self):
         return f"Spam Check Report for {self.email_account}"
+
+
+class UserSpamcheckBison(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('in_progress', 'In Progress'),
+        ('generating_reports', 'Generating Reports'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('paused', 'Paused')
+    ]
+    
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bison_spamchecks')
+    user_organization = models.ForeignKey('settings.UserBison', on_delete=models.CASCADE, related_name='bison_spamchecks', null=True)
+    name = models.CharField(max_length=255)
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')
+    is_domain_based = models.BooleanField(default=False)
+    scheduled_at = models.DateTimeField(null=True, blank=True)
+    recurring_days = models.IntegerField(null=True, blank=True)
+    conditions = models.CharField(max_length=255, null=True, blank=True)
+    reports_waiting_time = models.FloatField(null=True, blank=True, default=1.0, help_text="Time in hours to wait before generating reports (0 for immediate, 0.5 for 30min, 1 for 1h, etc). Default is 1h")
+    plain_text = models.BooleanField(default=False)
+    subject = models.TextField(help_text='Email subject template')
+    body = models.TextField(help_text='Email body template')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'user_spamcheck_bison'
+        verbose_name = 'User Spamcheck Bison'
+        verbose_name_plural = 'User Spamcheck Bison'
+        ordering = ['-created_at']
+        unique_together = ['user', 'user_organization', 'name']
+
+    def __str__(self):
+        return f"{self.name} - {self.user.email}"
+
+    def save(self, *args, **kwargs):
+        # Force update of updated_at on every save
+        self.updated_at = timezone.now()
+        super().save(*args, **kwargs)
+
+
+class UserSpamcheckAccountsBison(models.Model):
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bison_spamcheck_accounts')
+    organization = models.ForeignKey('settings.UserBison', on_delete=models.CASCADE)
+    bison_spamcheck = models.ForeignKey(UserSpamcheckBison, on_delete=models.CASCADE, related_name='accounts')
+    email_account = models.EmailField(max_length=255, validators=[EmailValidator()], null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        if self.email_account:
+            EmailValidator()(self.email_account)
+        super().clean()
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+    class Meta:
+        db_table = 'user_spamcheck_accounts_bison'
+        verbose_name = 'User Spamcheck Account Bison'
+        verbose_name_plural = 'User Spamcheck Accounts Bison'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.bison_spamcheck.name} - {self.email_account or 'No Email'}"

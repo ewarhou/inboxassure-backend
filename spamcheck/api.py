@@ -5,8 +5,8 @@ from django.shortcuts import get_object_or_404
 from django.db import transaction, IntegrityError, connection
 from django.core.exceptions import ObjectDoesNotExist
 from authentication.authorization import AuthBearer
-from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema, ListAccountsRequestSchema, ListAccountsResponseSchema, ListSpamchecksResponseSchema
-from .models import UserSpamcheck, UserSpamcheckAccounts, UserSpamcheckCampaignOptions, UserSpamcheckCampaigns, UserSpamcheckReport
+from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema, ListAccountsRequestSchema, ListAccountsResponseSchema, ListSpamchecksResponseSchema, CreateSpamcheckBisonSchema, UpdateSpamcheckBisonSchema
+from .models import UserSpamcheck, UserSpamcheckAccounts, UserSpamcheckCampaignOptions, UserSpamcheckCampaigns, UserSpamcheckReport, UserSpamcheckBison, UserSpamcheckAccountsBison
 from settings.models import UserInstantly, UserSettings, UserBison
 import requests
 from django.conf import settings
@@ -1218,4 +1218,260 @@ def get_accounts(
                 "per_page": per_page,
                 "total_pages": total_pages
             }
+        }
+
+@router.post("/create-spamcheck-bison", auth=AuthBearer())
+def create_spamcheck_bison(request, payload: CreateSpamcheckBisonSchema):
+    """
+    Create a new spamcheck with accounts for Bison
+    
+    Parameters:
+        - name: Name of the spamcheck
+        - user_organization_id: ID of the Bison organization to use
+        - accounts: List of email accounts to check (e.g. ["test1@example.com", "test2@example.com"])
+        - text_only: Whether to send text-only emails
+        - subject: Email subject template
+        - body: Email body template
+        - scheduled_at: When to run the spamcheck
+        - recurring_days: Optional, number of days for recurring checks
+        - is_domain_based: Whether to filter accounts by domain
+        - conditions: Optional, conditions for sending
+        - reports_waiting_time: Optional, reports waiting time
+    """
+    user = request.auth
+    
+    # Validate accounts list is not empty
+    if not payload.accounts:
+        return {
+            "success": False,
+            "message": "At least one email account is required"
+        }
+    
+    # Get the specific organization with better error handling
+    try:
+        user_organization = UserBison.objects.get(
+            id=payload.user_organization_id,
+            user=user
+        )
+        
+        if not user_organization.bison_organization_status:
+            return {
+                "success": False,
+                "message": f"Organization with ID {payload.user_organization_id} exists but is not active. Please activate it first."
+            }
+            
+    except ObjectDoesNotExist:
+        return {
+            "success": False,
+            "message": f"Organization with ID {payload.user_organization_id} not found. Please check if the organization ID is correct and belongs to your account."
+        }
+    
+    # Check if spamcheck with same name exists
+    existing_spamcheck = UserSpamcheckBison.objects.filter(
+        user=user,
+        user_organization=user_organization,
+        name=payload.name
+    ).first()
+    
+    if existing_spamcheck:
+        return {
+            "success": False,
+            "message": f"A spamcheck with the name '{payload.name}' already exists for this organization. Please use a different name."
+        }
+    
+    try:
+        with transaction.atomic():
+            # Create spamcheck
+            spamcheck = UserSpamcheckBison.objects.create(
+                user=user,
+                user_organization=user_organization,
+                name=payload.name,
+                scheduled_at=payload.scheduled_at,
+                recurring_days=payload.recurring_days,
+                is_domain_based=payload.is_domain_based,
+                conditions=payload.conditions,
+                reports_waiting_time=payload.reports_waiting_time,
+                plain_text=payload.text_only,
+                subject=payload.subject,
+                body=payload.body
+            )
+            
+            # Create accounts
+            accounts = []
+            for email in payload.accounts:
+                account = UserSpamcheckAccountsBison.objects.create(
+                    user=user,
+                    organization=user_organization,
+                    bison_spamcheck=spamcheck,
+                    email_account=email
+                )
+                accounts.append(account)
+            
+            return {
+                "success": True,
+                "message": "Spamcheck created successfully",
+                "data": {
+                    "id": spamcheck.id,
+                    "name": spamcheck.name,
+                    "status": spamcheck.status,
+                    "accounts_count": len(accounts)
+                }
+            }
+            
+    except Exception as e:
+        log_to_terminal("Spamcheck", "Create Bison", f"Error creating spamcheck: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Error creating spamcheck: {str(e)}"
+        }
+
+@router.put("/update-spamcheck-bison/{spamcheck_id}", auth=AuthBearer())
+def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckBisonSchema):
+    """
+    Update an existing Bison spamcheck
+    
+    Parameters:
+        - spamcheck_id: ID of the spamcheck to update
+        - name: Optional, new name for the spamcheck
+        - accounts: Optional, new list of email accounts
+        - text_only: Optional, whether to send text-only emails
+        - subject: Optional, new email subject template
+        - body: Optional, new email body template
+        - scheduled_at: Optional, new scheduled time
+        - recurring_days: Optional, new recurring days setting
+        - is_domain_based: Optional, whether to filter accounts by domain
+        - conditions: Optional, conditions for sending
+        - reports_waiting_time: Optional, reports waiting time
+    """
+    user = request.auth
+    
+    try:
+        # Get the spamcheck and verify ownership
+        spamcheck = UserSpamcheckBison.objects.get(
+            id=spamcheck_id,
+            user=user
+        )
+        
+        # Check if status allows updates
+        if spamcheck.status not in ['pending', 'failed', 'completed']:
+            return {
+                "success": False,
+                "message": f"Cannot update spamcheck with status '{spamcheck.status}'. Only pending, failed, or completed spamchecks can be updated."
+            }
+        
+        try:
+            with transaction.atomic():
+                # Update spamcheck fields if provided
+                if payload.name is not None:
+                    spamcheck.name = payload.name
+                if payload.scheduled_at is not None:
+                    spamcheck.scheduled_at = payload.scheduled_at
+                if payload.recurring_days is not None:
+                    spamcheck.recurring_days = payload.recurring_days
+                if payload.is_domain_based is not None:
+                    spamcheck.is_domain_based = payload.is_domain_based
+                if payload.conditions is not None:
+                    spamcheck.conditions = payload.conditions
+                if payload.reports_waiting_time is not None:
+                    spamcheck.reports_waiting_time = payload.reports_waiting_time
+                if payload.text_only is not None:
+                    spamcheck.plain_text = payload.text_only
+                if payload.subject is not None:
+                    spamcheck.subject = payload.subject
+                if payload.body is not None:
+                    spamcheck.body = payload.body
+                spamcheck.save()
+                
+                # Update accounts if provided
+                accounts_updated = False
+                if payload.accounts is not None:
+                    # Delete existing accounts
+                    UserSpamcheckAccountsBison.objects.filter(bison_spamcheck=spamcheck).delete()
+                    
+                    # Create new accounts
+                    for email in payload.accounts:
+                        UserSpamcheckAccountsBison.objects.create(
+                            user=user,
+                            organization=spamcheck.user_organization,
+                            bison_spamcheck=spamcheck,
+                            email_account=email
+                        )
+                    accounts_updated = True
+                
+                return {
+                    "success": True,
+                    "message": "Spamcheck updated successfully",
+                    "data": {
+                        "id": spamcheck.id,
+                        "name": spamcheck.name,
+                        "scheduled_at": spamcheck.scheduled_at,
+                        "recurring_days": spamcheck.recurring_days,
+                        "status": spamcheck.status,
+                        "accounts_updated": accounts_updated
+                    }
+                }
+                
+        except IntegrityError:
+            return {
+                "success": False,
+                "message": f"A spamcheck with the name '{payload.name}' already exists for this organization. Please use a different name."
+            }
+            
+    except UserSpamcheckBison.DoesNotExist:
+        return {
+            "success": False,
+            "message": f"Spamcheck with ID {spamcheck_id} not found or you don't have permission to update it."
+        }
+    except Exception as e:
+        log_to_terminal("Spamcheck", "Update Bison", f"Error updating spamcheck: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Error updating spamcheck: {str(e)}"
+        }
+
+@router.delete("/delete-spamcheck-bison/{spamcheck_id}", auth=AuthBearer())
+def delete_spamcheck_bison(request, spamcheck_id: int):
+    """
+    Delete a Bison spamcheck and all its related data
+    
+    Parameters:
+        - spamcheck_id: ID of the spamcheck to delete
+    """
+    user = request.auth
+    
+    try:
+        # Get the spamcheck and verify ownership
+        spamcheck = UserSpamcheckBison.objects.get(
+            id=spamcheck_id,
+            user=user
+        )
+        
+        # Check if status allows deletion
+        if spamcheck.status in ['in_progress', 'generating_reports']:
+            return {
+                "success": False,
+                "message": f"Cannot delete spamcheck with status '{spamcheck.status}'. Only spamchecks that are not in progress or generating reports can be deleted."
+            }
+        
+        # Store name for response
+        spamcheck_name = spamcheck.name
+        
+        # Delete the spamcheck (this will cascade delete accounts)
+        spamcheck.delete()
+        
+        return {
+            "success": True,
+            "message": f"Spamcheck '{spamcheck_name}' and all related data deleted successfully"
+        }
+        
+    except UserSpamcheckBison.DoesNotExist:
+        return {
+            "success": False,
+            "message": f"Spamcheck with ID {spamcheck_id} not found or you don't have permission to delete it."
+        }
+    except Exception as e:
+        log_to_terminal("Spamcheck", "Delete Bison", f"Error deleting spamcheck: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Error deleting spamcheck: {str(e)}"
         } 

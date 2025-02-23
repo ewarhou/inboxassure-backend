@@ -127,4 +127,62 @@ class SpamcheckDetailsSchema(Schema):
 class ListSpamchecksResponseSchema(Schema):
     success: bool
     message: str
-    data: List[SpamcheckDetailsSchema] 
+    data: List[SpamcheckDetailsSchema]
+
+class CreateSpamcheckBisonSchema(Schema):
+    name: str
+    user_organization_id: int
+    accounts: List[str]
+    text_only: bool = Field(default=False)
+    subject: str
+    body: str
+    scheduled_at: datetime
+    recurring_days: Optional[int] = None
+    is_domain_based: bool = Field(default=False)
+    conditions: Optional[str] = None
+    reports_waiting_time: Optional[float] = Field(default=1.0)
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "name": "Test Spamcheck",
+                "user_organization_id": 1,
+                "accounts": ["test@example.com"],
+                "text_only": True,
+                "subject": "Test Subject",
+                "body": "Test Body",
+                "scheduled_at": "2025-02-23T00:17:51.315Z",
+                "recurring_days": 0,
+                "is_domain_based": False,
+                "conditions": "google>=0.5andoutlook>=0.5",
+                "reports_waiting_time": 1.0
+            }
+        }
+
+class UpdateSpamcheckBisonSchema(Schema):
+    name: Optional[str] = Field(None, description="Name of the spamcheck")
+    accounts: Optional[List[str]] = Field(None, description="List of email accounts to check")
+    text_only: Optional[bool] = Field(None, description="Whether to send text-only emails")
+    subject: Optional[str] = Field(None, description="Email subject template")
+    body: Optional[str] = Field(None, description="Email body template")
+    scheduled_at: Optional[datetime] = Field(None, description="When to run the spamcheck")
+    recurring_days: Optional[int] = Field(None, description="Number of days for recurring checks")
+    is_domain_based: Optional[bool] = Field(None, description="Whether to filter accounts by domain")
+    conditions: Optional[str] = Field(None, description="Conditions for sending")
+    reports_waiting_time: Optional[float] = Field(None, description="Time in hours to wait before generating reports")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "name": "Updated Test Spamcheck",
+                "accounts": ["test@example.com"],
+                "text_only": True,
+                "subject": "Updated Subject",
+                "body": "Updated Body",
+                "scheduled_at": "2025-02-23T00:17:51.315Z",
+                "recurring_days": 7,
+                "is_domain_based": False,
+                "conditions": "google>=0.5andoutlook>=0.5",
+                "reports_waiting_time": 1.0
+            }
+        } 
