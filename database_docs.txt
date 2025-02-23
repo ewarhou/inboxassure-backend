@@ -39,7 +39,39 @@ jsonCopy{
   "created_at": "2024-12-17T23:24:49.933854+00:00",
   "updated_at": "2024-12-17T23:24:49.933854+00:00"
 }
-3. inboxassure_organizations
+3. user_spamcheck_bison_reports
+Stores Bison spamcheck report results.
+Columns:
+
+id (UUID, PK): Auto-generated unique identifier
+bison_organization (FK): Reference to UserBison
+email_account (EmailField): Email account tested
+report_link (URLField): Link to detailed report
+google_pro_score (DecimalField): Google score (0-4, 1 decimal place)
+outlook_pro_score (DecimalField): Outlook score (0-4, 1 decimal place)
+is_good (boolean): Whether this account meets the spamcheck conditions (default: False)
+spamcheck_bison (FK, nullable): Reference to UserSpamcheckBison
+used_subject (text, nullable): Subject used in the spamcheck campaign
+used_body (text, nullable): Body used in the spamcheck campaign
+sending_limit (integer, nullable): Sending limit used in the campaign
+tags_list (text, nullable): List of tags used in the campaign
+created_at (timestamp): Creation timestamp
+
+Example Row:
+jsonCopy{
+  "id": "uuid-string",
+  "email_account": "test@example.com",
+  "report_link": "https://app.emailguard.io/reports/uuid",
+  "google_pro_score": 3.5,
+  "outlook_pro_score": 4.0,
+  "is_good": true,
+  "used_subject": "Test Email Campaign",
+  "used_body": "This is a test email body...",
+  "sending_limit": 25,
+  "tags_list": "tag1,tag2,tag3",
+  "created_at": "2024-03-20T10:30:00Z"
+}
+4. inboxassure_organizations
 Manages organization details.
 Columns:
 
@@ -55,7 +87,7 @@ jsonCopy{
   "created_at": "2024-12-17T23:25:15.251115+00:00",
   "updated_at": "2024-12-17T23:25:15.251115+00:00"
 }
-4. client_organizations
+5. client_organizations
 Junction table linking clients to organizations.
 Columns:
 
@@ -71,7 +103,7 @@ jsonCopy{
   "organization_id": "666c1d9f-3a81-4106-85c9-828a1fac4b8b",
   "created_at": "2024-12-17T23:25:32.216581+00:00"
 }
-5. inboxassure_reports
+6. inboxassure_reports
 Stores aggregate email delivery metrics.
 Columns:
 
@@ -97,7 +129,7 @@ jsonCopy{
   "outlook_good": 20,
   "outlook_bad": 249
 }
-6. provider_performance
+7. provider_performance
 Detailed provider-specific metrics.
 Columns:
 
@@ -126,7 +158,7 @@ jsonCopy{
   "reply_rate": 0.6,
   "bounce_rate": 0.45
 }
-7. user_spamcheck_instantly
+8. user_spamcheck_instantly
 Manages spamcheck configurations and status.
 Columns:
 
@@ -156,7 +188,7 @@ Example Row:
   "is_domain_based": false
 }
 
-8. user_spamcheck_campaign_instantly_options
+9. user_spamcheck_campaign_instantly_options
 Stores campaign configuration options for spamchecks.
 Columns:
 
@@ -178,7 +210,7 @@ Example Row:
   "body": "This is a test email body"
 }
 
-9. user_spamcheck_accounts_instantly
+10. user_spamcheck_accounts_instantly
 Manages email accounts for spamchecks.
 Columns:
 
@@ -198,7 +230,7 @@ Example Row:
   "updated_at": "2024-03-20T09:00:00Z"
 }
 
-10. user_spamcheck_campaigns_instantly
+11. user_spamcheck_campaigns_instantly
 Tracks individual campaigns within a spamcheck.
 Columns:
 
@@ -223,7 +255,7 @@ Example Row:
   "updated_at": "2024-03-20T09:30:00Z"
 }
 
-11. user_spamcheck_reports
+12. user_spamcheck_reports
 Stores spamcheck report results.
 Columns:
 
