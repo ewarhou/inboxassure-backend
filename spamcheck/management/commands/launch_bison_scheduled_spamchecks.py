@@ -64,12 +64,8 @@ class Command(BaseCommand):
         """Extract domain from email address"""
         return email.split('@')[1] if '@' in email else None
 
-    def filter_domain_accounts(self, accounts, is_domain_based):
-        """Filter accounts based on domain settings"""
-        if not is_domain_based:
-            return accounts
-
-        # Group accounts by domain
+    def group_accounts_by_domain(self, accounts):
+        """Group accounts by domain and return a dictionary of domain -> accounts"""
         accounts_by_domain = {}
         for account in accounts:
             domain = self.get_domain_from_email(account.email_account)
@@ -77,6 +73,15 @@ class Command(BaseCommand):
                 if domain not in accounts_by_domain:
                     accounts_by_domain[domain] = []
                 accounts_by_domain[domain].append(account)
+        return accounts_by_domain
+
+    def filter_domain_accounts(self, accounts, is_domain_based):
+        """Filter accounts based on domain settings"""
+        if not is_domain_based:
+            return accounts
+
+        # Group accounts by domain
+        accounts_by_domain = self.group_accounts_by_domain(accounts)
 
         # Randomly select one account per domain
         selected_accounts = []
@@ -222,69 +227,115 @@ class Command(BaseCommand):
                 self.stdout.write("No accounts to check")
                 return False
 
-            # Filter accounts based on domain settings
-            accounts = self.filter_domain_accounts(all_accounts, spamcheck.is_domain_based)
-            
+            # Group accounts by domain if domain-based is enabled
             if spamcheck.is_domain_based:
+                accounts_by_domain = self.group_accounts_by_domain(all_accounts)
                 self.stdout.write(f"\nDomain-based spamcheck enabled:")
                 self.stdout.write(f"- Total accounts: {len(all_accounts)}")
-                self.stdout.write(f"- Selected accounts (one per domain): {len(accounts)}")
-                for account in accounts:
-                    domain = self.get_domain_from_email(account.email_account)
-                    self.stdout.write(f"  * {domain}: {account.email_account}")
-
-            # Track successful accounts
-            successful_accounts = 0
-            total_accounts = len(accounts)
-
-            # Process each account
-            for account in accounts:
-                try:
-                    # Get Bison account ID first
-                    bison_account_id = await self.get_bison_account_id(
-                        session, account.email_account, user_bison.bison_organization_api_key,
-                        user_settings.bison_base_url
-                    )
-
-                    # Get EmailGuard tag once for this account
-                    campaign_name = f"{spamcheck.name} - {account.email_account}"
-                    tag, test_emails, filter_phrase = await self.get_emailguard_tag(
-                        session, campaign_name, user_settings.emailguard_api_key
-                    )
-
-                    # Store EmailGuard tag in account with explicit transaction
-                    self.stdout.write(f"Updating EmailGuard tag for account {account.email_account}")
-                    self.stdout.write(f"New tag to be saved: {tag}")
-                    
-                    # Update tag in database directly
-                    await asyncio.to_thread(
-                        lambda: UserSpamcheckAccountsBison.objects.filter(id=account.id).update(
-                            last_emailguard_tag=tag,
-                            updated_at=timezone.now()
+                self.stdout.write(f"- Total domains: {len(accounts_by_domain)}")
+                
+                # Process each domain
+                successful_accounts = 0
+                total_accounts = len(all_accounts)
+                
+                for domain, domain_accounts in accounts_by_domain.items():
+                    try:
+                        # Get one account to represent the domain
+                        representative_account = random.choice(domain_accounts)
+                        self.stdout.write(f"\nProcessing domain {domain} with {len(domain_accounts)} accounts")
+                        self.stdout.write(f"Representative account: {representative_account.email_account}")
+                        
+                        # Get Bison account ID for the representative account
+                        bison_account_id = await self.get_bison_account_id(
+                            session, representative_account.email_account, 
+                            user_bison.bison_organization_api_key,
+                            user_settings.bison_base_url
                         )
-                    )
-                    
-                    # Refresh account instance from database
-                    await asyncio.to_thread(account.refresh_from_db)
-                    self.stdout.write(f"Tag after update: {account.last_emailguard_tag}")
 
-                    # Send one email to all test addresses using the same tag
-                    await self.send_bison_email(
-                        session, spamcheck, account, test_emails,
-                        user_bison.bison_organization_api_key,
-                        bison_account_id, filter_phrase,
-                        user_settings.bison_base_url
-                    )
+                        # Get one EmailGuard tag for the domain
+                        campaign_name = f"{spamcheck.name} - {domain}"
+                        tag, test_emails, filter_phrase = await self.get_emailguard_tag(
+                            session, campaign_name, user_settings.emailguard_api_key
+                        )
+                        
+                        self.stdout.write(f"Got EmailGuard tag for domain {domain}: {tag}")
+                        
+                        # Update all accounts in this domain with the same tag
+                        for account in domain_accounts:
+                            # Update tag in database
+                            await asyncio.to_thread(
+                                lambda: UserSpamcheckAccountsBison.objects.filter(id=account.id).update(
+                                    last_emailguard_tag=tag,
+                                    updated_at=timezone.now()
+                                )
+                            )
+                            
+                            # Get Bison account ID for each account
+                            account_bison_id = await self.get_bison_account_id(
+                                session, account.email_account,
+                                user_bison.bison_organization_api_key,
+                                user_settings.bison_base_url
+                            )
+                            
+                            # Send email for each account using the domain's tag
+                            await self.send_bison_email(
+                                session, spamcheck, account, test_emails,
+                                user_bison.bison_organization_api_key,
+                                account_bison_id, filter_phrase,
+                                user_settings.bison_base_url
+                            )
+                            
+                            successful_accounts += 1
+                            
+                    except Exception as e:
+                        self.stdout.write(self.style.ERROR(f"Error processing domain {domain}: {str(e)}"))
+                        spamcheck.status = 'failed'
+                        await asyncio.to_thread(spamcheck.save)
+                        return False
+                        
+            else:
+                # Non-domain based processing - one tag per account
+                successful_accounts = 0
+                total_accounts = len(all_accounts)
+                
+                for account in all_accounts:
+                    try:
+                        # Get Bison account ID
+                        bison_account_id = await self.get_bison_account_id(
+                            session, account.email_account,
+                            user_bison.bison_organization_api_key,
+                            user_settings.bison_base_url
+                        )
 
-                    # Increment successful accounts counter
-                    successful_accounts += 1
+                        # Get EmailGuard tag for this account
+                        campaign_name = f"{spamcheck.name} - {account.email_account}"
+                        tag, test_emails, filter_phrase = await self.get_emailguard_tag(
+                            session, campaign_name, user_settings.emailguard_api_key
+                        )
 
-                except Exception as e:
-                    self.stdout.write(self.style.ERROR(f"Error processing account {account.email_account}: {str(e)}"))
-                    # Don't continue, set spamcheck to failed
-                    spamcheck.status = 'failed'
-                    await asyncio.to_thread(spamcheck.save)
-                    return False
+                        # Update tag in database
+                        await asyncio.to_thread(
+                            lambda: UserSpamcheckAccountsBison.objects.filter(id=account.id).update(
+                                last_emailguard_tag=tag,
+                                updated_at=timezone.now()
+                            )
+                        )
+
+                        # Send email
+                        await self.send_bison_email(
+                            session, spamcheck, account, test_emails,
+                            user_bison.bison_organization_api_key,
+                            bison_account_id, filter_phrase,
+                            user_settings.bison_base_url
+                        )
+
+                        successful_accounts += 1
+
+                    except Exception as e:
+                        self.stdout.write(self.style.ERROR(f"Error processing account {account.email_account}: {str(e)}"))
+                        spamcheck.status = 'failed'
+                        await asyncio.to_thread(spamcheck.save)
+                        return False
 
             # Only update to in_progress if all accounts were successful
             if successful_accounts == total_accounts:
@@ -300,7 +351,6 @@ class Command(BaseCommand):
 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Error processing spamcheck {spamcheck.id}: {str(e)}"))
-            # Update spamcheck status to failed
             spamcheck.status = 'failed'
             await asyncio.to_thread(spamcheck.save)
             return False
