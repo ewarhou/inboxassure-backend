@@ -55,6 +55,7 @@ used_subject (text, nullable): Subject used in the spamcheck campaign
 used_body (text, nullable): Body used in the spamcheck campaign
 sending_limit (integer, nullable): Sending limit used in the campaign
 tags_list (text, nullable): List of tags used in the campaign
+workspace_name (varchar(255), nullable): Name of the workspace
 created_at (timestamp): Creation timestamp
 
 Example Row:
@@ -69,6 +70,7 @@ jsonCopy{
   "used_body": "This is a test email body...",
   "sending_limit": 25,
   "tags_list": "tag1,tag2,tag3",
+  "workspace_name": "My Bison Workspace",
   "created_at": "2024-03-20T10:30:00Z"
 }
 4. inboxassure_organizations
