@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
-from ninja import Router, Schema
+from ninja import Router, Schema, Query
+from ninja.pagination import paginate
 from ninja.security import HttpBearer
 from django.db.models import Avg
 from django.utils import timezone
@@ -8,8 +9,45 @@ from django.db import connection
 from authentication.authorization import AuthBearer
 from spamcheck.services.instantly import InstantlyService
 from settings.api import log_to_terminal
+import requests
 
 router = Router(tags=["Analytics"])
+
+class PaginationSchema(Schema):
+    page: int = 1
+    per_page: int = 10
+
+class BisonOrganizationSummaryResponse(Schema):
+    """Response model for Bison organization dashboard summary metrics"""
+    organization_id: str
+    organization_name: str
+    checked_accounts: int
+    at_risk_accounts: int
+    protected_accounts: int
+    spam_emails_count: int
+    inbox_emails_count: int
+    spam_emails_percentage: float
+    inbox_emails_percentage: float
+    overall_deliverability: float
+    last_check_date: Optional[str] = ""
+
+    class Config:
+        schema_extra = {
+            "description": "Bison organization dashboard summary metrics",
+            "fields": {
+                "organization_id": "Bison organization ID",
+                "organization_name": "Bison workspace name",
+                "checked_accounts": "Number of accounts that exist in both Bison and reports",
+                "at_risk_accounts": "Number of accounts at risk",
+                "protected_accounts": "Number of protected accounts",
+                "spam_emails_count": "Estimated number of emails going to spam based on sending limit",
+                "inbox_emails_count": "Estimated number of emails going to inbox based on sending limit",
+                "spam_emails_percentage": "Percentage of emails going to spam",
+                "inbox_emails_percentage": "Percentage of emails going to inbox",
+                "overall_deliverability": "Overall deliverability score",
+                "last_check_date": "ISO formatted date of the last check"
+            }
+        }
 
 class OrganizationSummaryResponse(Schema):
     """Response model for organization dashboard summary metrics"""
@@ -430,4 +468,193 @@ def get_provider_performance(
                 })
     
     log_to_terminal("Performance", "Output", f"Returning {len(data)} provider entries")
-    return {"data": data} 
+    return {"data": data}
+
+@router.get(
+    "/dashboard/summary-bison", 
+    response=List[BisonOrganizationSummaryResponse], 
+    auth=AuthBearer(),
+    summary="Bison Dashboard Summary Per Organization",
+    description="Get summary metrics for the dashboard per Bison organization including account stats and email delivery predictions"
+)
+def get_bison_dashboard_summary(request, pagination: PaginationSchema = Query(...)):
+    """Get dashboard summary metrics per Bison organization using only the latest report for each account"""
+    from django.contrib.auth import get_user_model
+    from settings.models import UserBison
+    from spamcheck.models import UserSpamcheckBisonReport
+    
+    User = get_user_model()
+    user = request.auth
+    
+    print("\n=== DEBUG: Bison Dashboard Summary Start ===")
+    print(f"User ID: {user.id}")
+    print(f"User Email: {user.email}")
+    
+    # Get all active Bison organizations for the user
+    bison_orgs = UserBison.objects.filter(
+        user=user,
+        bison_organization_status=True
+    )
+    
+    print(f"\nFound Bison orgs: {bison_orgs.count()}")
+    for org in bison_orgs:
+        print(f"- Org: {org.bison_organization_name} (ID: {org.id})")
+    
+    if not bison_orgs:
+        print("No active Bison organizations found")
+        return []
+    
+    summaries = []
+    
+    for org in bison_orgs:
+        try:
+            print(f"\nProcessing org: {org.bison_organization_name}")
+            print(f"Base URL: {org.base_url}")
+            
+            # 1. Get ALL accounts from Bison API by paginating until we have everything
+            api_url = f"{org.base_url.rstrip('/')}/api/sender-emails"
+            print(f"Calling Bison API: {api_url}")
+            
+            all_bison_accounts = []
+            current_page = 1
+            per_page = 100  # Use a larger page size for efficiency
+            
+            while True:
+                response = requests.get(
+                    api_url,
+                    headers={
+                        "Authorization": f"Bearer {org.bison_organization_api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    params={
+                        "page": current_page,
+                        "per_page": per_page
+                    }
+                )
+                
+                print(f"API Response Status for page {current_page}: {response.status_code}")
+                
+                if response.status_code != 200:
+                    print(f"API Error: {response.text}")
+                    break
+                    
+                data = response.json()
+                accounts = data.get('data', [])
+                all_bison_accounts.extend(accounts)
+                
+                # Check if we've reached the last page
+                total_pages = data.get('meta', {}).get('last_page', 1)
+                if current_page >= total_pages:
+                    break
+                    
+                current_page += 1
+            
+            print(f"Found total {len(all_bison_accounts)} accounts in Bison")
+            
+            bison_emails = [account['email'] for account in all_bison_accounts if account.get('email')]
+            print(f"Extracted {len(bison_emails)} valid email addresses")
+            
+            if not bison_emails:
+                print("No valid email addresses found")
+                continue
+            
+            # 2. Get latest reports for these accounts using raw SQL with proper email list handling
+            print("\nQuerying reports from database...")
+            with connection.cursor() as cursor:
+                # Process emails in chunks to avoid too many SQL parameters
+                chunk_size = 500
+                email_chunks = [bison_emails[i:i + chunk_size] for i in range(0, len(bison_emails), chunk_size)]
+                
+                all_results = []
+                for chunk in email_chunks:
+                    placeholders = ','.join(['%s'] * len(chunk))
+                    query = f"""
+                    WITH latest_reports AS (
+                        SELECT 
+                            *,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY email_account 
+                                ORDER BY created_at DESC
+                            ) as rn
+                        FROM user_spamcheck_bison_reports
+                        WHERE bison_organization_id = %s
+                        AND email_account IN ({placeholders})
+                    )
+                    SELECT 
+                        COUNT(DISTINCT email_account) as checked,
+                        COUNT(CASE WHEN is_good = false THEN 1 END) as at_risk,
+                        COUNT(CASE WHEN is_good = true THEN 1 END) as protected,
+                        COALESCE(AVG(google_pro_score), 0) as avg_google,
+                        COALESCE(AVG(outlook_pro_score), 0) as avg_outlook,
+                        MAX(created_at) as last_check,
+                        COALESCE(MAX(sending_limit), 25) as sending_limit
+                    FROM latest_reports
+                    WHERE rn = 1
+                    """
+                    print(f"Executing query with org_id={org.id} and {len(chunk)} emails")
+                    cursor.execute(query, [org.id] + chunk)
+                    result = cursor.fetchone()
+                    if result and any(result):  # If we got any non-null results
+                        all_results.append(result)
+                
+                if not all_results:
+                    print("No reports found in database")
+                    continue
+                
+                # Aggregate results from all chunks
+                checked = sum(r[0] for r in all_results)
+                at_risk = sum(r[1] for r in all_results)
+                protected = sum(r[2] for r in all_results)
+                avg_google = sum(r[3] * r[0] for r in all_results) / sum(r[0] for r in all_results) if any(r[0] for r in all_results) else 0
+                avg_outlook = sum(r[4] * r[0] for r in all_results) / sum(r[0] for r in all_results) if any(r[0] for r in all_results) else 0
+                last_check = max(r[5] for r in all_results) if any(r[5] for r in all_results) else None
+                sending_limit = max(r[6] for r in all_results) if all_results else 25
+                
+                print(f"\nAggregated Metrics:")
+                print(f"- Checked accounts: {checked}")
+                print(f"- At risk: {at_risk}")
+                print(f"- Protected: {protected}")
+                print(f"- Avg Google score: {avg_google}")
+                print(f"- Avg Outlook score: {avg_outlook}")
+                print(f"- Sending limit: {sending_limit}")
+                
+                # Calculate email counts using sending limit
+                spam_emails = at_risk * sending_limit if at_risk else 0
+                inbox_emails = protected * sending_limit if protected else 0
+                total_emails = spam_emails + inbox_emails
+                
+                # Calculate percentages
+                spam_percentage = round((spam_emails / total_emails * 100), 2) if total_emails > 0 else 0
+                inbox_percentage = round((inbox_emails / total_emails * 100), 2) if total_emails > 0 else 0
+                
+                # Calculate overall deliverability (average of Google and Outlook scores)
+                overall_deliverability = round(((float(avg_google) + float(avg_outlook)) / 2) * 100, 2)
+                
+                print(f"\nCalculated metrics:")
+                print(f"- Spam emails: {spam_emails}")
+                print(f"- Inbox emails: {inbox_emails}")
+                print(f"- Spam %: {spam_percentage}")
+                print(f"- Inbox %: {inbox_percentage}")
+                print(f"- Overall deliverability: {overall_deliverability}")
+                
+                summaries.append({
+                    "organization_id": str(org.id),
+                    "organization_name": org.bison_organization_name,
+                    "checked_accounts": checked or 0,
+                    "at_risk_accounts": at_risk or 0,
+                    "protected_accounts": protected or 0,
+                    "spam_emails_count": spam_emails,
+                    "inbox_emails_count": inbox_emails,
+                    "spam_emails_percentage": spam_percentage,
+                    "inbox_emails_percentage": inbox_percentage,
+                    "overall_deliverability": overall_deliverability,
+                    "last_check_date": last_check.isoformat() if last_check else ""
+                })
+                print("\nAdded summary to response")
+                
+        except Exception as e:
+            print(f"\nError processing org {org.bison_organization_name}: {str(e)}")
+            continue
+    
+    print(f"\nFinal summaries count: {len(summaries)}")
+    return summaries 
