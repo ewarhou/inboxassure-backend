@@ -276,7 +276,8 @@ class Command(BaseCommand):
                 'used_subject': spamcheck.subject,
                 'used_body': spamcheck.body,
                 'sending_limit': sending_limit,
-                'tags_list': tags_str
+                'tags_list': tags_str,
+                'workspace_name': account.organization.bison_organization_name
             }
         )
 
@@ -383,7 +384,8 @@ class Command(BaseCommand):
                                     'used_subject': account.bison_spamcheck.subject,
                                     'used_body': account.bison_spamcheck.body,
                                     'sending_limit': sending_limit,
-                                    'tags_list': domain_tags_str
+                                    'tags_list': domain_tags_str,
+                                    'workspace_name': domain_account.organization.bison_organization_name
                                 }
                             )
                         )
@@ -405,7 +407,8 @@ class Command(BaseCommand):
                                 'used_subject': account.bison_spamcheck.subject,
                                 'used_body': account.bison_spamcheck.body,
                                 'sending_limit': sending_limit,
-                                'tags_list': tags_str
+                                'tags_list': tags_str,
+                                'workspace_name': account.organization.bison_organization_name
                             }
                         )
                     )
