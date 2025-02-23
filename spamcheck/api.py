@@ -1017,22 +1017,31 @@ def list_accounts(
 @router.get("/list-spamchecks", auth=AuthBearer(), response=ListSpamchecksResponseSchema)
 def list_spamchecks(request):
     """
-    Get all spamchecks with their details
+    Get all spamchecks (both Instantly and Bison) with their details
     """
     user = request.auth
     
     try:
-        # Get all spamchecks for the user with related data
-        spamchecks = UserSpamcheck.objects.select_related(
+        # Get all Instantly spamchecks for the user with related data
+        instantly_spamchecks = UserSpamcheck.objects.select_related(
             'user_organization',
             'options'
         ).prefetch_related(
             'accounts',
             'campaigns'
-        ).filter(user=user).order_by('-created_at')
+        ).filter(user=user)
+        
+        # Get all Bison spamchecks for the user with related data
+        bison_spamchecks = UserSpamcheckBison.objects.select_related(
+            'user_organization'
+        ).prefetch_related(
+            'accounts'
+        ).filter(user=user)
         
         spamcheck_list = []
-        for spamcheck in spamchecks:
+        
+        # Process Instantly spamchecks
+        for spamcheck in instantly_spamchecks:
             # Get options as dict
             options_dict = {
                 'open_tracking': spamcheck.options.open_tracking,
@@ -1058,9 +1067,42 @@ def list_spamchecks(request):
                 'organization_name': spamcheck.user_organization.instantly_organization_name,
                 'accounts_count': spamcheck.accounts.count(),
                 'campaigns_count': spamcheck.campaigns.count(),
-                'options': options_dict
+                'options': options_dict,
+                'platform': 'instantly'  # Explicitly mark as Instantly platform
             }
             spamcheck_list.append(spamcheck_details)
+        
+        # Process Bison spamchecks
+        for spamcheck in bison_spamchecks:
+            # Create spamcheck details
+            spamcheck_details = {
+                'id': spamcheck.id,
+                'name': spamcheck.name,
+                'status': spamcheck.status,
+                'scheduled_at': spamcheck.scheduled_at,
+                'recurring_days': spamcheck.recurring_days,
+                'is_domain_based': spamcheck.is_domain_based,
+                'conditions': spamcheck.conditions,
+                'reports_waiting_time': spamcheck.reports_waiting_time,
+                'created_at': spamcheck.created_at,
+                'updated_at': spamcheck.updated_at,
+                'user_organization_id': spamcheck.user_organization.id,
+                'organization_name': spamcheck.user_organization.bison_organization_name,
+                'accounts_count': spamcheck.accounts.count(),
+                'campaigns_count': 0,  # Bison doesn't use campaigns
+                'options': {
+                    'open_tracking': None,  # Bison doesn't support these
+                    'link_tracking': None,  # Bison doesn't support these
+                    'text_only': spamcheck.plain_text,
+                    'subject': spamcheck.subject,
+                    'body': spamcheck.body
+                },
+                'platform': 'bison'  # Explicitly mark as Bison platform
+            }
+            spamcheck_list.append(spamcheck_details)
+        
+        # Sort combined list by creation date (newest first)
+        spamcheck_list.sort(key=lambda x: x['created_at'], reverse=True)
         
         return {
             'success': True,
@@ -1069,6 +1111,7 @@ def list_spamchecks(request):
         }
         
     except Exception as e:
+        log_to_terminal("Spamcheck", "List", f"Error retrieving spamchecks: {str(e)}")
         return {
             'success': False,
             'message': f'Error retrieving spamchecks: {str(e)}',
@@ -1474,56 +1517,4 @@ def delete_spamcheck_bison(request, spamcheck_id: int):
         return {
             "success": False,
             "message": f"Error deleting spamcheck: {str(e)}"
-        }
-
-@router.get("/list-spamchecks-bison", auth=AuthBearer())
-def list_spamchecks_bison(request):
-    """
-    Get all Bison spamchecks with their details
-    """
-    user = request.auth
-    
-    try:
-        # Get all spamchecks for the user with related data
-        spamchecks = UserSpamcheckBison.objects.select_related(
-            'user_organization'
-        ).prefetch_related(
-            'accounts'
-        ).filter(user=user).order_by('-created_at')
-        
-        spamcheck_list = []
-        for spamcheck in spamchecks:
-            # Create spamcheck details
-            spamcheck_details = {
-                'id': spamcheck.id,
-                'name': spamcheck.name,
-                'status': spamcheck.status,
-                'scheduled_at': spamcheck.scheduled_at,
-                'recurring_days': spamcheck.recurring_days,
-                'is_domain_based': spamcheck.is_domain_based,
-                'conditions': spamcheck.conditions,
-                'reports_waiting_time': spamcheck.reports_waiting_time,
-                'text_only': spamcheck.plain_text,
-                'subject': spamcheck.subject,
-                'body': spamcheck.body,
-                'created_at': spamcheck.created_at,
-                'updated_at': spamcheck.updated_at,
-                'user_organization_id': spamcheck.user_organization.id,
-                'organization_name': spamcheck.user_organization.bison_organization_name,
-                'accounts_count': spamcheck.accounts.count()
-            }
-            spamcheck_list.append(spamcheck_details)
-        
-        return {
-            'success': True,
-            'message': f'Successfully retrieved {len(spamcheck_list)} spamchecks',
-            'data': spamcheck_list
-        }
-        
-    except Exception as e:
-        log_to_terminal("Spamcheck", "List Bison", f"Error retrieving spamchecks: {str(e)}")
-        return {
-            'success': False,
-            'message': f'Error retrieving spamchecks: {str(e)}',
-            'data': []
         } 

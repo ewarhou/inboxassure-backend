@@ -123,6 +123,7 @@ class SpamcheckDetailsSchema(Schema):
     accounts_count: int
     campaigns_count: int
     options: dict
+    platform: str
 
 class ListSpamchecksResponseSchema(Schema):
     success: bool
