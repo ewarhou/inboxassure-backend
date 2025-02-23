@@ -212,6 +212,7 @@ class UserSpamcheckAccountsBison(models.Model):
     organization = models.ForeignKey('settings.UserBison', on_delete=models.CASCADE)
     bison_spamcheck = models.ForeignKey(UserSpamcheckBison, on_delete=models.CASCADE, related_name='accounts')
     email_account = models.EmailField(max_length=255, validators=[EmailValidator()], null=True, blank=True)
+    last_emailguard_tag = models.CharField(max_length=255, null=True, blank=True, help_text='Last used EmailGuard tag UUID for this account')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
