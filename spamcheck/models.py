@@ -233,3 +233,44 @@ class UserSpamcheckAccountsBison(models.Model):
 
     def __str__(self):
         return f"{self.bison_spamcheck.name} - {self.email_account or 'No Email'}"
+
+
+class UserSpamcheckBisonReport(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    bison_organization = models.ForeignKey(
+        'settings.UserBison',
+        on_delete=models.CASCADE,
+        related_name='bison_spamcheck_reports'
+    )
+    email_account = models.EmailField()
+    report_link = models.URLField()
+    google_pro_score = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        validators=[MinValueValidator(0), MaxValueValidator(1)]
+    )
+    outlook_pro_score = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        validators=[MinValueValidator(0), MaxValueValidator(1)]
+    )
+    is_good = models.BooleanField(default=False, help_text='Whether this account meets the spamcheck conditions')
+    spamcheck_bison = models.ForeignKey(
+        'UserSpamcheckBison',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reports'
+    )
+    used_subject = models.TextField(null=True, blank=True, help_text='Subject used in the spamcheck campaign')
+    used_body = models.TextField(null=True, blank=True, help_text='Body used in the spamcheck campaign')
+    sending_limit = models.IntegerField(null=True, blank=True, help_text='Sending limit used in the campaign')
+    tags_list = models.TextField(null=True, blank=True, help_text='List of tags used in the campaign')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'user_spamcheck_bison_reports'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Bison Spam Check Report for {self.email_account}"

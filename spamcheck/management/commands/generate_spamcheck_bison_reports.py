@@ -81,9 +81,9 @@ class Command(BaseCommand):
         
         # Calculate score (0-1 scale)
         score = inbox_count / total_emails if total_emails > 0 else 0.0
-        self.stdout.write(f"  Score: {score:.1f}/1 ({inbox_count}/{total_emails})")
+        self.stdout.write(f"  Score: {score:.2f}/1 ({inbox_count}/{total_emails})")
         
-        return round(score, 1)  # Round to 1 decimal place
+        return round(score, 2)  # Round to 2 decimal places
 
     def parse_conditions(self, conditions_str):
         """Parse conditions string into dict"""
