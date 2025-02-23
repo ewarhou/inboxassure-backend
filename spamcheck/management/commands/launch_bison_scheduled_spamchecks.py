@@ -119,7 +119,7 @@ class Command(BaseCommand):
             raise
 
     async def get_bison_account_id(self, session, email_account, bison_api_key, base_url):
-        """Get Bison account ID for email account"""
+        """Get Bison account ID and status for email account"""
         url = f"{base_url}/api/sender-emails/{email_account}"
         headers = {
             "Authorization": f"Bearer {bison_api_key}",
@@ -131,7 +131,12 @@ class Command(BaseCommand):
                 async with session.get(url, headers=headers) as response:
                     if response.status == 200:
                         data = await response.json()
-                        return data['data']['id']
+                        account_data = data['data']
+                        return {
+                            'id': account_data['id'],
+                            'status': account_data['status'],
+                            'is_connected': account_data['status'] == 'Connected'
+                        }
                     else:
                         raise Exception(f"Bison API error: {response.status}")
         except Exception as e:
@@ -240,17 +245,25 @@ class Command(BaseCommand):
                 
                 for domain, domain_accounts in accounts_by_domain.items():
                     try:
-                        # Get one account to represent the domain
-                        representative_account = random.choice(domain_accounts)
-                        self.stdout.write(f"\nProcessing domain {domain} with {len(domain_accounts)} accounts")
-                        self.stdout.write(f"Representative account: {representative_account.email_account}")
+                        # Find a connected account for this domain
+                        connected_account = None
+                        for account in domain_accounts:
+                            account_info = await self.get_bison_account_id(
+                                session, account.email_account, 
+                                user_bison.bison_organization_api_key,
+                                user_settings.bison_base_url
+                            )
+                            if account_info['is_connected']:
+                                connected_account = account
+                                bison_account_id = account_info['id']
+                                break
                         
-                        # Get Bison account ID for the representative account
-                        bison_account_id = await self.get_bison_account_id(
-                            session, representative_account.email_account, 
-                            user_bison.bison_organization_api_key,
-                            user_settings.bison_base_url
-                        )
+                        if not connected_account:
+                            self.stdout.write(f"\nSkipping domain {domain} - No connected accounts found")
+                            continue
+
+                        self.stdout.write(f"\nProcessing domain {domain} with {len(domain_accounts)} accounts")
+                        self.stdout.write(f"Representative account: {connected_account.email_account}")
 
                         # Get one EmailGuard tag for the domain
                         campaign_name = f"{spamcheck.name} - {domain}"
@@ -270,22 +283,24 @@ class Command(BaseCommand):
                                 )
                             )
                             
-                            # Get Bison account ID for each account
-                            account_bison_id = await self.get_bison_account_id(
+                            # Get Bison account ID and check status for each account
+                            account_info = await self.get_bison_account_id(
                                 session, account.email_account,
                                 user_bison.bison_organization_api_key,
                                 user_settings.bison_base_url
                             )
                             
-                            # Send email for each account using the domain's tag
-                            await self.send_bison_email(
-                                session, spamcheck, account, test_emails,
-                                user_bison.bison_organization_api_key,
-                                account_bison_id, filter_phrase,
-                                user_settings.bison_base_url
-                            )
-                            
-                            successful_accounts += 1
+                            if account_info['is_connected']:
+                                # Send email only for connected accounts
+                                await self.send_bison_email(
+                                    session, spamcheck, account, test_emails,
+                                    user_bison.bison_organization_api_key,
+                                    account_info['id'], filter_phrase,
+                                    user_settings.bison_base_url
+                                )
+                                successful_accounts += 1
+                            else:
+                                self.stdout.write(f"Skipping disconnected account: {account.email_account}")
                             
                     except Exception as e:
                         self.stdout.write(self.style.ERROR(f"Error processing domain {domain}: {str(e)}"))
@@ -300,12 +315,16 @@ class Command(BaseCommand):
                 
                 for account in all_accounts:
                     try:
-                        # Get Bison account ID
-                        bison_account_id = await self.get_bison_account_id(
+                        # Get Bison account ID and check status
+                        account_info = await self.get_bison_account_id(
                             session, account.email_account,
                             user_bison.bison_organization_api_key,
                             user_settings.bison_base_url
                         )
+
+                        if not account_info['is_connected']:
+                            self.stdout.write(f"Skipping disconnected account: {account.email_account}")
+                            continue
 
                         # Get EmailGuard tag for this account
                         campaign_name = f"{spamcheck.name} - {account.email_account}"
@@ -325,7 +344,7 @@ class Command(BaseCommand):
                         await self.send_bison_email(
                             session, spamcheck, account, test_emails,
                             user_bison.bison_organization_api_key,
-                            bison_account_id, filter_phrase,
+                            account_info['id'], filter_phrase,
                             user_settings.bison_base_url
                         )
 
@@ -337,8 +356,8 @@ class Command(BaseCommand):
                         await asyncio.to_thread(spamcheck.save)
                         return False
 
-            # Only update to in_progress if all accounts were successful
-            if successful_accounts == total_accounts:
+            # Only update to in_progress if at least one account was successful
+            if successful_accounts > 0:
                 spamcheck.status = 'in_progress'
                 if spamcheck.recurring_days:
                     spamcheck.scheduled_at = timezone.now() + timedelta(days=spamcheck.recurring_days)
