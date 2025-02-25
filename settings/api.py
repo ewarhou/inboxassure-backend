@@ -828,4 +828,46 @@ def log_to_terminal(module: str, action: str, message: str):
         with open("terminal_logs.txt", "a") as f:
             f.write(log_entry)
     except Exception as e:
-        print(f"Error writing to logs: {str(e)}") 
+        print(f"Error writing to logs: {str(e)}")
+
+@router.get("/list-bison-workspaces", auth=AuthBearer())
+def list_bison_workspaces(request):
+    """
+    List all connected Bison workspaces for the authenticated user
+    """
+    user = request.auth
+    
+    try:
+        # Get all active Bison organizations for the user
+        bison_organizations = UserBison.objects.filter(
+            user=user,
+            bison_organization_status=True
+        ).values(
+            'id',
+            'bison_organization_id',
+            'bison_organization_name',
+            'bison_organization_status',
+            'created_at',
+            'updated_at'
+        )
+        
+        if not bison_organizations:
+            return {
+                "success": False,
+                "message": "No active Bison workspaces found. Please connect at least one workspace first.",
+                "data": []
+            }
+        
+        return {
+            "success": True,
+            "message": f"Successfully retrieved {len(bison_organizations)} Bison workspaces",
+            "data": list(bison_organizations)
+        }
+        
+    except Exception as e:
+        log_to_terminal("Settings", "List Bison Workspaces", f"Error: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Error retrieving Bison workspaces: {str(e)}",
+            "data": []
+        } 

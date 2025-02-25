@@ -1,6 +1,6 @@
 # InboxAssure Backend API Documentation
 
-Base URL: http://inboxassure-backend.imnodev.com/api
+Base URL: http://inboxassure-backend.imnodev.com
 
 ## Bison Analytics Endpoints
 

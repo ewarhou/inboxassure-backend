@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from ninja import Router, Schema, Query
 from ninja.pagination import paginate
 from ninja.security import HttpBearer
@@ -10,12 +10,28 @@ from authentication.authorization import AuthBearer
 from spamcheck.services.instantly import InstantlyService
 from settings.api import log_to_terminal
 import requests
+from settings.models import UserBison, UserInstantly
+from pydantic import BaseModel, Field
+from decimal import Decimal
+import json
+import time
+import re
+from django.conf import settings
 
 router = Router(tags=["Analytics"])
 
 class PaginationSchema(Schema):
     page: int = 1
     per_page: int = 10
+
+class BisonCampaignResponse(BaseModel):
+    id: int
+    name: str
+    connectedEmails: int = Field(..., description="Count of emails connected to this campaign")
+    sendsPerAccount: int = Field(..., description="Number of sends per account")
+    googleScore: float = Field(..., description="Google deliverability score (0-100)")
+    outlookScore: float = Field(..., description="Outlook deliverability score (0-100)")
+    maxDailySends: int = Field(..., description="Maximum daily sends")
 
 class BisonOrganizationSummaryResponse(Schema):
     """Response model for Bison organization dashboard summary metrics"""
@@ -630,7 +646,6 @@ def get_bison_provider_performance(
     log_to_terminal("BisonPerformance", "DateRange", f"Range: {start_date} to {end_date}")
     
     # Get all active Bison organizations for the user
-    from settings.models import UserBison
     bison_orgs = UserBison.objects.filter(
         user=user,
         bison_organization_status=True
@@ -1031,4 +1046,91 @@ def get_bison_dashboard_summary(request):
             continue
     
     print(f"\nFinal summaries count: {len(summaries)}")
-    return summaries 
+    return summaries
+
+class BisonOrganizationCampaignsResponse(BaseModel):
+    organization_id: str
+    organization_name: str
+    campaigns: List[BisonCampaignResponse]
+
+@router.get(
+    "/bison/campaigns",
+    response=List[BisonOrganizationCampaignsResponse],
+    auth=AuthBearer(),
+    summary="Get Bison Campaigns",
+    description="Get all campaigns from Bison with connected emails and deliverability scores, grouped by organization"
+)
+def get_bison_campaigns(request):
+    """
+    Get all campaigns from Bison with connected emails and deliverability scores, grouped by organization.
+    This endpoint now uses cached data from the UserCampaignsBison table for improved performance.
+    """
+    import time
+    start_time = time.time()
+    
+    user = request.auth
+    log_to_terminal("Bison", "Campaigns", f"User {user.email} requested Bison campaigns")
+    
+    # Get all active Bison organizations for the user
+    bison_orgs = UserBison.objects.filter(
+        user=user,
+        bison_organization_status=True
+    )
+    
+    if not bison_orgs:
+        log_to_terminal("Bison", "Campaigns", f"No active Bison organizations found for user {user.email}")
+        return []
+    
+    organizations_campaigns = []
+    
+    # Import the UserCampaignsBison model
+    from analytics.models import UserCampaignsBison
+    
+    for org in bison_orgs:
+        try:
+            # Get cached campaigns for this organization
+            cached_campaigns = UserCampaignsBison.objects.filter(
+                user=user,
+                bison_organization=org
+            ).order_by('campaign_name')
+            
+            if not cached_campaigns.exists():
+                log_to_terminal("Bison", "Campaigns", f"No cached campaigns found for organization {org.bison_organization_name}")
+                # Skip this organization if no campaigns are found
+                continue
+            
+            # Format the campaigns for the response
+            org_campaigns = []
+            for campaign in cached_campaigns:
+                org_campaigns.append({
+                    "id": campaign.campaign_id,
+                    "name": campaign.campaign_name,
+                    "connectedEmails": campaign.connected_emails_count,
+                    "sendsPerAccount": campaign.sends_per_account,
+                    "googleScore": campaign.google_score,
+                    "outlookScore": campaign.outlook_score,
+                    "maxDailySends": campaign.max_daily_sends
+                })
+            
+            # Add organization with its campaigns to the response
+            if org_campaigns:
+                organizations_campaigns.append({
+                    "organization_id": str(org.id),
+                    "organization_name": org.bison_organization_name,
+                    "campaigns": org_campaigns
+                })
+                
+            log_to_terminal("Bison", "Campaigns", f"Retrieved {len(org_campaigns)} cached campaigns for {org.bison_organization_name}")
+                
+        except Exception as e:
+            log_to_terminal("Bison", "Campaigns", f"Error retrieving cached campaigns for organization {org.bison_organization_name}: {str(e)}")
+            continue
+    
+    total_time = time.time() - start_time
+    log_to_terminal("Bison", "Campaigns", f"Returning campaigns for {len(organizations_campaigns)} organizations (took {total_time:.2f}s)")
+    return organizations_campaigns
+
+# Analytics schemas
+class InstantlyAccountsResponse(Schema):
+    # existing code
+    pass 
