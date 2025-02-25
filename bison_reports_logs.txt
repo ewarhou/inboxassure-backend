@@ -1,0 +1,3899 @@
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 15:55:06.515478+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 16:00:08.748478+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 16:05:06.477588+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+Found 1 spamchecks ready for report generation
+
+Processing Spamcheck ID: 8
+
+  Processing account: p.combs@karpos.us
+  EmailGuard Tag: 9e4821be-656b-420e-b2a4-2d36f1f7e176
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Bad
+
+  Processing domain: karpos.us
+  Found 3 accounts in this domain
+  Creating report for account: p.combs@karpos.us
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID p.combs@karpos.us
+  Creating report for account: pat.combs@karpos.us
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID pat.combs@karpos.us
+  Creating report for account: pat@karpos.us
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID pat@karpos.us
+All reports generated successfully. Spamcheck 8 marked as completed
+
+=== Report Generation Complete ===
+Successfully processed 1 of 1 spamchecks
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 16:10:06.558767+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 16:15:06.518282+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 16:20:06.537302+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 16:25:05.934209+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 16:30:06.957932+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 16:35:05.937346+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 16:40:05.590823+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 16:45:06.313029+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 16:50:06.662807+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 16:55:07.348144+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 17:00:09.615630+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 17:05:05.882171+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 17:10:06.409807+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 17:15:05.823446+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 17:20:06.270429+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 17:25:06.596452+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 17:30:06.072087+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 17:35:06.998501+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 17:40:06.097359+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 17:45:05.971664+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 17:50:06.218712+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 17:55:06.537000+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 18:00:09.422566+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 18:05:06.347831+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 18:10:06.729280+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 18:15:06.324298+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 18:20:05.630339+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 18:25:07.228504+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 18:30:05.981044+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 18:35:06.581653+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 18:40:06.474879+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 18:45:06.012262+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 18:50:06.250247+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 18:55:06.745389+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 19:00:08.737230+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+Found 1 spamchecks ready for report generation
+
+Processing Spamcheck ID: 9
+
+  Processing account: p.combs@karpos.us
+  EmailGuard Tag: 9e486050-fc0e-4c5c-ae23-1c7081fc5f14
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=23/3
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 23,
+  "bad_limit": 3
+}
+  ✓ Conditions met - Using good limit: 23
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Bad
+
+  Processing domain: karpos.us
+  Found 3 accounts in this domain
+  Creating report for account: p.combs@karpos.us
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Bad
+  ✓ Updated sending limit to 23 for email ID p.combs@karpos.us
+  Creating report for account: pat.combs@karpos.us
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Bad
+  ✓ Updated sending limit to 23 for email ID pat.combs@karpos.us
+  Creating report for account: pat@karpos.us
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Bad
+  ✓ Updated sending limit to 23 for email ID pat@karpos.us
+All reports generated successfully. Spamcheck 9 marked as completed
+
+=== Report Generation Complete ===
+Successfully processed 1 of 1 spamchecks
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 19:05:05.872596+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 19:10:07.408536+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 19:15:06.777382+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 19:20:06.644261+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+Found 1 spamchecks ready for report generation
+
+Processing Spamcheck ID: 11
+
+  Processing account: pat.c@karpos.us
+  EmailGuard Tag: 9e486778-0149-4df6-9edf-64056420c656
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Bad
+
+  Processing domain: karpos.us
+  Found 4 accounts in this domain
+  Creating report for account: pat.c@karpos.us
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID pat.c@karpos.us
+  Creating report for account: p.combs@karpos.us
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID p.combs@karpos.us
+  Creating report for account: pat.combs@karpos.us
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID pat.combs@karpos.us
+  Creating report for account: pat@karpos.us
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID pat@karpos.us
+
+  Processing account: pat.c@karpos-team.com
+  EmailGuard Tag: 9e48677e-97ec-4d0c-b758-e8de1e155088
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+
+  Processing domain: karpos-team.com
+  Found 4 accounts in this domain
+  Creating report for account: pat.c@karpos-team.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat.c@karpos-team.com
+  Creating report for account: pat@karpos-team.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat@karpos-team.com
+  Creating report for account: pat.combs@karpos-team.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat.combs@karpos-team.com
+  Creating report for account: p.combs@karpos-team.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID p.combs@karpos-team.com
+
+  Processing account: pat.c@capital-team.com
+  EmailGuard Tag: 9e486785-72c7-47d1-b0d3-094a13e85a99
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+
+  Processing domain: capital-team.com
+  Found 4 accounts in this domain
+  Creating report for account: pat.c@capital-team.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat.c@capital-team.com
+  Creating report for account: p.combs@capital-team.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID p.combs@capital-team.com
+  Creating report for account: pat@capital-team.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat@capital-team.com
+  Creating report for account: pat.combs@capital-team.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat.combs@capital-team.com
+
+  Processing account: p.combs@partnerssite.com
+  EmailGuard Tag: 9e48678c-1d15-450d-8760-35f3f824dd1f
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+  Google Score: 1.0/4
+  Outlook Score: 1.0/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+
+  Processing domain: partnerssite.com
+  Found 4 accounts in this domain
+  Creating report for account: p.combs@partnerssite.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID p.combs@partnerssite.com
+  Creating report for account: pat@partnerssite.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat@partnerssite.com
+  Creating report for account: pat.c@partnerssite.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat.c@partnerssite.com
+  Creating report for account: pat.combs@partnerssite.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat.combs@partnerssite.com
+
+  Processing account: p.combs@partnerscrew.com
+  EmailGuard Tag: 9e486793-c3f3-4206-a38f-224453d21bbf
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+
+  Processing domain: partnerscrew.com
+  Found 4 accounts in this domain
+  Creating report for account: p.combs@partnerscrew.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID p.combs@partnerscrew.com
+  Creating report for account: pat.c@partnerscrew.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat.c@partnerscrew.com
+  Creating report for account: pat.combs@partnerscrew.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat.combs@partnerscrew.com
+  Creating report for account: pat@partnerscrew.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat@partnerscrew.com
+
+  Processing account: pat@partners-team.com
+  EmailGuard Tag: 9e48679a-258a-4778-b2cf-27b38ba7cec9
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Bad
+
+  Processing domain: partners-team.com
+  Found 4 accounts in this domain
+  Creating report for account: pat@partners-team.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID pat@partners-team.com
+  Creating report for account: pat.combs@partners-team.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID pat.combs@partners-team.com
+  Creating report for account: pat.c@partners-team.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID pat.c@partners-team.com
+  Creating report for account: p.combs@partners-team.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID p.combs@partners-team.com
+
+  Processing account: pat@karposteam.com
+  EmailGuard Tag: 9e4867a0-b9e6-4030-881f-951726b97f27
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+  Google Score: 1.0/4
+  Outlook Score: 1.0/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+
+  Processing domain: karposteam.com
+  Found 4 accounts in this domain
+  Creating report for account: pat@karposteam.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat@karposteam.com
+  Creating report for account: p.combs@karposteam.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID p.combs@karposteam.com
+  Creating report for account: pat.combs@karposteam.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat.combs@karposteam.com
+  Creating report for account: pat.c@karposteam.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat.c@karposteam.com
+
+  Processing account: pat.combs@karposlabs.com
+  EmailGuard Tag: 9e4867a7-6cac-4d3b-82bd-a573d3a77584
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+
+  Processing domain: karposlabs.com
+  Found 4 accounts in this domain
+  Creating report for account: pat.combs@karposlabs.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat.combs@karposlabs.com
+  Creating report for account: pat@karposlabs.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat@karposlabs.com
+  Creating report for account: p.combs@karposlabs.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID p.combs@karposlabs.com
+  Creating report for account: pat.c@karposlabs.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat.c@karposlabs.com
+
+  Processing account: p.combs@karposhub.com
+  EmailGuard Tag: 9e4867ae-265b-4426-8075-ac2b4ede0569
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+
+  Processing domain: karposhub.com
+  Found 4 accounts in this domain
+  Creating report for account: p.combs@karposhub.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID p.combs@karposhub.com
+  Creating report for account: pat.combs@karposhub.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat.combs@karposhub.com
+  Creating report for account: pat@karposhub.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat@karposhub.com
+  Creating report for account: pat.c@karposhub.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat.c@karposhub.com
+
+  Processing account: pat@karposhq.com
+  EmailGuard Tag: 9e4867b5-8e8f-43c8-81d7-96ef1fc89bd4
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+
+  Processing domain: karposhq.com
+  Found 4 accounts in this domain
+  Creating report for account: pat@karposhq.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat@karposhq.com
+  Creating report for account: p.combs@karposhq.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID p.combs@karposhq.com
+  Creating report for account: pat.combs@karposhq.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat.combs@karposhq.com
+  Creating report for account: pat.c@karposhq.com
+  Found tags: p.Maildoso Oct 7 2024,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID pat.c@karposhq.com
+All reports generated successfully. Spamcheck 11 marked as completed
+
+=== Report Generation Complete ===
+Successfully processed 1 of 1 spamchecks
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 19:25:07.658408+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 19:30:06.178739+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 19:35:06.476358+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 19:40:06.191953+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 19:45:06.982144+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 19:50:05.767392+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 19:55:06.107834+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 20:00:09.023684+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 20:05:05.590195+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 20:10:06.995700+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 20:15:06.336530+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 20:20:05.946266+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+Found 1 spamchecks ready for report generation
+
+Processing Spamcheck ID: 12
+
+  Processing account: e.dombach@procoachjourney.com
+  EmailGuard Tag: 9e487cec-ad61-4459-aa19-b3dc90cc7e72
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachjourney.com
+  Found 3 accounts in this domain
+  Creating report for account: e.dombach@procoachjourney.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachjourney.com
+  Creating report for account: eric@procoachjourney.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachjourney.com
+  Creating report for account: ericdombach@procoachjourney.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachjourney.com
+
+  Processing account: eric@procoachhaven.com
+  EmailGuard Tag: 9e487cf4-159a-43da-861c-f8aace2c3d2c
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachhaven.com
+  Found 4 accounts in this domain
+  Creating report for account: eric@procoachhaven.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachhaven.com
+  Creating report for account: ericdombach@procoachhaven.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachhaven.com
+  Creating report for account: e.dombach@procoachhaven.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachhaven.com
+  Creating report for account: eric.dombach@procoachhaven.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@procoachhaven.com
+
+  Processing account: e.dombach@procoachfocus.com
+  EmailGuard Tag: 9e487cfa-e0bb-43c5-852d-f534300a1c6a
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 2
+  Score: 0.50/1 (2/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.5/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachfocus.com
+  Found 4 accounts in this domain
+  Creating report for account: e.dombach@procoachfocus.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachfocus.com
+  Creating report for account: eric@procoachfocus.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachfocus.com
+  Creating report for account: ericdombach@procoachfocus.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachfocus.com
+  Creating report for account: eric.dombach@procoachfocus.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@procoachfocus.com
+
+  Processing account: e.dombach@procoachdrive.com
+  EmailGuard Tag: 9e487d02-8387-4c94-8cad-fc6c6d42d742
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachdrive.com
+  Found 4 accounts in this domain
+  Creating report for account: e.dombach@procoachdrive.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachdrive.com
+  Creating report for account: eric.dombach@procoachdrive.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@procoachdrive.com
+  Creating report for account: eric@procoachdrive.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachdrive.com
+  Creating report for account: ericdombach@procoachdrive.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachdrive.com
+
+  Processing account: eric@coachpromethods.com
+  EmailGuard Tag: 9e487d09-25bb-4f00-9c6c-7c743c80f52b
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: coachpromethods.com
+  Found 4 accounts in this domain
+  Creating report for account: eric@coachpromethods.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@coachpromethods.com
+  Creating report for account: eric.dombach@coachpromethods.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@coachpromethods.com
+  Creating report for account: ericdombach@coachpromethods.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@coachpromethods.com
+  Creating report for account: e.dombach@coachpromethods.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@coachpromethods.com
+
+  Processing account: eric.dombach@coachpromentors.com
+  EmailGuard Tag: 9e487d10-2f14-41da-a4a2-0d24741d49ca
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+  Google Score: 1.0/4
+  Outlook Score: 1.0/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: coachpromentors.com
+  Found 4 accounts in this domain
+  Creating report for account: eric.dombach@coachpromentors.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@coachpromentors.com
+  Creating report for account: e.dombach@coachpromentors.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@coachpromentors.com
+  Creating report for account: ericdombach@coachpromentors.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@coachpromentors.com
+  Creating report for account: eric@coachpromentors.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@coachpromentors.com
+
+  Processing account: eric@coachproimpact.com
+  EmailGuard Tag: 9e487d16-d0e9-4d07-a7ea-ab9d9617b27c
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+  Google Score: 1.0/4
+  Outlook Score: 1.0/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: coachproimpact.com
+  Found 4 accounts in this domain
+  Creating report for account: eric@coachproimpact.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@coachproimpact.com
+  Creating report for account: e.dombach@coachproimpact.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@coachproimpact.com
+  Creating report for account: eric.dombach@coachproimpact.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@coachproimpact.com
+  Creating report for account: ericdombach@coachproimpact.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@coachproimpact.com
+
+  Processing account: eric.dombach@coachproguide.com
+  EmailGuard Tag: 9e487d1d-b19c-44ec-9612-c5be1591fa48
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+  Google Score: 1.0/4
+  Outlook Score: 1.0/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: coachproguide.com
+  Found 4 accounts in this domain
+  Creating report for account: eric.dombach@coachproguide.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@coachproguide.com
+  Creating report for account: e.dombach@coachproguide.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@coachproguide.com
+  Creating report for account: eric@coachproguide.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@coachproguide.com
+  Creating report for account: ericdombach@coachproguide.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@coachproguide.com
+
+  Processing account: eric@procoachgrowth.com
+  EmailGuard Tag: 9e487d24-3fed-4f00-87ee-59fcc9cd3a88
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+  Google Score: 0.75/4
+  Outlook Score: 1.0/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachgrowth.com
+  Found 4 accounts in this domain
+  Creating report for account: eric@procoachgrowth.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachgrowth.com
+  Creating report for account: ericdombach@procoachgrowth.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachgrowth.com
+  Creating report for account: eric.dombach@procoachgrowth.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@procoachgrowth.com
+  Creating report for account: e.dombach@procoachgrowth.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachgrowth.com
+
+  Processing account: ericdombach@procoachconsulting.com
+  EmailGuard Tag: 9e487d2b-1ed0-4ee8-9513-f90dc83da636
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+  Google Score: 1.0/4
+  Outlook Score: 1.0/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachconsulting.com
+  Found 4 accounts in this domain
+  Creating report for account: ericdombach@procoachconsulting.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachconsulting.com
+  Creating report for account: eric@procoachconsulting.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachconsulting.com
+  Creating report for account: eric.dombach@procoachconsulting.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@procoachconsulting.com
+  Creating report for account: e.dombach@procoachconsulting.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachconsulting.com
+
+  Processing account: e.dombach@coachpropath.com
+  EmailGuard Tag: 9e487d31-beed-45c2-80d5-027ef2c59d31
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+  Google Score: 1.0/4
+  Outlook Score: 1.0/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+
+  Processing domain: coachpropath.com
+  Found 4 accounts in this domain
+  Creating report for account: e.dombach@coachpropath.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID e.dombach@coachpropath.com
+  Creating report for account: eric.dombach@coachpropath.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID eric.dombach@coachpropath.com
+  Creating report for account: eric@coachpropath.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID eric@coachpropath.com
+  Creating report for account: ericdombach@coachpropath.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID ericdombach@coachpropath.com
+
+  Processing account: eric@coachproplus.com
+  EmailGuard Tag: 9e487d38-2a5b-4b28-a985-2d41234d4842
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 1
+  Score: 0.25/1 (1/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.25/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✗ Conditions not met - Using bad limit: 1
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: coachproplus.com
+  Found 4 accounts in this domain
+  Creating report for account: eric@coachproplus.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 1 for email ID eric@coachproplus.com
+  Creating report for account: e.dombach@coachproplus.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 1 for email ID e.dombach@coachproplus.com
+  Creating report for account: eric.dombach@coachproplus.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 1 for email ID eric.dombach@coachproplus.com
+  Creating report for account: ericdombach@coachproplus.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 1 for email ID ericdombach@coachproplus.com
+
+  Processing account: eric.dombach@coachproway.com
+  EmailGuard Tag: 9e487d3e-a618-4c99-84ba-1eff6fb3857d
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: coachproway.com
+  Found 3 accounts in this domain
+  Creating report for account: eric.dombach@coachproway.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@coachproway.com
+  Creating report for account: eric@coachproway.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@coachproway.com
+  Creating report for account: ericdombach@coachproway.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@coachproway.com
+
+  Processing account: e.dombach@coachprotips.com
+  EmailGuard Tag: 9e487d43-a281-414d-9533-9acef97294b2
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+  Google Score: 1.0/4
+  Outlook Score: 1.0/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: coachprotips.com
+  Found 4 accounts in this domain
+  Creating report for account: e.dombach@coachprotips.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@coachprotips.com
+  Creating report for account: ericdombach@coachprotips.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@coachprotips.com
+  Creating report for account: eric.dombach@coachprotips.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@coachprotips.com
+
+  Processing account: eric@coachprosuccess.com
+  EmailGuard Tag: 9e487d4a-82ce-43e4-9859-18ef63cfd2d7
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 2
+  Score: 0.50/1 (2/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.5/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+
+  Processing domain: coachprosuccess.com
+  Found 4 accounts in this domain
+  Creating report for account: eric@coachprosuccess.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID eric@coachprosuccess.com
+  Creating report for account: ericdombach@coachprosuccess.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID ericdombach@coachprosuccess.com
+  Creating report for account: eric.dombach@coachprosuccess.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID eric.dombach@coachprosuccess.com
+
+  Processing account: eric@coachproprime.com
+  EmailGuard Tag: 9e487d51-d0ba-4768-9fe9-f4ae8a4f0992
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+  Google Score: 1.0/4
+  Outlook Score: 1.0/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: coachproprime.com
+  Found 4 accounts in this domain
+  Creating report for account: eric@coachproprime.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@coachproprime.com
+  Creating report for account: e.dombach@coachproprime.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@coachproprime.com
+  Creating report for account: ericdombach@coachproprime.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@coachproprime.com
+  Creating report for account: eric.dombach@coachproprime.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@coachproprime.com
+
+  Processing account: eric.dombach@procoachquest.com
+  EmailGuard Tag: 9e487d59-c9d5-4a5c-abb5-1f9f6ce1bd15
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 2
+  Score: 0.50/1 (2/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.5/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachquest.com
+  Found 4 accounts in this domain
+  Creating report for account: eric.dombach@procoachquest.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@procoachquest.com
+  Creating report for account: eric@procoachquest.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachquest.com
+  Creating report for account: e.dombach@procoachquest.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachquest.com
+  Creating report for account: ericdombach@procoachquest.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachquest.com
+
+  Processing account: e.dombach@procoachpeak.com
+  EmailGuard Tag: 9e487d60-3d2d-41f5-a554-166461395ae0
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachpeak.com
+  Found 4 accounts in this domain
+  Creating report for account: e.dombach@procoachpeak.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachpeak.com
+  Creating report for account: eric.dombach@procoachpeak.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@procoachpeak.com
+  Creating report for account: eric@procoachpeak.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachpeak.com
+
+  Processing account: eric@procoachnavigator.com
+  EmailGuard Tag: 9e487d66-bbcf-4aa0-8f51-6c6d3a562386
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachnavigator.com
+  Found 3 accounts in this domain
+  Creating report for account: eric@procoachnavigator.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachnavigator.com
+  Creating report for account: eric.dombach@procoachnavigator.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@procoachnavigator.com
+  Creating report for account: e.dombach@procoachnavigator.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachnavigator.com
+
+  Processing account: ericdombach@procoachmentorship.com
+  EmailGuard Tag: 9e487d6b-d412-4317-a3ab-f465b9235ba4
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachmentorship.com
+  Found 4 accounts in this domain
+  Creating report for account: ericdombach@procoachmentorship.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachmentorship.com
+  Creating report for account: e.dombach@procoachmentorship.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachmentorship.com
+  Creating report for account: eric@procoachmentorship.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachmentorship.com
+  Creating report for account: eric.dombach@procoachmentorship.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@procoachmentorship.com
+
+  Processing account: eric.dombach@procoachmastery.com
+  EmailGuard Tag: 9e487d72-a17f-45a6-adda-9ab80b23600b
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+  Google Score: 1.0/4
+  Outlook Score: 1.0/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachmastery.com
+  Found 4 accounts in this domain
+  Creating report for account: eric.dombach@procoachmastery.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@procoachmastery.com
+  Creating report for account: ericdombach@procoachmastery.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachmastery.com
+  Creating report for account: e.dombach@procoachmastery.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachmastery.com
+  Creating report for account: eric@procoachmastery.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachmastery.com
+
+  Processing account: eric@coachproinsights.com
+  EmailGuard Tag: 9e487d7a-11bb-4678-a802-83171a08797b
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: coachproinsights.com
+  Found 4 accounts in this domain
+  Creating report for account: eric@coachproinsights.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@coachproinsights.com
+  Creating report for account: ericdombach@coachproinsights.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@coachproinsights.com
+  Creating report for account: e.dombach@coachproinsights.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@coachproinsights.com
+  Creating report for account: eric.dombach@coachproinsights.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@coachproinsights.com
+
+  Processing account: eric.dombach@coachpronext.com
+  EmailGuard Tag: 9e487d81-0cfc-4064-8a1f-cc118b7712cc
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+
+  Processing domain: coachpronext.com
+  Found 4 accounts in this domain
+  Creating report for account: eric.dombach@coachpronext.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID eric.dombach@coachpronext.com
+  Creating report for account: ericdombach@coachpronext.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID ericdombach@coachpronext.com
+  Creating report for account: e.dombach@coachpronext.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID e.dombach@coachpronext.com
+  Creating report for account: eric@coachpronext.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID eric@coachpronext.com
+
+  Processing account: eric@coachprolab.com
+  EmailGuard Tag: 9e487d88-d688-4c36-b487-6dd56330d592
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: coachprolab.com
+  Found 4 accounts in this domain
+  Creating report for account: eric@coachprolab.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@coachprolab.com
+  Creating report for account: ericdombach@coachprolab.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@coachprolab.com
+  Creating report for account: eric.dombach@coachprolab.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@coachprolab.com
+  Creating report for account: e.dombach@coachprolab.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@coachprolab.com
+
+  Processing account: eric@procoachworks.com
+  EmailGuard Tag: 9e487d8f-a522-494c-9734-03fcad92ba20
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 1
+  Score: 0.25/1 (1/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.25/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✗ Conditions not met - Using bad limit: 1
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+
+  Processing domain: procoachworks.com
+  Found 4 accounts in this domain
+  Creating report for account: eric@procoachworks.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 1 for email ID eric@procoachworks.com
+  Creating report for account: eric.dombach@procoachworks.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 1 for email ID eric.dombach@procoachworks.com
+  Creating report for account: e.dombach@procoachworks.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 1 for email ID e.dombach@procoachworks.com
+  Creating report for account: ericdombach@procoachworks.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 1 for email ID ericdombach@procoachworks.com
+
+  Processing account: ericdombach@coachprovision.com
+  EmailGuard Tag: 9e487d96-785d-4373-92f7-6b7656a0df01
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: coachprovision.com
+  Found 5 accounts in this domain
+  Creating report for account: ericdombach@coachprovision.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@coachprovision.com
+  Creating report for account: eric@coachprovision.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@coachprovision.com
+  Creating report for account: eric.dombach@coachprovision.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@coachprovision.com
+  Creating report for account: e.dombach@coachprovision.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@coachprovision.com
+
+  Processing account: eric@procoachhub.com
+  EmailGuard Tag: 9e487d9f-3284-4444-8af7-73c0390ab9c1
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachhub.com
+  Found 3 accounts in this domain
+  Creating report for account: eric@procoachhub.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachhub.com
+  Creating report for account: e.dombach@procoachhub.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachhub.com
+  Creating report for account: ericdombach@procoachhub.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachhub.com
+
+  Processing account: ericdombach@procoachedge.com
+  EmailGuard Tag: 9e487da4-a229-44c1-9653-849d4ab42c9a
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachedge.com
+  Found 5 accounts in this domain
+  Creating report for account: ericdombach@procoachedge.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachedge.com
+  Creating report for account: eric.dombach@procoachedge.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@procoachedge.com
+  Creating report for account: e.dombach@procoachedge.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachedge.com
+  Creating report for account: eric@procoachedge.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachedge.com
+
+  Processing account: ericdombach@procoachexperts.com
+  EmailGuard Tag: 9e487dac-eb02-4aa7-9b1e-4bc009dd8f30
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 2
+  Score: 0.50/1 (2/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.5/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachexperts.com
+  Found 7 accounts in this domain
+  Creating report for account: ericdombach@procoachexperts.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachexperts.com
+  Creating report for account: eric@procoachexperts.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachexperts.com
+  Creating report for account: e.dombach@procoachexperts.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachexperts.com
+  Creating report for account: eric.dombach@procoachexperts.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@procoachexperts.com
+
+  Processing account: ericdombach@coachpromasters.com
+  EmailGuard Tag: 9e487db7-eaa2-4810-9032-7ba8c9e02ea5
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+  Google Score: 1.0/4
+  Outlook Score: 1.0/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+
+  Processing domain: coachpromasters.com
+  Found 5 accounts in this domain
+  Creating report for account: ericdombach@coachpromasters.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID ericdombach@coachpromasters.com
+  Creating report for account: eric.dombach@coachpromasters.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID eric.dombach@coachpromasters.com
+  Creating report for account: e.dombach@coachpromasters.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID e.dombach@coachpromasters.com
+  Creating report for account: eric@coachpromasters.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID eric@coachpromasters.com
+
+  Processing account: ericdombach@procoachcircle.com
+  EmailGuard Tag: 9e487dc0-7bad-4bd5-83ad-35525f6cce7b
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+  Google Score: 1.0/4
+  Outlook Score: 1.0/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+
+  Processing domain: procoachcircle.com
+  Found 4 accounts in this domain
+  Creating report for account: ericdombach@procoachcircle.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachcircle.com
+  Creating report for account: eric.dombach@procoachcircle.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID eric.dombach@procoachcircle.com
+  Creating report for account: e.dombach@procoachcircle.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachcircle.com
+
+  Processing account: eric.dombach@procoachpulse.com
+  EmailGuard Tag: 9e487dc7-6522-4f1c-9dab-8ba023326ca8
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 0.75/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachpulse.com
+  Found 4 accounts in this domain
+  Creating report for account: eric.dombach@procoachpulse.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@procoachpulse.com
+  Creating report for account: eric@procoachpulse.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachpulse.com
+  Creating report for account: e.dombach@procoachpulse.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachpulse.com
+  Creating report for account: ericdombach@procoachpulse.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachpulse.com
+
+  Processing account: e.dombach@coachprolink.com
+  EmailGuard Tag: 9e487dce-ad96-4bc0-86d9-42ead9823534
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 2
+  Score: 0.50/1 (2/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.5/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+
+  Processing domain: coachprolink.com
+  Found 3 accounts in this domain
+  Creating report for account: e.dombach@coachprolink.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID e.dombach@coachprolink.com
+  Creating report for account: eric.dombach@coachprolink.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID eric.dombach@coachprolink.com
+  Creating report for account: eric@coachprolink.com
+  Found tags: p.Maildoso,Google Good,Outlook Bad
+  ✓ Updated sending limit to 25 for email ID eric@coachprolink.com
+
+  Processing account: eric@procoachadvisors.com
+  EmailGuard Tag: 9e487dd4-4110-439f-8afe-039a3262a5ca
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachadvisors.com
+  Found 3 accounts in this domain
+  Creating report for account: eric@procoachadvisors.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachadvisors.com
+  Creating report for account: ericdombach@procoachadvisors.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachadvisors.com
+  Creating report for account: e.dombach@procoachadvisors.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachadvisors.com
+
+  Processing account: ericdombach@procoachwave.com
+  EmailGuard Tag: 9e487dd9-b918-4d2a-a3a7-1f0a56c8488c
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachwave.com
+  Found 3 accounts in this domain
+  Creating report for account: ericdombach@procoachwave.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachwave.com
+  Creating report for account: eric@procoachwave.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachwave.com
+  Creating report for account: e.dombach@procoachwave.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachwave.com
+
+  Processing account: ericdombach@procoachvista.com
+  EmailGuard Tag: 9e487de0-0731-4725-8063-9b0fd9e306a2
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachvista.com
+  Found 1 accounts in this domain
+  Creating report for account: ericdombach@procoachvista.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachvista.com
+
+  Processing account: ericdombach@procoachvisionary.com
+  EmailGuard Tag: 9e487de3-02cc-47fc-bc95-1d4bbbad7bf9
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+  Google Score: 1.0/4
+  Outlook Score: 1.0/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachvisionary.com
+  Found 5 accounts in this domain
+  Creating report for account: ericdombach@procoachvisionary.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachvisionary.com
+  Creating report for account: eric@procoachvisionary.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachvisionary.com
+  Creating report for account: e.dombach@procoachvisionary.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachvisionary.com
+
+  Processing account: eric.dombach@procoachalliance.com
+  EmailGuard Tag: 9e487dec-223a-458b-9d52-88c3e21d34b1
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+  Google Score: 1.0/4
+  Outlook Score: 1.0/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachalliance.com
+  Found 3 accounts in this domain
+  Creating report for account: eric.dombach@procoachalliance.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@procoachalliance.com
+  Creating report for account: ericdombach@procoachalliance.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachalliance.com
+  Creating report for account: eric@procoachalliance.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachalliance.com
+
+  Processing account: eric@coachprosteps.com
+  EmailGuard Tag: 9e487df1-72b0-444f-b038-26ec9fc4f36d
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.75/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: coachprosteps.com
+  Found 6 accounts in this domain
+  Creating report for account: eric@coachprosteps.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@coachprosteps.com
+  Creating report for account: eric.dombach@coachprosteps.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@coachprosteps.com
+  Creating report for account: e.dombach@coachprosteps.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@coachprosteps.com
+  Creating report for account: ericdombach@coachprosteps.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@coachprosteps.com
+
+  Processing account: ericdombach@procoachvantage.com
+  EmailGuard Tag: 9e487dfc-3f45-455a-a5f1-397ade79682a
+  Calling EmailGuard API...
+  API call successful
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 2
+  Score: 0.50/1 (2/4)
+  Google Score: 1.0/4
+  Outlook Score: 0.5/4
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+  Found tags: p.Maildoso,Google Good,Outlook Good
+
+  Processing domain: procoachvantage.com
+  Found 6 accounts in this domain
+  Creating report for account: ericdombach@procoachvantage.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID ericdombach@procoachvantage.com
+  Creating report for account: eric@procoachvantage.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric@procoachvantage.com
+  Creating report for account: eric.dombach@procoachvantage.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID eric.dombach@procoachvantage.com
+  Creating report for account: e.dombach@procoachvantage.com
+  Found tags: p.Maildoso,Google Good,Outlook Good
+  ✓ Updated sending limit to 25 for email ID e.dombach@procoachvantage.com
+All reports generated successfully. Spamcheck 12 marked as completed
+
+=== Report Generation Complete ===
+Successfully processed 1 of 1 spamchecks
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 20:25:06.202173+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 20:30:06.353604+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 20:35:06.645458+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+
+=== Starting Bison Report Generation ===
+Current time: 2025-02-23 20:40:06.033312+00:00
+
+API Endpoints being used:
+1. EmailGuard Report: GET https://app.emailguard.io/api/v1/inbox-placement-tests/{tag}
+2. Bison Update Account: PATCH {base_url}/api/sender-emails/{id}
+---
+No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+🔄 Starting Bison Report Generation at 2025-02-23 20:45:05.375364+00:00
+ℹ️ No spamchecks ready for report generation
+/var/www/inboxassure-backend/venv/lib/python3.10/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'schema_extra' has been renamed to 'json_schema_extra'
+  warnings.warn(message, UserWarning)
+🔄 Starting Bison Report Generation at 2025-02-23 20:50:06.893475+00:00
+📋 Found 1 spamchecks ready for report generation
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 2
+  Score: 0.50/1 (2/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 1
+  Score: 0.25/1 (1/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✗ Conditions not met - Using bad limit: 1
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 2
+  Score: 0.50/1 (2/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 2
+  Score: 0.50/1 (2/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+Calculating score for Google:
+  Total Google emails: 4
+  Emails in inbox: 4
+  Score: 1.00/1 (4/4)
+
+Calculating score for Microsoft:
+  Total Microsoft emails: 4
+  Emails in inbox: 3
+  Score: 0.75/1 (3/4)
+
+Evaluating conditions from database:
+  Raw conditions string: google>0.5andoutlook>0.3sending=25/1
+  Parsed conditions: {
+  "google": 0.5,
+  "google_operator": ">",
+  "outlook": 0.3,
+  "outlook_operator": ">",
+  "good_limit": 25,
+  "bad_limit": 1
+}
+  ✓ Conditions met - Using good limit: 25
+
+✅ Report Generation Complete
+📊 Successfully processed 1 of 1 spamchecks

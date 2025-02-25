@@ -1,195 +1,147 @@
 # InboxAssure Backend API Documentation
 
-Base URL: `http://inboxassure-backend.imnodev.com/api`
+Base URL: http://inboxassure-backend.imnodev.com/api
 
-## Spamcheck Bison Endpoints
+## Bison Analytics Endpoints
 
-### Create Spamcheck Bison
-`POST /spamcheck/create-spamcheck-bison`
+### 1. Bison Dashboard Summary
 
-Creates a new spamcheck with accounts for Bison.
+Retrieves summary metrics for the dashboard per Bison organization including account stats and email delivery predictions.
 
-**Request Body:**
-```json
-{
-  "name": "Test Spamcheck",
-  "user_organization_id": 1,
-  "accounts": ["test@example.com"],
-  "text_only": true,
-  "subject": "Test Subject",
-  "body": "Test Body",
-  "scheduled_at": "2025-02-23T00:17:51.315Z",
-  "recurring_days": 0,
-  "is_domain_based": false,
-  "conditions": "google>=0.5andoutlook>=0.5",
-  "reports_waiting_time": 1.0
-}
-```
+**Endpoint:** `/analytics/dashboard/summary-bison`  
+**Method:** GET  
+**Authentication:** Bearer Token  
 
 **Response:**
 ```json
-{
-  "success": true,
-  "message": "Spamcheck created successfully",
-  "data": {
-    "id": 1,
-    "name": "Test Spamcheck",
-    "status": "pending",
-    "accounts_count": 1
+[
+  {
+    "organization_id": "123",
+    "organization_name": "Karpos",
+    "checked_accounts": 160,
+    "at_risk_accounts": 40,
+    "protected_accounts": 120,
+    "spam_emails_count": 1000,
+    "inbox_emails_count": 3000,
+    "spam_emails_percentage": 25.0,
+    "inbox_emails_percentage": 75.0,
+    "overall_deliverability": 85.5,
+    "last_check_date": "2024-03-15T10:30:45.123456"
   }
-}
+]
 ```
 
-### Update Spamcheck Bison
-`PUT /spamcheck/update-spamcheck-bison/{spamcheck_id}`
+**Response Fields:**
+- `organization_id`: Bison organization ID
+- `organization_name`: Bison workspace name
+- `checked_accounts`: Number of accounts that exist in both Bison and reports
+- `at_risk_accounts`: Number of accounts at risk
+- `protected_accounts`: Number of protected accounts
+- `spam_emails_count`: Estimated number of emails going to spam based on sending limit
+- `inbox_emails_count`: Estimated number of emails going to inbox based on sending limit
+- `spam_emails_percentage`: Percentage of emails going to spam
+- `inbox_emails_percentage`: Percentage of emails going to inbox
+- `overall_deliverability`: Overall deliverability score
+- `last_check_date`: ISO formatted date of the last check (empty string if no check)
 
-Updates an existing Bison spamcheck. All fields are optional.
+### 2. Bison Sending Power
 
-**Request Body:**
-```json
-{
-  "name": "Updated Test Spamcheck",
-  "accounts": ["test@example.com"],
-  "text_only": true,
-  "subject": "Updated Subject",
-  "body": "Updated Body",
-  "scheduled_at": "2025-02-23T00:17:51.315Z",
-  "recurring_days": 7,
-  "is_domain_based": false,
-  "conditions": "google>=0.5andoutlook>=0.5",
-  "reports_waiting_time": 1.0
-}
-```
+Get daily sending power (good accounts × sending limit) per Bison workspace within a date range.
+
+**Endpoint:** `/analytics/dashboard/sending-power-bison`  
+**Method:** GET  
+**Authentication:** Bearer Token  
+
+**Query Parameters:**
+- `start_date` (optional): Start date in YYYY-MM-DD format. Defaults to 30 days ago.
+- `end_date` (optional): End date in YYYY-MM-DD format. Defaults to current date.
 
 **Response:**
 ```json
 {
-  "success": true,
-  "message": "Spamcheck updated successfully",
-  "data": {
-    "id": 1,
-    "name": "Updated Test Spamcheck",
-    "scheduled_at": "2025-02-23T00:17:51.315Z",
-    "recurring_days": 7,
-    "status": "pending",
-    "accounts_updated": true
-  }
-}
-```
-
-### Delete Spamcheck Bison
-`DELETE /spamcheck/delete-spamcheck-bison/{spamcheck_id}`
-
-Deletes a Bison spamcheck and all its related data.
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Spamcheck 'Test Spamcheck' and all related data deleted successfully"
-}
-```
-
-### List Spamchecks
-`GET /spamcheck/list-spamchecks`
-
-Retrieves all spamchecks (both Instantly and Bison) for the authenticated user, sorted by creation date (newest first).
-
-You can identify the platform of each spamcheck by:
-1. The `platform` field which will be either "instantly" or "bison"
-2. The options structure:
-   - Bison spamchecks will have `open_tracking` and `link_tracking` as `null`
-   - Instantly spamchecks will have actual boolean values for these fields
-3. The campaigns_count:
-   - Bison spamchecks will always have `campaigns_count: 0`
-   - Instantly spamchecks can have any number of campaigns
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Successfully retrieved 2 spamchecks",
   "data": [
     {
-      "id": 1,
-      "name": "Test Instantly Spamcheck",
-      "status": "pending",
-      "scheduled_at": "2025-02-23T00:17:51.315Z",
-      "recurring_days": 7,
-      "is_domain_based": false,
-      "conditions": "google>=0.5andoutlook>=0.5",
-      "reports_waiting_time": 1.0,
-      "created_at": "2024-03-20T09:00:00Z",
-      "updated_at": "2024-03-20T09:00:00Z",
-      "user_organization_id": 1,
-      "organization_name": "Test Organization",
-      "accounts_count": 3,
-      "campaigns_count": 2,
-      "options": {
-        "open_tracking": true,
-        "link_tracking": true,
-        "text_only": false,
-        "subject": "Test Subject",
-        "body": "Test Body"
-      },
-      "platform": "instantly"
+      "date": "2024-03-15",
+      "workspace_name": "Karpos",
+      "sending_power": 3000
     },
     {
-      "id": 2,
-      "name": "Test Bison Spamcheck",
-      "status": "pending",
-      "scheduled_at": "2025-02-24T00:17:51.315Z",
-      "recurring_days": 0,
-      "is_domain_based": true,
-      "conditions": "google>=0.7",
-      "reports_waiting_time": 2.0,
-      "created_at": "2024-03-19T09:00:00Z",
-      "updated_at": "2024-03-19T09:00:00Z",
-      "user_organization_id": 1,
-      "organization_name": "Test Organization",
-      "accounts_count": 5,
-      "campaigns_count": 0,
-      "options": {
-        "open_tracking": null,
-        "link_tracking": null,
-        "text_only": true,
-        "subject": "Another Subject",
-        "body": "Another Body"
-      },
-      "platform": "bison"
+      "date": "2024-03-14",
+      "workspace_name": "Karpos",
+      "sending_power": 2800
     }
   ]
 }
 ```
 
-**Error Response:**
+**Response Fields:**
+- `date`: The date for which the sending power is calculated
+- `workspace_name`: Name of the Bison workspace
+- `sending_power`: Total sending power (good accounts × sending limit)
+
+### 3. Bison Provider Performance
+
+Get performance metrics per provider for Bison accounts including daily aggregated scores and sending power.
+
+**Endpoint:** `/analytics/dashboard/provider-performance-bison`  
+**Method:** GET  
+**Authentication:** Bearer Token  
+
+**Query Parameters:**
+- `start_date` (optional): Start date in YYYY-MM-DD format. Defaults to 30 days ago.
+- `end_date` (optional): End date in YYYY-MM-DD format. Defaults to current date.
+
+**Response:**
 ```json
 {
-  "success": false,
-  "message": "Error retrieving spamchecks: <error_message>",
-  "data": []
+  "data": [
+    {
+      "organization": "Karpos",
+      "provider": "Gmail",
+      "start_date": "2024-02-15",
+      "end_date": "2024-03-15",
+      "total_accounts": 85,
+      "reply_rate": null,
+      "bounce_rate": null,
+      "google_score": 0.92,
+      "outlook_score": 0.88,
+      "overall_score": 0.90,
+      "sending_power": 2125
+    },
+    {
+      "organization": "Karpos",
+      "provider": "Yahoo",
+      "start_date": "2024-02-15",
+      "end_date": "2024-03-15",
+      "total_accounts": 35,
+      "reply_rate": null,
+      "bounce_rate": null,
+      "google_score": 0.85,
+      "outlook_score": 0.79,
+      "overall_score": 0.82,
+      "sending_power": 875
+    }
+  ]
 }
 ```
 
-**Notes:**
-- All endpoints require authentication (Bearer token)
-- `spamcheck_id` in URLs is an integer
-- Status can be: pending, in_progress, generating_reports, completed, failed, paused
-- Updates and deletions are only allowed for spamchecks in certain statuses
-- Spamcheck names must be unique within a user's organization
-- Email accounts are validated before saving
-- All operations use database transactions for data consistency
+**Response Fields:**
+- `organization`: Name of the Bison organization/workspace
+- `provider`: Email provider name (Gmail, Yahoo, etc.)
+- `start_date`: Start date of the analysis period
+- `end_date`: End date of the analysis period
+- `total_accounts`: Total number of accounts for this provider
+- `reply_rate`: Reply rate (currently null, reserved for future use)
+- `bounce_rate`: Bounce rate (currently null, reserved for future use)
+- `google_score`: Average Google deliverability score (0-1)
+- `outlook_score`: Average Outlook deliverability score (0-1)
+- `overall_score`: Average of Google and Outlook scores
+- `sending_power`: Total sending power for this provider (good accounts × sending limit)
 
-**Platform Identification:**
-1. Primary Method: Check the `platform` field
-   - "instantly" = Instantly spamcheck
-   - "bison" = Bison spamcheck
+## Implementation Notes
 
-2. Secondary Method: Check the options structure
-   - If `open_tracking` and `link_tracking` are `null` = Bison spamcheck
-   - If `open_tracking` and `link_tracking` have boolean values = Instantly spamcheck
-
-3. Additional Indicator: Check campaigns_count
-   - If `campaigns_count` is always 0 = Bison spamcheck
-   - If `campaigns_count` can be > 0 = Instantly spamcheck
-
+1. All Bison endpoints fetch data from the Bison API and deduplicate accounts by email to handle potential duplicates.
+2. Data is processed in chunks to avoid SQL parameter limits.
+3. Provider tags are identified by the prefix "p." in the tag name.
+4. Scores for Bison are in the range 0-1, unlike Instantly which uses 0-4.
+5. The endpoints handle pagination internally and return complete results.
