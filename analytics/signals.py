@@ -297,6 +297,22 @@ def update_bison_campaigns_table(spamcheck):
             # Check if we have any accounts with scores
             has_accounts_with_scores = any(email in account_scores for email in campaign_account_emails)
             
+            # Debug: Print account scores information
+            log_to_terminal("BisonCampaigns", "Debug", f"Campaign {campaign_id} has {len(campaign_account_emails)} connected emails")
+            log_to_terminal("BisonCampaigns", "Debug", f"Campaign {campaign_id} has {len([email for email in campaign_account_emails if email in account_scores])} emails with scores in our database")
+            log_to_terminal("BisonCampaigns", "Debug", f"has_accounts_with_scores = {has_accounts_with_scores}")
+            
+            # Additional check for zero scores
+            all_zero_scores = False
+            if google_scores and outlook_scores:
+                if all(score == 0 for score in google_scores) and all(score == 0 for score in outlook_scores):
+                    all_zero_scores = True
+                    log_to_terminal("BisonCampaigns", "Debug", f"Campaign {campaign_id} has ALL ZERO SCORES. Will set sends_per_account to NULL")
+            
+            # If all scores are zero, treat it the same as having no accounts with scores
+            if all_zero_scores:
+                has_accounts_with_scores = False
+            
             if has_accounts_with_scores:
                 avg_google_score = sum(google_scores) / len(google_scores) if google_scores else 0
                 avg_outlook_score = sum(outlook_scores) / len(outlook_scores) if outlook_scores else 0
@@ -308,11 +324,11 @@ def update_bison_campaigns_table(spamcheck):
                 log_to_terminal("BisonCampaigns", "Debug", f"Campaign {campaign_id} average scores: Google={avg_google_score:.2f}, Outlook={avg_outlook_score:.2f}")
                 log_to_terminal("BisonCampaigns", "Debug", f"Campaign {campaign_id} max daily sends: {campaign.get('max_emails_per_day', 0)}, avg sending limit: {avg_sending_limit}")
             else:
-                # No accounts with scores found, set to null/None
+                # No accounts with scores found, set to 0 (not NULL)
                 avg_google_score = 0
                 avg_outlook_score = 0
-                avg_sending_limit = None
-                log_to_terminal("BisonCampaigns", "Debug", f"Campaign {campaign_id} has NO accounts with scores in our database. Setting sends_per_account to NULL")
+                avg_sending_limit = 0  # Changed from None to 0
+                log_to_terminal("BisonCampaigns", "Debug", f"Campaign {campaign_id} has NO accounts with scores in our database. Setting sends_per_account to 0")
             
             # Get max daily sends
             max_daily_sends = campaign.get('max_emails_per_day', 0)
@@ -328,26 +344,30 @@ def update_bison_campaigns_table(spamcheck):
                 
                 camp_obj.campaign_name = campaign.get('name', '')
                 camp_obj.connected_emails_count = len(accounts)
-                camp_obj.sends_per_account = avg_sending_limit
+                camp_obj.sends_per_account = avg_sending_limit  # This will be None if no accounts with scores
                 camp_obj.google_score = round(avg_google_score, 2)
                 camp_obj.outlook_score = round(avg_outlook_score, 2)
                 camp_obj.max_daily_sends = max_daily_sends
                 camp_obj.save()
+                
+                # Log updated values for verification
+                log_to_terminal("BisonCampaigns", "Debug", f"Updated values - Google: {camp_obj.google_score}, Outlook: {camp_obj.outlook_score}, Connected: {camp_obj.connected_emails_count}, Sends per account: {camp_obj.sends_per_account}")
                 log_to_terminal("BisonCampaigns", "Update", f"Updated campaign: {camp_obj.campaign_name} (ID: {campaign_id})")
             else:
                 # Create new record
                 log_to_terminal("BisonCampaigns", "Debug", f"Creating new campaign {campaign_id} in database")
-                UserCampaignsBison.objects.create(
+                new_campaign = UserCampaignsBison.objects.create(
                     user=user,
                     bison_organization=org,
                     campaign_id=campaign_id,
                     campaign_name=campaign.get('name', ''),
                     connected_emails_count=len(accounts),
-                    sends_per_account=avg_sending_limit,
+                    sends_per_account=avg_sending_limit,  # This will be None if no accounts with scores
                     google_score=round(avg_google_score, 2),
                     outlook_score=round(avg_outlook_score, 2),
                     max_daily_sends=max_daily_sends
                 )
+                log_to_terminal("BisonCampaigns", "Debug", f"Created campaign with sends_per_account: {new_campaign.sends_per_account}")
                 log_to_terminal("BisonCampaigns", "Create", f"Created campaign: {campaign.get('name', '')} (ID: {campaign_id})")
             
             processed_campaign_ids.add(campaign_id)
