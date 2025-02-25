@@ -1,5 +1,6 @@
 import time
 import requests
+import json
 from django.db import connection
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -38,6 +39,7 @@ def update_bison_campaigns_table(spamcheck):
     org = spamcheck.user_organization
     
     log_to_terminal("BisonCampaigns", "Update", f"Updating campaigns for user {user.email}, org: {org.bison_organization_name}")
+    log_to_terminal("BisonCampaigns", "Debug", f"Organization ID: {org.id}, API Key: {org.bison_organization_api_key[:5]}...")
     
     try:
         # 1. Get all accounts from Bison API
@@ -47,8 +49,11 @@ def update_bison_campaigns_table(spamcheck):
         per_page = 100  # Use a larger page size for efficiency
         
         while True:
+            api_url = f"{org.base_url.rstrip('/')}/api/sender-emails"
+            log_to_terminal("BisonCampaigns", "Debug", f"Fetching accounts from: {api_url}, page: {current_page}")
+            
             response = requests.get(
-                f"{org.base_url.rstrip('/')}/api/sender-emails",
+                api_url,
                 headers={
                     "Authorization": f"Bearer {org.bison_organization_api_key}",
                     "Content-Type": "application/json"
@@ -65,6 +70,13 @@ def update_bison_campaigns_table(spamcheck):
                 
             data = response.json()
             accounts = data.get('data', [])
+            log_to_terminal("BisonCampaigns", "Debug", f"Page {current_page}: Found {len(accounts)} accounts")
+            
+            # Debug: Print first account details
+            if accounts and current_page == 1:
+                first_account = accounts[0]
+                log_to_terminal("BisonCampaigns", "Debug", f"Sample account: {json.dumps(first_account)}")
+            
             all_bison_accounts.extend(accounts)
             
             # Check if we've reached the last page
@@ -97,11 +109,17 @@ def update_bison_campaigns_table(spamcheck):
         batch_size = 10
         account_batches = [unique_account_ids[i:i + batch_size] for i in range(0, len(unique_account_ids), batch_size)]
         
+        log_to_terminal("BisonCampaigns", "Debug", f"Processing {len(account_batches)} batches of accounts")
+        
         for batch_idx, batch in enumerate(account_batches):
+            log_to_terminal("BisonCampaigns", "Debug", f"Processing batch {batch_idx+1}/{len(account_batches)}")
             for account_id in batch:
                 try:
+                    api_url = f"{org.base_url.rstrip('/')}/api/sender-emails/{account_id}/campaigns"
+                    log_to_terminal("BisonCampaigns", "Debug", f"Fetching campaigns for account {account_id} from: {api_url}")
+                    
                     response = requests.get(
-                        f"{org.base_url.rstrip('/')}/api/sender-emails/{account_id}/campaigns",
+                        api_url,
                         headers={
                             "Authorization": f"Bearer {org.bison_organization_api_key}",
                             "Content-Type": "application/json"
@@ -113,6 +131,13 @@ def update_bison_campaigns_table(spamcheck):
                         continue
                     
                     campaigns_data = response.json().get('data', [])
+                    log_to_terminal("BisonCampaigns", "Debug", f"Account {account_id}: Found {len(campaigns_data)} campaigns")
+                    
+                    # Debug: Print first campaign details if available
+                    if campaigns_data and batch_idx == 0 and account_id == batch[0]:
+                        first_campaign = campaigns_data[0]
+                        log_to_terminal("BisonCampaigns", "Debug", f"Sample campaign: {json.dumps(first_campaign)}")
+                    
                     for campaign in campaigns_data:
                         campaign_id = campaign.get('id')
                         if campaign_id not in account_campaigns:
@@ -131,9 +156,12 @@ def update_bison_campaigns_table(spamcheck):
         # 3. Get all campaigns to get additional details
         details_start_time = time.time()
         
+        api_url = f"{org.base_url.rstrip('/')}/api/campaigns"
+        log_to_terminal("BisonCampaigns", "Debug", f"Fetching all campaigns from: {api_url}")
+        
         # Use GET request instead of POST to avoid the "name field is required" error
         response = requests.get(
-            f"{org.base_url.rstrip('/')}/api/campaigns",
+            api_url,
             headers={
                 "Authorization": f"Bearer {org.bison_organization_api_key}",
                 "Content-Type": "application/json"
@@ -146,6 +174,13 @@ def update_bison_campaigns_table(spamcheck):
             campaigns_details = {}
         else:
             all_campaigns_data = response.json().get('data', [])
+            log_to_terminal("BisonCampaigns", "Debug", f"API returned {len(all_campaigns_data)} campaigns")
+            
+            # Debug: Print first campaign details
+            if all_campaigns_data:
+                first_campaign = all_campaigns_data[0]
+                log_to_terminal("BisonCampaigns", "Debug", f"Sample campaign details: {json.dumps(first_campaign)}")
+            
             campaigns_details = {campaign.get('id'): campaign for campaign in all_campaigns_data}
         
         details_time = time.time() - details_start_time
@@ -159,8 +194,12 @@ def update_bison_campaigns_table(spamcheck):
         chunk_size = 500
         email_chunks = [account_emails[i:i + chunk_size] for i in range(0, len(account_emails), chunk_size)]
         
+        log_to_terminal("BisonCampaigns", "Debug", f"Processing {len(email_chunks)} chunks of emails for scores")
+        
         account_scores = {}
         for chunk_idx, chunk in enumerate(email_chunks):
+            log_to_terminal("BisonCampaigns", "Debug", f"Processing email chunk {chunk_idx+1}/{len(email_chunks)}")
+            
             placeholders = ','.join(['%s'] * len(chunk))
             query = f"""
             WITH latest_reports AS (
@@ -187,6 +226,8 @@ def update_bison_campaigns_table(spamcheck):
                 cursor.execute(query, [org.id] + chunk)
                 results = cursor.fetchall()
                 
+                log_to_terminal("BisonCampaigns", "Debug", f"Found {len(results)} score results for chunk {chunk_idx+1}")
+                
                 for result in results:
                     email, google_score, outlook_score, sending_limit = result
                     account_scores[email] = {
@@ -194,6 +235,10 @@ def update_bison_campaigns_table(spamcheck):
                         'outlook_score': float(outlook_score) * 100 if outlook_score is not None else 0,
                         'sending_limit': sending_limit or 25
                     }
+                    
+                    # Debug: Print some sample scores
+                    if chunk_idx == 0 and len(account_scores) <= 3:
+                        log_to_terminal("BisonCampaigns", "Debug", f"Score for {email}: Google={account_scores[email]['google_score']}, Outlook={account_scores[email]['outlook_score']}, Limit={account_scores[email]['sending_limit']}")
         
         scores_time = time.time() - scores_start_time
         log_to_terminal("BisonCampaigns", "Scores", f"Fetched scores for {len(account_scores)} accounts (took {scores_time:.2f}s)")
@@ -208,6 +253,8 @@ def update_bison_campaigns_table(spamcheck):
         )
         existing_campaign_ids = {camp.campaign_id: camp for camp in existing_campaigns}
         
+        log_to_terminal("BisonCampaigns", "Debug", f"Found {len(existing_campaign_ids)} existing campaigns in database")
+        
         # Track which campaign IDs we've processed
         processed_campaign_ids = set()
         
@@ -216,6 +263,8 @@ def update_bison_campaigns_table(spamcheck):
             campaign = data['campaign']
             accounts = data['accounts']
             campaign_details = campaigns_details.get(campaign_id, {})
+            
+            log_to_terminal("BisonCampaigns", "Debug", f"Processing campaign: {campaign.get('name', '')} (ID: {campaign_id})")
             
             # Get emails for these accounts
             campaign_account_emails = []
@@ -226,12 +275,29 @@ def update_bison_campaigns_table(spamcheck):
                         if email:
                             campaign_account_emails.append(email)
             
+            log_to_terminal("BisonCampaigns", "Debug", f"Campaign {campaign_id} has {len(campaign_account_emails)} connected emails")
+            
             # Calculate average scores
             google_scores = [account_scores.get(email, {}).get('google_score', 0) for email in campaign_account_emails]
             outlook_scores = [account_scores.get(email, {}).get('outlook_score', 0) for email in campaign_account_emails]
             
+            # Debug: Print raw scores for campaigns with zero scores
+            if not google_scores or not outlook_scores or min(google_scores) == 0 or min(outlook_scores) == 0:
+                log_to_terminal("BisonCampaigns", "Debug", f"Campaign {campaign_id} has potential zero scores")
+                log_to_terminal("BisonCampaigns", "Debug", f"Google scores: {google_scores[:10]}")
+                log_to_terminal("BisonCampaigns", "Debug", f"Outlook scores: {outlook_scores[:10]}")
+                
+                # Print which emails have zero scores
+                for email in campaign_account_emails:
+                    g_score = account_scores.get(email, {}).get('google_score', 0)
+                    o_score = account_scores.get(email, {}).get('outlook_score', 0)
+                    if g_score == 0 or o_score == 0:
+                        log_to_terminal("BisonCampaigns", "Debug", f"Email with zero score: {email}, Google: {g_score}, Outlook: {o_score}")
+            
             avg_google_score = sum(google_scores) / len(google_scores) if google_scores else 0
             avg_outlook_score = sum(outlook_scores) / len(outlook_scores) if outlook_scores else 0
+            
+            log_to_terminal("BisonCampaigns", "Debug", f"Campaign {campaign_id} average scores: Google={avg_google_score:.2f}, Outlook={avg_outlook_score:.2f}")
             
             # Get max daily sends
             max_daily_sends = campaign.get('max_emails_per_day', 0)
@@ -240,10 +306,17 @@ def update_bison_campaigns_table(spamcheck):
             sending_limits = [account_scores.get(email, {}).get('sending_limit', 25) for email in campaign_account_emails]
             avg_sending_limit = round(sum(sending_limits) / len(sending_limits)) if sending_limits else 25
             
+            log_to_terminal("BisonCampaigns", "Debug", f"Campaign {campaign_id} max daily sends: {max_daily_sends}, avg sending limit: {avg_sending_limit}")
+            
             # Update or create the campaign record
             if campaign_id in existing_campaign_ids:
                 # Update existing record
                 camp_obj = existing_campaign_ids[campaign_id]
+                log_to_terminal("BisonCampaigns", "Debug", f"Updating existing campaign {campaign_id} in database")
+                
+                # Log previous values
+                log_to_terminal("BisonCampaigns", "Debug", f"Previous values - Google: {camp_obj.google_score}, Outlook: {camp_obj.outlook_score}, Connected: {camp_obj.connected_emails_count}")
+                
                 camp_obj.campaign_name = campaign.get('name', '')
                 camp_obj.connected_emails_count = len(accounts)
                 camp_obj.sends_per_account = avg_sending_limit
@@ -254,6 +327,7 @@ def update_bison_campaigns_table(spamcheck):
                 log_to_terminal("BisonCampaigns", "Update", f"Updated campaign: {camp_obj.campaign_name} (ID: {campaign_id})")
             else:
                 # Create new record
+                log_to_terminal("BisonCampaigns", "Debug", f"Creating new campaign {campaign_id} in database")
                 UserCampaignsBison.objects.create(
                     user=user,
                     bison_organization=org,
@@ -282,4 +356,6 @@ def update_bison_campaigns_table(spamcheck):
         log_to_terminal("BisonCampaigns", "Complete", f"Total execution time: {total_time:.2f}s")
         
     except Exception as e:
-        log_to_terminal("BisonCampaigns", "Error", f"Error updating campaigns for organization {org.bison_organization_name}: {str(e)}") 
+        import traceback
+        log_to_terminal("BisonCampaigns", "Error", f"Error updating campaigns for organization {org.bison_organization_name}: {str(e)}")
+        log_to_terminal("BisonCampaigns", "Error", f"Traceback: {traceback.format_exc()}") 
