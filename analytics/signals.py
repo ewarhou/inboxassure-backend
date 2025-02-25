@@ -7,7 +7,7 @@ from django.dispatch import receiver
 from django.conf import settings
 from spamcheck.models import UserSpamcheckBison
 from settings.api import log_to_terminal
-from .models import UserCampaignsBison
+from .models import UserCampaignsBison, UserBisonDashboardSummary
 
 @receiver(post_save, sender=UserSpamcheckBison)
 def handle_spamcheck_status_change(sender, instance, created, **kwargs):
@@ -24,6 +24,9 @@ def handle_spamcheck_status_change(sender, instance, created, **kwargs):
         log_to_terminal("BisonCampaigns", "Signal", f"Detected completed spamcheck: {instance.name} (ID: {instance.id})")
         # Call function to update campaigns table
         update_bison_campaigns_table(instance)
+        
+        # Call function to update dashboard summary
+        update_bison_dashboard_summary(instance)
 
 def update_bison_campaigns_table(spamcheck):
     """
@@ -387,4 +390,180 @@ def update_bison_campaigns_table(spamcheck):
     except Exception as e:
         import traceback
         log_to_terminal("BisonCampaigns", "Error", f"Error updating campaigns for organization {org.bison_organization_name}: {str(e)}")
-        log_to_terminal("BisonCampaigns", "Error", f"Traceback: {traceback.format_exc()}") 
+        log_to_terminal("BisonCampaigns", "Error", f"Traceback: {traceback.format_exc()}")
+
+def update_bison_dashboard_summary(spamcheck):
+    """
+    Creates a new dashboard summary record for the Bison organization
+    with fresh data from our database.
+    
+    Args:
+        spamcheck: The UserSpamcheckBison instance that was just completed
+    """
+    start_time = time.time()
+    
+    user = spamcheck.user
+    org = spamcheck.user_organization
+    
+    log_to_terminal("BisonDashboard", "Update", f"Creating dashboard summary for user {user.email}, org: {org.bison_organization_name}")
+    
+    try:
+        # 1. Get all accounts from Bison API
+        accounts_start_time = time.time()
+        all_bison_accounts = []
+        current_page = 1
+        per_page = 100  # Use a larger page size for efficiency
+        
+        while True:
+            api_url = f"{org.base_url.rstrip('/')}/api/sender-emails"
+            log_to_terminal("BisonDashboard", "Debug", f"Fetching accounts from: {api_url}, page: {current_page}")
+            
+            response = requests.get(
+                api_url,
+                headers={
+                    "Authorization": f"Bearer {org.bison_organization_api_key}",
+                    "Content-Type": "application/json"
+                },
+                params={
+                    "page": current_page,
+                    "per_page": per_page
+                }
+            )
+            
+            if response.status_code != 200:
+                log_to_terminal("BisonDashboard", "Error", f"API Error: {response.text}")
+                break
+                
+            data = response.json()
+            accounts = data.get('data', [])
+            log_to_terminal("BisonDashboard", "Debug", f"Page {current_page}: Found {len(accounts)} accounts")
+            
+            all_bison_accounts.extend(accounts)
+            
+            # Check if we've reached the last page
+            total_pages = data.get('meta', {}).get('last_page', 1)
+            if current_page >= total_pages:
+                break
+                
+            current_page += 1
+        
+        accounts_time = time.time() - accounts_start_time
+        log_to_terminal("BisonDashboard", "Accounts", f"Found total {len(all_bison_accounts)} accounts in Bison (took {accounts_time:.2f}s)")
+        
+        # Deduplicate accounts by email to handle Bison API duplicate issue
+        unique_emails = {}
+        for account in all_bison_accounts:
+            email = account.get('email')
+            if email and email not in unique_emails:
+                unique_emails[email] = account
+        
+        bison_emails = list(unique_emails.keys())
+        log_to_terminal("BisonDashboard", "Accounts", f"Found {len(bison_emails)} unique email addresses")
+        
+        if not bison_emails:
+            log_to_terminal("BisonDashboard", "Error", "No valid email addresses found")
+            return
+        
+        # 2. Get latest reports for these accounts using raw SQL with proper email list handling
+        log_to_terminal("BisonDashboard", "Debug", "Querying reports from database...")
+        
+        # Process emails in chunks to avoid too many SQL parameters
+        chunk_size = 500
+        email_chunks = [bison_emails[i:i + chunk_size] for i in range(0, len(bison_emails), chunk_size)]
+        
+        all_results = []
+        for chunk_idx, chunk in enumerate(email_chunks):
+            log_to_terminal("BisonDashboard", "Debug", f"Processing email chunk {chunk_idx+1}/{len(email_chunks)}")
+            
+            placeholders = ','.join(['%s'] * len(chunk))
+            query = f"""
+            WITH latest_reports AS (
+                SELECT 
+                    *,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY email_account 
+                        ORDER BY created_at DESC
+                    ) as rn
+                FROM user_spamcheck_bison_reports
+                WHERE bison_organization_id = %s
+                AND email_account IN ({placeholders})
+            )
+            SELECT 
+                COUNT(DISTINCT email_account) as checked,
+                COUNT(CASE WHEN is_good = false THEN 1 END) as at_risk,
+                COUNT(CASE WHEN is_good = true THEN 1 END) as protected,
+                COALESCE(AVG(google_pro_score), 0) as avg_google,
+                COALESCE(AVG(outlook_pro_score), 0) as avg_outlook,
+                COALESCE(MAX(sending_limit), 25) as sending_limit
+            FROM latest_reports
+            WHERE rn = 1
+            """
+            
+            with connection.cursor() as cursor:
+                cursor.execute(query, [org.id] + chunk)
+                result = cursor.fetchone()
+                if result and any(result):  # If we got any non-null results
+                    all_results.append(result)
+        
+        if not all_results:
+            log_to_terminal("BisonDashboard", "Error", "No reports found in database")
+            return
+        
+        # Aggregate results from all chunks
+        checked = sum(r[0] for r in all_results)
+        at_risk = sum(r[1] for r in all_results)
+        protected = sum(r[2] for r in all_results)
+        avg_google = sum(r[3] * r[0] for r in all_results) / sum(r[0] for r in all_results) if any(r[0] for r in all_results) else 0
+        avg_outlook = sum(r[4] * r[0] for r in all_results) / sum(r[0] for r in all_results) if any(r[0] for r in all_results) else 0
+        sending_limit = max(r[5] for r in all_results) if all_results else 25
+        
+        log_to_terminal("BisonDashboard", "Debug", f"Aggregated Metrics:")
+        log_to_terminal("BisonDashboard", "Debug", f"- Checked accounts: {checked}")
+        log_to_terminal("BisonDashboard", "Debug", f"- At risk: {at_risk}")
+        log_to_terminal("BisonDashboard", "Debug", f"- Protected: {protected}")
+        log_to_terminal("BisonDashboard", "Debug", f"- Avg Google score: {avg_google}")
+        log_to_terminal("BisonDashboard", "Debug", f"- Avg Outlook score: {avg_outlook}")
+        log_to_terminal("BisonDashboard", "Debug", f"- Sending limit: {sending_limit}")
+        
+        # Calculate email counts using sending limit
+        spam_emails = at_risk * sending_limit if at_risk else 0
+        inbox_emails = protected * sending_limit if protected else 0
+        total_emails = spam_emails + inbox_emails
+        
+        # Calculate percentages
+        spam_percentage = round((spam_emails / total_emails * 100), 2) if total_emails > 0 else 0
+        inbox_percentage = round((inbox_emails / total_emails * 100), 2) if total_emails > 0 else 0
+        
+        # Calculate overall deliverability (average of Google and Outlook scores)
+        overall_deliverability = round(((float(avg_google) + float(avg_outlook)) / 2) * 100, 2)
+        
+        log_to_terminal("BisonDashboard", "Debug", f"Calculated metrics:")
+        log_to_terminal("BisonDashboard", "Debug", f"- Spam emails: {spam_emails}")
+        log_to_terminal("BisonDashboard", "Debug", f"- Inbox emails: {inbox_emails}")
+        log_to_terminal("BisonDashboard", "Debug", f"- Spam %: {spam_percentage}")
+        log_to_terminal("BisonDashboard", "Debug", f"- Inbox %: {inbox_percentage}")
+        log_to_terminal("BisonDashboard", "Debug", f"- Overall deliverability: {overall_deliverability}")
+        
+        # Create a new dashboard summary record
+        dashboard_summary = UserBisonDashboardSummary.objects.create(
+            user=user,
+            bison_organization=org,
+            checked_accounts=checked or 0,
+            at_risk_accounts=at_risk or 0,
+            protected_accounts=protected or 0,
+            spam_emails_count=spam_emails,
+            inbox_emails_count=inbox_emails,
+            spam_emails_percentage=spam_percentage,
+            inbox_emails_percentage=inbox_percentage,
+            overall_deliverability=overall_deliverability
+        )
+        
+        log_to_terminal("BisonDashboard", "Create", f"Created dashboard summary record (ID: {dashboard_summary.id})")
+        
+        total_time = time.time() - start_time
+        log_to_terminal("BisonDashboard", "Complete", f"Total execution time: {total_time:.2f}s")
+        
+    except Exception as e:
+        import traceback
+        log_to_terminal("BisonDashboard", "Error", f"Error creating dashboard summary for organization {org.bison_organization_name}: {str(e)}")
+        log_to_terminal("BisonDashboard", "Error", f"Traceback: {traceback.format_exc()}") 

@@ -86,4 +86,35 @@ class UserCampaignsBison(models.Model):
         unique_together = ('bison_organization', 'campaign_id')
 
     def __str__(self):
-        return f"{self.campaign_name} ({self.campaign_id}) - {self.bison_organization.bison_organization_name}" 
+        return f"{self.campaign_name} ({self.campaign_id}) - {self.bison_organization.bison_organization_name}"
+
+class UserBisonDashboardSummary(models.Model):
+    """
+    Stores pre-calculated dashboard summary data for Bison organizations.
+    This table is updated whenever a Bison spamcheck is completed.
+    New records are inserted rather than updating existing ones.
+    When retrieving data, we'll get the most recent record.
+    """
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bison_dashboard_summaries')
+    bison_organization = models.ForeignKey('settings.UserBison', on_delete=models.CASCADE, related_name='dashboard_summaries')
+    checked_accounts = models.IntegerField(default=0, help_text="Number of accounts checked")
+    at_risk_accounts = models.IntegerField(default=0, help_text="Number of accounts at risk")
+    protected_accounts = models.IntegerField(default=0, help_text="Number of protected accounts")
+    spam_emails_count = models.IntegerField(default=0, help_text="Estimated number of emails going to spam")
+    inbox_emails_count = models.IntegerField(default=0, help_text="Estimated number of emails going to inbox")
+    spam_emails_percentage = models.FloatField(default=0, help_text="Percentage of emails going to spam")
+    inbox_emails_percentage = models.FloatField(default=0, help_text="Percentage of emails going to inbox")
+    overall_deliverability = models.FloatField(default=0, help_text="Overall deliverability score (0-100)")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'user_bison_dashboard_summary'
+        verbose_name = 'User Bison Dashboard Summary'
+        verbose_name_plural = 'User Bison Dashboard Summaries'
+        indexes = [
+            models.Index(fields=['user', 'bison_organization', '-created_at']),
+        ]
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Dashboard Summary for {self.bison_organization.bison_organization_name} ({self.created_at})" 
