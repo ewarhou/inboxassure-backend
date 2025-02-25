@@ -395,9 +395,8 @@ class Command(BaseCommand):
             self.stdout.write(f"\n📊 Processing spamcheck {spamcheck.id}:")
             self.stdout.write(f"   Total accounts found: {total_accounts}")
 
-            # Update status to generating_reports before processing
-            spamcheck.status = 'generating_reports'
-            await asyncio.to_thread(spamcheck.save)
+            # Status is already changed to generating_reports at the beginning of handle_async
+            # No need to change it again here
 
             # For domain-based spamchecks, group accounts by domain
             if spamcheck.is_domain_based:
@@ -551,6 +550,13 @@ class Command(BaseCommand):
             return
 
         self.stdout.write(f"📋 Found {len(spamchecks)} spamchecks ready for report generation")
+        
+        # Change status to generating_reports for all spamchecks at the beginning
+        # This prevents other instances of the script from picking up the same spamchecks
+        for spamcheck in spamchecks:
+            spamcheck.status = 'generating_reports'
+            await asyncio.to_thread(spamcheck.save)
+            self.stdout.write(f"✅ Changed status to generating_reports for spamcheck {spamcheck.id}")
 
         # Process all spamchecks
         results = await asyncio.gather(*[
