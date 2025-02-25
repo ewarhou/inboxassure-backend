@@ -1,6 +1,10 @@
 from django.db import models
 import uuid
 from django.conf import settings
+from django.contrib.auth import get_user_model
+from settings.models import UserBison
+
+User = get_user_model()
 
 class InboxassureOrganizations(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_index=True)
@@ -90,31 +94,73 @@ class UserCampaignsBison(models.Model):
 
 class UserBisonDashboardSummary(models.Model):
     """
-    Stores pre-calculated dashboard summary data for Bison organizations.
-    This table is updated whenever a Bison spamcheck is completed.
+    Model to store pre-calculated dashboard summary data for Bison organizations.
     New records are inserted rather than updating existing ones.
-    When retrieving data, we'll get the most recent record.
     """
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bison_dashboard_summaries')
-    bison_organization = models.ForeignKey('settings.UserBison', on_delete=models.CASCADE, related_name='dashboard_summaries')
-    checked_accounts = models.IntegerField(default=0, help_text="Number of accounts checked")
-    at_risk_accounts = models.IntegerField(default=0, help_text="Number of accounts at risk")
-    protected_accounts = models.IntegerField(default=0, help_text="Number of protected accounts")
-    spam_emails_count = models.IntegerField(default=0, help_text="Estimated number of emails going to spam")
-    inbox_emails_count = models.IntegerField(default=0, help_text="Estimated number of emails going to inbox")
-    spam_emails_percentage = models.FloatField(default=0, help_text="Percentage of emails going to spam")
-    inbox_emails_percentage = models.FloatField(default=0, help_text="Percentage of emails going to inbox")
-    overall_deliverability = models.FloatField(default=0, help_text="Overall deliverability score (0-100)")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bison_dashboard_summaries')
+    bison_organization = models.ForeignKey(UserBison, on_delete=models.CASCADE)
+    checked_accounts = models.IntegerField(default=0)
+    at_risk_accounts = models.IntegerField(default=0)
+    protected_accounts = models.IntegerField(default=0)
+    spam_emails_count = models.IntegerField(default=0)
+    inbox_emails_count = models.IntegerField(default=0)
+    spam_emails_percentage = models.FloatField(default=0.0)
+    inbox_emails_percentage = models.FloatField(default=0.0)
+    overall_deliverability = models.FloatField(default=0.0)
     created_at = models.DateTimeField(auto_now_add=True)
-
+    
     class Meta:
-        db_table = 'user_bison_dashboard_summary'
-        verbose_name = 'User Bison Dashboard Summary'
-        verbose_name_plural = 'User Bison Dashboard Summaries'
         indexes = [
             models.Index(fields=['user', 'bison_organization', '-created_at']),
         ]
         ordering = ['-created_at']
-
+    
     def __str__(self):
-        return f"Dashboard Summary for {self.bison_organization.bison_organization_name} ({self.created_at})" 
+        return f"Dashboard Summary for {self.bison_organization.bison_organization_name} ({self.created_at})"
+
+class UserBisonProviderPerformance(models.Model):
+    """
+    Model to store pre-calculated provider performance data for Bison organizations.
+    New records are inserted rather than updating existing ones.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bison_provider_performances')
+    bison_organization = models.ForeignKey(UserBison, on_delete=models.CASCADE)
+    provider_name = models.CharField(max_length=255)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    total_accounts = models.IntegerField(default=0)
+    google_score = models.FloatField(default=0.0)
+    outlook_score = models.FloatField(default=0.0)
+    overall_score = models.FloatField(default=0.0)
+    sending_power = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'bison_organization', 'provider_name', '-created_at']),
+            models.Index(fields=['start_date', 'end_date']),
+        ]
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Provider Performance for {self.provider_name} in {self.bison_organization.bison_organization_name} ({self.created_at})"
+
+class UserBisonSendingPower(models.Model):
+    """
+    Model to store pre-calculated sending power data for Bison organizations.
+    New records are inserted rather than updating existing ones.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bison_sending_powers')
+    bison_organization = models.ForeignKey(UserBison, on_delete=models.CASCADE)
+    report_date = models.DateField()
+    sending_power = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'bison_organization', 'report_date', '-created_at']),
+        ]
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Sending Power for {self.bison_organization.bison_organization_name} on {self.report_date} ({self.created_at})" 

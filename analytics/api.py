@@ -226,13 +226,16 @@ def get_bison_sending_power(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None
 ):
-    """Get daily sending power metrics per Bison workspace
+    """Get daily sending power metrics per Bison workspace using cached data
     
     Args:
         start_date: Optional start date (YYYY-MM-DD)
         end_date: Optional end date (YYYY-MM-DD)
     """
+    from analytics.models import UserBisonSendingPower
+    
     user = request.auth
+    log_to_terminal("BisonSendingPower", "Request", f"Request for {user.email}")
     
     # Set default date range if not provided (last 30 days)
     if not end_date:
@@ -240,48 +243,44 @@ def get_bison_sending_power(
     if not start_date:
         start_date = (timezone.now() - timezone.timedelta(days=30)).date().isoformat()
     
-    with connection.cursor() as cursor:
-        query = """
-            WITH daily_reports AS (
-                SELECT 
-                    ubr.*,
-                    ub.bison_organization_name,
-                    DATE(ubr.created_at) as report_date,
-                    ROW_NUMBER() OVER (
-                        PARTITION BY ubr.email_account, ubr.bison_organization_id, DATE(ubr.created_at)
-                        ORDER BY ubr.created_at DESC
-                    ) as rn
-                FROM user_spamcheck_bison_reports ubr
-                JOIN user_bison ub ON ubr.bison_organization_id = ub.id
-                WHERE ub.user_id = %s
-                AND DATE(ubr.created_at) BETWEEN %s AND %s
-            )
-            SELECT 
-                report_date,
-                bison_organization_name,
-                COUNT(CASE WHEN is_good = true THEN 1 END) * COALESCE(MAX(sending_limit), 25) as daily_power
-            FROM daily_reports
-            WHERE rn = 1
-            GROUP BY report_date, bison_organization_name
-            ORDER BY report_date DESC, bison_organization_name
-        """
-        
-        cursor.execute(query, [user.id, start_date, end_date])
-        results = cursor.fetchall()
-        
-        if not results:
-            return {"data": []}
-        
-        data = []
-        for result in results:
-            report_date, workspace_name, sending_power = result
-            data.append({
-                "date": report_date.isoformat(),
-                "workspace_name": workspace_name,
-                "sending_power": sending_power or 0
-            })
-        
-        return {"data": data}
+    log_to_terminal("BisonSendingPower", "DateRange", f"Range: {start_date} to {end_date}")
+    
+    # Get all active Bison organizations for the user
+    bison_orgs = UserBison.objects.filter(
+        user=user,
+        bison_organization_status=True
+    )
+    
+    if not bison_orgs:
+        log_to_terminal("BisonSendingPower", "Warning", "No active Bison organizations found")
+        return {"data": []}
+    
+    data = []
+    
+    # Convert string dates to date objects for filtering
+    start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+    end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+    
+    # Get sending power records for all organizations within the date range
+    sending_power_records = UserBisonSendingPower.objects.filter(
+        user=user,
+        bison_organization__in=bison_orgs,
+        report_date__gte=start_date_obj,
+        report_date__lte=end_date_obj
+    ).order_by('-report_date', 'bison_organization__bison_organization_name')
+    
+    log_to_terminal("BisonSendingPower", "Records", f"Found {sending_power_records.count()} sending power records")
+    
+    # Format the data for the response
+    for record in sending_power_records:
+        data.append({
+            "date": record.report_date.isoformat(),
+            "workspace_name": record.bison_organization.bison_organization_name,
+            "sending_power": record.sending_power
+        })
+    
+    log_to_terminal("BisonSendingPower", "Output", f"Returning {len(data)} sending power entries")
+    return {"data": data}
 
 @router.get(
     "/dashboard/summary", 
@@ -628,13 +627,15 @@ def get_bison_provider_performance(
     end_date: Optional[str] = None
 ):
     """
-    Get Bison provider performance metrics within a date range.
-    Aggregates data daily per provider and averages over the period.
+    Get Bison provider performance metrics within a date range using cached data.
+    Returns pre-calculated metrics per provider from the UserBisonProviderPerformance table.
     
     Args:
         start_date: Optional start date (YYYY-MM-DD)
         end_date: Optional end date (YYYY-MM-DD)
     """
+    from analytics.models import UserBisonProviderPerformance
+    
     user = request.auth
     log_to_terminal("BisonPerformance", "Request", f"Request for {user.email}")
     
@@ -655,199 +656,42 @@ def get_bison_provider_performance(
         log_to_terminal("BisonPerformance", "Warning", "No active Bison organizations found")
         return {"data": []}
     
-    # Create a nested defaultdict for daily stats
-    from collections import defaultdict
-    from datetime import datetime, timedelta
-    
-    # Helper function to create a new stats dictionary
-    def new_stats_dict():
-        return {
-            'accounts': set(),  # Use set to count unique accounts
-            'good_accounts': 0,
-            'google_sum': 0.0,
-            'outlook_sum': 0.0,
-            'sending_power': 0
-        }
-    
-    # Structure: {org_name: {provider: {date: stats}}}
-    daily_stats = defaultdict(lambda: defaultdict(lambda: defaultdict(new_stats_dict)))
+    data = []
     
     # Process each Bison organization
     for org in bison_orgs:
         log_to_terminal("BisonPerformance", "Processing", f"Organization: {org.bison_organization_name}")
         
         try:
-            # 1. Get ALL accounts from Bison API by paginating until we have everything
-            api_url = f"{org.base_url.rstrip('/')}/api/sender-emails"
+            # Get the most recent provider performance records for this organization
+            performance_records = UserBisonProviderPerformance.objects.filter(
+                user=user,
+                bison_organization=org
+            ).order_by('provider_name', '-created_at').distinct('provider_name')
             
-            all_bison_accounts = []
-            current_page = 1
-            per_page = 100  # Use a larger page size for efficiency
-            
-            while True:
-                response = requests.get(
-                    api_url,
-                    headers={
-                        "Authorization": f"Bearer {org.bison_organization_api_key}",
-                        "Content-Type": "application/json"
-                    },
-                    params={
-                        "page": current_page,
-                        "per_page": per_page
-                    }
-                )
-                
-                if response.status_code != 200:
-                    log_to_terminal("BisonPerformance", "Error", f"API Error: {response.text}")
-                    break
-                    
-                data = response.json()
-                accounts = data.get('data', [])
-                all_bison_accounts.extend(accounts)
-                
-                # Check if we've reached the last page
-                total_pages = data.get('meta', {}).get('last_page', 1)
-                if current_page >= total_pages:
-                    break
-                    
-                current_page += 1
-            
-            log_to_terminal("BisonPerformance", "Accounts", f"Found {len(all_bison_accounts)} accounts for {org.bison_organization_name}")
-            
-            # Deduplicate accounts by email to handle Bison API duplicate issue
-            unique_emails = {}
-            for account in all_bison_accounts:
-                email = account.get('email')
-                if email and email not in unique_emails:
-                    unique_emails[email] = account
-            
-            bison_emails = list(unique_emails.keys())
-            
-            if not bison_emails:
-                log_to_terminal("BisonPerformance", "Warning", f"No valid email addresses found for {org.bison_organization_name}")
+            if not performance_records:
+                log_to_terminal("BisonPerformance", "Warning", f"No provider performance records found for {org.bison_organization_name}")
                 continue
             
-            # Create a mapping of provider tags
-            # In Bison, we'll use the tags directly from the accounts
-            provider_tags = {}
-            for email, account in unique_emails.items():
-                tags = account.get('tags', [])
-                for tag in tags:
-                    tag_name = tag.get('name', '')
-                    # Similar to Instantly, we'll look for provider tags that start with "p."
-                    if tag_name.startswith('p.'):
-                        provider_tags[email] = tag_name[2:]  # Remove the "p." prefix
-            
-            log_to_terminal("BisonPerformance", "Tags", f"Found {len(provider_tags)} accounts with provider tags")
-            
-            # 2. Get reports for these accounts
-            with connection.cursor() as cursor:
-                # Process emails in chunks to avoid too many SQL parameters
-                chunk_size = 500
-                email_chunks = [bison_emails[i:i + chunk_size] for i in range(0, len(bison_emails), chunk_size)]
+            # Add each provider's performance data to the response
+            for record in performance_records:
+                data.append({
+                    "organization": org.bison_organization_name,
+                    "provider": record.provider_name,
+                    "start_date": record.start_date.isoformat(),
+                    "end_date": record.end_date.isoformat(),
+                    "total_accounts": record.total_accounts,
+                    "reply_rate": None,
+                    "bounce_rate": None,
+                    "google_score": record.google_score,
+                    "outlook_score": record.outlook_score,
+                    "overall_score": record.overall_score,
+                    "sending_power": record.sending_power
+                })
                 
-                for chunk in email_chunks:
-                    placeholders = ','.join(['%s'] * len(chunk))
-                    query = f"""
-                    SELECT 
-                        ubr.email_account,
-                        ubr.google_pro_score,
-                        ubr.outlook_pro_score,
-                        ubr.is_good,
-                        ubr.sending_limit,
-                        DATE(ubr.created_at) as report_date
-                    FROM user_spamcheck_bison_reports ubr
-                    WHERE ubr.bison_organization_id = %s
-                    AND ubr.email_account IN ({placeholders})
-                    AND DATE(ubr.created_at) BETWEEN %s AND %s
-                    ORDER BY ubr.created_at DESC
-                    """
-                    cursor.execute(query, [org.id] + chunk + [start_date, end_date])
-                    rows = cursor.fetchall()
-                    
-                    # Process each row and aggregate by day and provider
-                    for row in rows:
-                        email_account, google_score, outlook_score, is_good, sending_limit, report_date = row
-                        
-                        # Skip if this account doesn't have a provider tag
-                        if email_account not in provider_tags:
-                            continue
-                        
-                        provider_name = provider_tags[email_account]
-                        sending_limit = sending_limit or 25  # Default sending limit if not specified
-                        
-                        # Update daily stats
-                        stats = daily_stats[org.bison_organization_name][provider_name][report_date]
-                        
-                        if email_account not in stats['accounts']:
-                            stats['accounts'].add(email_account)
-                            # Only add scores for new accounts to avoid double counting
-                            stats['google_sum'] += float(google_score or 0.0)
-                            stats['outlook_sum'] += float(outlook_score or 0.0)
-                            if is_good:
-                                stats['good_accounts'] += 1
-                                stats['sending_power'] += sending_limit
-            
         except Exception as e:
             log_to_terminal("BisonPerformance", "Error", f"Error processing org {org.bison_organization_name}: {str(e)}")
             continue
-    
-    # Calculate period averages
-    data = []
-    start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
-    end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
-    days_in_period = (end_dt - start_dt).days + 1
-    
-    for org_name, providers in daily_stats.items():
-        for provider_name, daily_data in providers.items():
-            # Initialize period totals
-            period_accounts = set()  # Track unique accounts across period
-            daily_scores = {  # Track daily averages
-                'google': [],
-                'outlook': [],
-                'sending_power': []
-            }
-            
-            # Iterate through each day in the period
-            current_dt = start_dt
-            while current_dt <= end_dt:
-                if current_dt in daily_data:
-                    stats = daily_data[current_dt]
-                    period_accounts.update(stats['accounts'])
-                    
-                    # Calculate daily averages
-                    accounts_count = len(stats['accounts'])
-                    if accounts_count > 0:
-                        # Scores are already summed correctly per day, just divide by accounts
-                        google_score = stats['google_sum'] / accounts_count
-                        outlook_score = stats['outlook_sum'] / accounts_count
-                        # Ensure scores are within valid range (0-1 for Bison)
-                        daily_scores['google'].append(min(1.0, max(0.0, google_score)))
-                        daily_scores['outlook'].append(min(1.0, max(0.0, outlook_score)))
-                        daily_scores['sending_power'].append(stats['sending_power'])
-                
-                current_dt += timedelta(days=1)
-            
-            # Calculate period averages
-            if daily_scores['google']:  # If we have any data
-                avg_google = round(sum(daily_scores['google']) / len(daily_scores['google']), 2)
-                avg_outlook = round(sum(daily_scores['outlook']) / len(daily_scores['outlook']), 2)
-                avg_sending_power = round(sum(daily_scores['sending_power']) / len(daily_scores['sending_power']))
-                overall_score = round((avg_google + avg_outlook) / 2, 2)
-                
-                data.append({
-                    "organization": org_name,
-                    "provider": provider_name,
-                    "start_date": start_date,
-                    "end_date": end_date,
-                    "total_accounts": len(period_accounts),
-                    "reply_rate": None,
-                    "bounce_rate": None,
-                    "google_score": avg_google,
-                    "outlook_score": avg_outlook,
-                    "overall_score": overall_score,
-                    "sending_power": avg_sending_power
-                })
     
     log_to_terminal("BisonPerformance", "Output", f"Returning {len(data)} provider entries")
     return {"data": data}
