@@ -273,56 +273,97 @@ class Command(BaseCommand):
     async def process_account(self, account, user_settings):
         """Process a single account and generate report"""
         try:
+            self.stdout.write(f"   Processing account: {account.email_account}")
+            
             if not account.last_emailguard_tag:
+                self.stdout.write(f"   ⚠️ No EmailGuard tag for account {account.email_account}")
                 self.skipped_accounts.append(f"{account.email_account} (No EmailGuard tag)")
                 return False
             
             # Get EmailGuard report
+            self.stdout.write(f"   📡 Fetching EmailGuard report for {account.email_account}")
             url = f"https://app.emailguard.io/api/v1/inbox-placement-tests/{account.last_emailguard_tag}"
             headers = {
                 "Authorization": f"Bearer {user_settings.emailguard_api_key}"
             }
             
-            response = await asyncio.to_thread(requests.get, url, headers=headers)
-            
-            if response.status_code == 200:
-                data = response.json()
+            try:
+                response = await asyncio.to_thread(requests.get, url, headers=headers)
+                
+                if response.status_code == 200:
+                    self.stdout.write(f"   ✅ Got EmailGuard report for {account.email_account}")
+                    data = response.json()
 
-                # Calculate scores
-                google_score = self.calculate_score(data, 'Google')
-                outlook_score = self.calculate_score(data, 'Microsoft')
+                    # Calculate scores
+                    google_score = self.calculate_score(data, 'Google')
+                    outlook_score = self.calculate_score(data, 'Microsoft')
+                    self.stdout.write(f"   📊 Scores - Google: {google_score}, Outlook: {outlook_score}")
 
-                # Evaluate conditions and get appropriate sending limit
-                is_good, sending_limit = self.evaluate_conditions(
-                    account.bison_spamcheck, 
-                    google_score, 
-                    outlook_score
-                )
+                    # Evaluate conditions and get appropriate sending limit
+                    is_good, sending_limit = self.evaluate_conditions(
+                        account.bison_spamcheck, 
+                        google_score, 
+                        outlook_score
+                    )
+                    self.stdout.write(f"   📊 Good: {is_good}, Sending limit: {sending_limit}")
 
-                # Get account tags from Bison API
-                tags_str = await self.get_account_tags(account.organization, account.email_account)
+                    # Get account tags from Bison API
+                    self.stdout.write(f"   🏷️ Getting tags for {account.email_account}")
+                    tags_str = await self.get_account_tags(account.organization, account.email_account)
 
-                # Process domain-based accounts if enabled
-                if account.bison_spamcheck.is_domain_based:
-                    campaign_domain = self.get_domain_from_email(account.email_account)
-                    domain_accounts = await self.get_domain_accounts(account.bison_spamcheck, campaign_domain)
-                    
-                    # Create reports for all accounts in this domain
-                    processed_emails = set()
-                    for domain_account in domain_accounts:
-                        if domain_account.email_account in processed_emails:
-                            continue
-                        processed_emails.add(domain_account.email_account)
+                    # Process domain-based accounts if enabled
+                    if account.bison_spamcheck.is_domain_based:
+                        self.stdout.write(f"   🔄 Processing domain-based account {account.email_account}")
+                        campaign_domain = self.get_domain_from_email(account.email_account)
+                        domain_accounts = await self.get_domain_accounts(account.bison_spamcheck, campaign_domain)
                         
-                        domain_tags_str = await self.get_account_tags(domain_account.organization, domain_account.email_account)
-                        
-                        # Create/update report
+                        # Create reports for all accounts in this domain
+                        processed_emails = set()
+                        for domain_account in domain_accounts:
+                            if domain_account.email_account in processed_emails:
+                                continue
+                            processed_emails.add(domain_account.email_account)
+                            
+                            domain_tags_str = await self.get_account_tags(domain_account.organization, domain_account.email_account)
+                            
+                            # Create/update report
+                            self.stdout.write(f"   📝 Creating report for domain account {domain_account.email_account}")
+                            report, created = await asyncio.to_thread(
+                                lambda: UserSpamcheckBisonReport.objects.update_or_create(
+                                    spamcheck_bison=account.bison_spamcheck,
+                                    email_account=domain_account.email_account,
+                                    defaults={
+                                        'bison_organization': domain_account.organization,
+                                        'google_pro_score': google_score,
+                                        'outlook_pro_score': outlook_score,
+                                        'report_link': f"https://app.emailguard.io/inbox-placement-tests/{account.last_emailguard_tag}",
+                                        'is_good': is_good,
+                                        'used_subject': account.bison_spamcheck.subject,
+                                        'used_body': account.bison_spamcheck.body,
+                                        'sending_limit': sending_limit,
+                                        'tags_list': domain_tags_str,
+                                        'workspace_name': domain_account.organization.bison_organization_name
+                                    }
+                                )
+                            )
+                            
+                            # Update sending limit
+                            self.stdout.write(f"   📤 Updating sending limit for {domain_account.email_account}")
+                            success = await self.update_sending_limit(domain_account.organization, domain_account.email_account, sending_limit)
+                            if success:
+                                self.processed_accounts.add(domain_account.email_account)
+                                self.stdout.write(f"   ✅ Successfully processed {domain_account.email_account}")
+                            else:
+                                self.stdout.write(f"   ❌ Failed to update sending limit for {domain_account.email_account}")
+                    else:
+                        # Single account processing
+                        self.stdout.write(f"   📝 Creating report for {account.email_account}")
                         report, created = await asyncio.to_thread(
                             lambda: UserSpamcheckBisonReport.objects.update_or_create(
                                 spamcheck_bison=account.bison_spamcheck,
-                                email_account=domain_account.email_account,
+                                email_account=account.email_account,
                                 defaults={
-                                    'bison_organization': domain_account.organization,
+                                    'bison_organization': account.organization,
                                     'google_pro_score': google_score,
                                     'outlook_pro_score': outlook_score,
                                     'report_link': f"https://app.emailguard.io/inbox-placement-tests/{account.last_emailguard_tag}",
@@ -330,61 +371,53 @@ class Command(BaseCommand):
                                     'used_subject': account.bison_spamcheck.subject,
                                     'used_body': account.bison_spamcheck.body,
                                     'sending_limit': sending_limit,
-                                    'tags_list': domain_tags_str,
-                                    'workspace_name': domain_account.organization.bison_organization_name
+                                    'tags_list': tags_str,
+                                    'workspace_name': account.organization.bison_organization_name
                                 }
                             )
                         )
                         
                         # Update sending limit
-                        success = await self.update_sending_limit(domain_account.organization, domain_account.email_account, sending_limit)
+                        self.stdout.write(f"   📤 Updating sending limit for {account.email_account}")
+                        success = await self.update_sending_limit(account.organization, account.email_account, sending_limit)
                         if success:
-                            self.processed_accounts.add(domain_account.email_account)
-                else:
-                    # Single account processing
-                    report, created = await asyncio.to_thread(
-                        lambda: UserSpamcheckBisonReport.objects.update_or_create(
-                            spamcheck_bison=account.bison_spamcheck,
-                            email_account=account.email_account,
-                            defaults={
-                                'bison_organization': account.organization,
-                                'google_pro_score': google_score,
-                                'outlook_pro_score': outlook_score,
-                                'report_link': f"https://app.emailguard.io/inbox-placement-tests/{account.last_emailguard_tag}",
-                                'is_good': is_good,
-                                'used_subject': account.bison_spamcheck.subject,
-                                'used_body': account.bison_spamcheck.body,
-                                'sending_limit': sending_limit,
-                                'tags_list': tags_str,
-                                'workspace_name': account.organization.bison_organization_name
-                            }
-                        )
-                    )
-                    
-                    # Update sending limit
-                    success = await self.update_sending_limit(account.organization, account.email_account, sending_limit)
-                    if success:
-                        self.processed_accounts.add(account.email_account)
+                            self.processed_accounts.add(account.email_account)
+                            self.stdout.write(f"   ✅ Successfully processed {account.email_account}")
+                        else:
+                            self.stdout.write(f"   ❌ Failed to update sending limit for {account.email_account}")
 
-                return True
-            else:
-                self.failed_accounts.append(f"{account.email_account} (EmailGuard API failed)")
+                    return True
+                else:
+                    self.stdout.write(self.style.ERROR(f"   ❌ EmailGuard API failed for {account.email_account}: {response.status_code}"))
+                    self.failed_accounts.append(f"{account.email_account} (EmailGuard API failed: {response.status_code})")
+                    return False
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"   ❌ Error fetching EmailGuard report for {account.email_account}: {str(e)}"))
+                self.failed_accounts.append(f"{account.email_account} (Error fetching report: {str(e)})")
                 return False
 
         except Exception as e:
-            self.failed_accounts.append(f"{account.email_account} (Processing error)")
+            self.stdout.write(self.style.ERROR(f"   ❌ Error processing account {account.email_account}: {str(e)}"))
+            self.failed_accounts.append(f"{account.email_account} (Processing error: {str(e)})")
             return False
 
     async def process_spamcheck(self, spamcheck):
         """Process a single spamcheck"""
         try:
+            # Reset tracking variables for this spamcheck
+            self.processed_accounts = set()
+            self.skipped_accounts = []
+            self.failed_accounts = []
+            
             try:
+                self.stdout.write(f"🔍 Getting user settings for spamcheck {spamcheck.id}")
                 user_settings = await self.get_user_settings(spamcheck.user)
             except UserSettings.DoesNotExist:
                 self.stdout.write(self.style.ERROR(f"❌ User settings not found for spamcheck {spamcheck.id}"))
                 return False
 
             # Get accounts with related data prefetched
+            self.stdout.write(f"📂 Fetching accounts for spamcheck {spamcheck.id}")
             accounts = await self.get_accounts(spamcheck)
             total_accounts = len(accounts)
 
@@ -400,6 +433,7 @@ class Command(BaseCommand):
 
             # For domain-based spamchecks, group accounts by domain
             if spamcheck.is_domain_based:
+                self.stdout.write(f"🔄 Processing domain-based spamcheck {spamcheck.id}")
                 # Group accounts by domain
                 domain_groups = {}
                 domain_scores = {}  # Store scores per domain
@@ -409,80 +443,116 @@ class Command(BaseCommand):
                     if domain not in domain_groups:
                         domain_groups[domain] = []
                     domain_groups[domain].append(account)
+                
+                self.stdout.write(f"   Found {len(domain_groups)} unique domains")
 
                 # First, process one account per domain to get scores
+                domain_count = 0
                 for domain, domain_accounts in domain_groups.items():
+                    domain_count += 1
+                    self.stdout.write(f"   Processing domain {domain_count}/{len(domain_groups)}: {domain} ({len(domain_accounts)} accounts)")
                     representative_account = domain_accounts[0]
                     
                     # Get EmailGuard report for the representative account
                     if not representative_account.last_emailguard_tag:
+                        self.stdout.write(f"   ⚠️ No EmailGuard tag for representative account {representative_account.email_account}")
                         self.skipped_accounts.extend([f"{acc.email_account} (No EmailGuard tag)" for acc in domain_accounts])
                         continue
 
-                    url = f"https://app.emailguard.io/api/v1/inbox-placement-tests/{representative_account.last_emailguard_tag}"
-                    headers = {
-                        "Authorization": f"Bearer {user_settings.emailguard_api_key}"
-                    }
-                    
-                    response = await asyncio.to_thread(requests.get, url, headers=headers)
-                    
-                    if response.status_code == 200:
-                        data = response.json()
-                        google_score = self.calculate_score(data, 'Google')
-                        outlook_score = self.calculate_score(data, 'Microsoft')
-                        is_good, sending_limit = self.evaluate_conditions(spamcheck, google_score, outlook_score)
-                        
-                        # Store scores for this domain
-                        domain_scores[domain] = {
-                            'google_score': google_score,
-                            'outlook_score': outlook_score,
-                            'is_good': is_good,
-                            'sending_limit': sending_limit,
-                            'report_link': f"https://app.emailguard.io/inbox-placement-tests/{representative_account.last_emailguard_tag}"
+                    try:
+                        self.stdout.write(f"   📡 Fetching EmailGuard report for {representative_account.email_account}")
+                        url = f"https://app.emailguard.io/api/v1/inbox-placement-tests/{representative_account.last_emailguard_tag}"
+                        headers = {
+                            "Authorization": f"Bearer {user_settings.emailguard_api_key}"
                         }
-                    else:
-                        self.failed_accounts.extend([f"{acc.email_account} (EmailGuard API failed)" for acc in domain_accounts])
+                        
+                        response = await asyncio.to_thread(requests.get, url, headers=headers)
+                        
+                        if response.status_code == 200:
+                            self.stdout.write(f"   ✅ Got EmailGuard report for {representative_account.email_account}")
+                            data = response.json()
+                            google_score = self.calculate_score(data, 'Google')
+                            outlook_score = self.calculate_score(data, 'Microsoft')
+                            is_good, sending_limit = self.evaluate_conditions(spamcheck, google_score, outlook_score)
+                            
+                            self.stdout.write(f"   📊 Scores - Google: {google_score}, Outlook: {outlook_score}, Good: {is_good}, Limit: {sending_limit}")
+                            
+                            # Store scores for this domain
+                            domain_scores[domain] = {
+                                'google_score': google_score,
+                                'outlook_score': outlook_score,
+                                'is_good': is_good,
+                                'sending_limit': sending_limit,
+                                'report_link': f"https://app.emailguard.io/inbox-placement-tests/{representative_account.last_emailguard_tag}"
+                            }
+                        else:
+                            self.stdout.write(self.style.ERROR(f"   ❌ Failed to get EmailGuard report: {response.status_code}"))
+                            self.failed_accounts.extend([f"{acc.email_account} (EmailGuard API failed)" for acc in domain_accounts])
+                            continue
+                    except Exception as e:
+                        self.stdout.write(self.style.ERROR(f"   ❌ Error processing domain {domain}: {str(e)}"))
+                        self.failed_accounts.extend([f"{acc.email_account} (Error: {str(e)})" for acc in domain_accounts])
                         continue
 
                 # Now create reports for ALL accounts using their domain's scores
+                self.stdout.write(f"   🔄 Creating reports for all accounts")
+                account_count = 0
                 for account in accounts:
+                    account_count += 1
+                    if account_count % 10 == 0:
+                        self.stdout.write(f"   Progress: {account_count}/{total_accounts} accounts")
+                        
                     domain = self.get_domain_from_email(account.email_account)
                     if domain not in domain_scores:
                         continue
 
-                    scores = domain_scores[domain]
-                    tags_str = await self.get_account_tags(account.organization, account.email_account)
+                    try:
+                        scores = domain_scores[domain]
+                        tags_str = await self.get_account_tags(account.organization, account.email_account)
 
-                    # Create/update report for each account
-                    report, created = await asyncio.to_thread(
-                        lambda: UserSpamcheckBisonReport.objects.update_or_create(
-                            spamcheck_bison=spamcheck,
-                            email_account=account.email_account,
-                            defaults={
-                                'bison_organization': account.organization,
-                                'google_pro_score': scores['google_score'],
-                                'outlook_pro_score': scores['outlook_score'],
-                                'report_link': scores['report_link'],
-                                'is_good': scores['is_good'],
-                                'used_subject': spamcheck.subject,
-                                'used_body': spamcheck.body,
-                                'sending_limit': scores['sending_limit'],
-                                'tags_list': tags_str,
-                                'workspace_name': account.organization.bison_organization_name
-                            }
+                        # Create/update report for each account
+                        report, created = await asyncio.to_thread(
+                            lambda: UserSpamcheckBisonReport.objects.update_or_create(
+                                spamcheck_bison=spamcheck,
+                                email_account=account.email_account,
+                                defaults={
+                                    'bison_organization': account.organization,
+                                    'google_pro_score': scores['google_score'],
+                                    'outlook_pro_score': scores['outlook_score'],
+                                    'report_link': scores['report_link'],
+                                    'is_good': scores['is_good'],
+                                    'used_subject': spamcheck.subject,
+                                    'used_body': spamcheck.body,
+                                    'sending_limit': scores['sending_limit'],
+                                    'tags_list': tags_str,
+                                    'workspace_name': account.organization.bison_organization_name
+                                }
+                            )
                         )
-                    )
 
-                    # Update sending limit
-                    success = await self.update_sending_limit(account.organization, account.email_account, scores['sending_limit'])
-                    if success:
-                        self.processed_accounts.add(account.email_account)
+                        # Update sending limit
+                        success = await self.update_sending_limit(account.organization, account.email_account, scores['sending_limit'])
+                        if success:
+                            self.processed_accounts.add(account.email_account)
+                    except Exception as e:
+                        self.stdout.write(self.style.ERROR(f"   ❌ Error creating report for {account.email_account}: {str(e)}"))
+                        self.failed_accounts.append(f"{account.email_account} (Error: {str(e)})")
             else:
                 # Process all accounts in parallel for non-domain-based spamchecks
-                results = await asyncio.gather(*[
-                    self.process_account(account, user_settings)
-                    for account in accounts
-                ])
+                self.stdout.write(f"🔄 Processing non-domain-based spamcheck {spamcheck.id}")
+                
+                # Process accounts in smaller batches to avoid overwhelming the system
+                batch_size = 20
+                for i in range(0, total_accounts, batch_size):
+                    batch = accounts[i:i+batch_size]
+                    self.stdout.write(f"   Processing batch {i//batch_size + 1}/{(total_accounts + batch_size - 1)//batch_size}: accounts {i+1}-{min(i+batch_size, total_accounts)}")
+                    
+                    results = await asyncio.gather(*[
+                        self.process_account(account, user_settings)
+                        for account in batch
+                    ])
+                    
+                    self.stdout.write(f"   Batch {i//batch_size + 1} complete: {sum(1 for r in results if r)}/{len(batch)} successful")
 
             # Print processing summary
             processed_count = len(self.processed_accounts)
@@ -496,46 +566,71 @@ class Command(BaseCommand):
 
             if skipped_count > 0:
                 self.stdout.write("\n⚠️ Skipped accounts:")
-                for account in self.skipped_accounts:
+                for account in self.skipped_accounts[:10]:  # Show only first 10
                     self.stdout.write(f"   - {account}")
+                if skipped_count > 10:
+                    self.stdout.write(f"   - ... and {skipped_count - 10} more")
 
             if failed_count > 0:
                 self.stdout.write("\n❌ Failed accounts:")
-                for account in self.failed_accounts:
+                for account in self.failed_accounts[:10]:  # Show only first 10
                     self.stdout.write(f"   - {account}")
+                if failed_count > 10:
+                    self.stdout.write(f"   - ... and {failed_count - 10} more")
 
             # Only mark spamcheck as completed if we processed all accounts
-            if processed_count == total_accounts:
+            if processed_count > 0:
+                self.stdout.write(f"✅ Marking spamcheck {spamcheck.id} as completed")
                 spamcheck.status = 'completed'
                 await asyncio.to_thread(spamcheck.save)
                 return True
             else:
+                self.stdout.write(f"⚠️ No accounts processed for spamcheck {spamcheck.id}")
                 return False
 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"❌ Error processing spamcheck {spamcheck.id}: {str(e)}"))
+            import traceback
+            self.stdout.write(self.style.ERROR(traceback.format_exc()))
             return False
 
     async def get_ready_spamchecks(self):
         """Get spamchecks that are ready for report generation based on waiting time after in_progress status"""
         now = timezone.now()
+        self.stdout.write(f"🔍 Finding spamchecks ready for report generation at {now}")
         
-        return await asyncio.to_thread(
-            lambda: list(UserSpamcheckBison.objects.filter(
-                Q(status='in_progress') &
-                (
-                    Q(reports_waiting_time__isnull=True) |  # No waiting time specified (uses default 1h)
-                    Q(reports_waiting_time=0) |  # Immediate generation
-                    Q(updated_at__lte=now - timedelta(hours=1), reports_waiting_time=1.0) |  # Default 1h waiting
-                    Q(updated_at__lte=now - timedelta(minutes=30), reports_waiting_time=0.5) |  # 30min waiting
-                    Q(updated_at__lte=now - timedelta(hours=2), reports_waiting_time=2.0) |  # 2h waiting
-                    Q(updated_at__lte=now - timedelta(hours=3), reports_waiting_time=3.0) |  # 3h waiting
-                    Q(updated_at__lte=now - timedelta(hours=4), reports_waiting_time=4.0) |  # 4h waiting
-                    Q(updated_at__lte=now - timedelta(hours=5), reports_waiting_time=5.0) |  # 5h waiting
-                    Q(updated_at__lte=now - timedelta(hours=6), reports_waiting_time=6.0)   # 6h waiting
-                )
-            ).select_related('user', 'user_organization'))
-        )
+        try:
+            spamchecks = await asyncio.to_thread(
+                lambda: list(UserSpamcheckBison.objects.filter(
+                    Q(status='in_progress') &
+                    (
+                        Q(reports_waiting_time__isnull=True) |  # No waiting time specified (uses default 1h)
+                        Q(reports_waiting_time=0) |  # Immediate generation
+                        Q(updated_at__lte=now - timedelta(hours=1), reports_waiting_time=1.0) |  # Default 1h waiting
+                        Q(updated_at__lte=now - timedelta(minutes=30), reports_waiting_time=0.5) |  # 30min waiting
+                        Q(updated_at__lte=now - timedelta(hours=2), reports_waiting_time=2.0) |  # 2h waiting
+                        Q(updated_at__lte=now - timedelta(hours=3), reports_waiting_time=3.0) |  # 3h waiting
+                        Q(updated_at__lte=now - timedelta(hours=4), reports_waiting_time=4.0) |  # 4h waiting
+                        Q(updated_at__lte=now - timedelta(hours=5), reports_waiting_time=5.0) |  # 5h waiting
+                        Q(updated_at__lte=now - timedelta(hours=6), reports_waiting_time=6.0)   # 6h waiting
+                    )
+                ).select_related('user', 'user_organization'))
+            )
+            
+            if spamchecks:
+                self.stdout.write(f"✅ Found {len(spamchecks)} spamchecks ready for report generation")
+                for i, spamcheck in enumerate(spamchecks):
+                    self.stdout.write(f"   {i+1}. Spamcheck ID: {spamcheck.id}, Name: {spamcheck.name}, Updated: {spamcheck.updated_at}, Waiting time: {spamcheck.reports_waiting_time}")
+            else:
+                self.stdout.write("ℹ️ No spamchecks found that match the criteria")
+                
+            return spamchecks
+            
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"❌ Error finding ready spamchecks: {str(e)}"))
+            import traceback
+            self.stdout.write(self.style.ERROR(traceback.format_exc()))
+            return []
 
     async def handle_async(self, *args, **options):
         """Async entry point"""
