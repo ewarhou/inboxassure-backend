@@ -294,19 +294,28 @@ def update_bison_campaigns_table(spamcheck):
                     if g_score == 0 or o_score == 0:
                         log_to_terminal("BisonCampaigns", "Debug", f"Email with zero score: {email}, Google: {g_score}, Outlook: {o_score}")
             
-            avg_google_score = sum(google_scores) / len(google_scores) if google_scores else 0
-            avg_outlook_score = sum(outlook_scores) / len(outlook_scores) if outlook_scores else 0
+            # Check if we have any accounts with scores
+            has_accounts_with_scores = any(email in account_scores for email in campaign_account_emails)
             
-            log_to_terminal("BisonCampaigns", "Debug", f"Campaign {campaign_id} average scores: Google={avg_google_score:.2f}, Outlook={avg_outlook_score:.2f}")
+            if has_accounts_with_scores:
+                avg_google_score = sum(google_scores) / len(google_scores) if google_scores else 0
+                avg_outlook_score = sum(outlook_scores) / len(outlook_scores) if outlook_scores else 0
+                
+                # Calculate average sending limit of connected accounts
+                sending_limits = [account_scores.get(email, {}).get('sending_limit', 25) for email in campaign_account_emails if email in account_scores]
+                avg_sending_limit = round(sum(sending_limits) / len(sending_limits)) if sending_limits else 25
+                
+                log_to_terminal("BisonCampaigns", "Debug", f"Campaign {campaign_id} average scores: Google={avg_google_score:.2f}, Outlook={avg_outlook_score:.2f}")
+                log_to_terminal("BisonCampaigns", "Debug", f"Campaign {campaign_id} max daily sends: {campaign.get('max_emails_per_day', 0)}, avg sending limit: {avg_sending_limit}")
+            else:
+                # No accounts with scores found, set to null/None
+                avg_google_score = 0
+                avg_outlook_score = 0
+                avg_sending_limit = None
+                log_to_terminal("BisonCampaigns", "Debug", f"Campaign {campaign_id} has NO accounts with scores in our database. Setting sends_per_account to NULL")
             
             # Get max daily sends
             max_daily_sends = campaign.get('max_emails_per_day', 0)
-            
-            # Calculate average sending limit of connected accounts
-            sending_limits = [account_scores.get(email, {}).get('sending_limit', 25) for email in campaign_account_emails]
-            avg_sending_limit = round(sum(sending_limits) / len(sending_limits)) if sending_limits else 25
-            
-            log_to_terminal("BisonCampaigns", "Debug", f"Campaign {campaign_id} max daily sends: {max_daily_sends}, avg sending limit: {avg_sending_limit}")
             
             # Update or create the campaign record
             if campaign_id in existing_campaign_ids:
@@ -315,7 +324,7 @@ def update_bison_campaigns_table(spamcheck):
                 log_to_terminal("BisonCampaigns", "Debug", f"Updating existing campaign {campaign_id} in database")
                 
                 # Log previous values
-                log_to_terminal("BisonCampaigns", "Debug", f"Previous values - Google: {camp_obj.google_score}, Outlook: {camp_obj.outlook_score}, Connected: {camp_obj.connected_emails_count}")
+                log_to_terminal("BisonCampaigns", "Debug", f"Previous values - Google: {camp_obj.google_score}, Outlook: {camp_obj.outlook_score}, Connected: {camp_obj.connected_emails_count}, Sends per account: {camp_obj.sends_per_account}")
                 
                 camp_obj.campaign_name = campaign.get('name', '')
                 camp_obj.connected_emails_count = len(accounts)
