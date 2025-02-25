@@ -145,3 +145,68 @@ Get performance metrics per provider for Bison accounts including daily aggregat
 3. Provider tags are identified by the prefix "p." in the tag name.
 4. Scores for Bison are in the range 0-1, unlike Instantly which uses 0-4.
 5. The endpoints handle pagination internally and return complete results.
+
+## Spamcheck Endpoints
+
+### 1. Get Bison Accounts List
+
+Retrieves a paginated list of Bison email accounts with their latest check results.
+
+**Endpoint:** `/spamcheck/accounts-bison`  
+**Method:** GET  
+**Authentication:** Bearer Token  
+
+**Query Parameters:**
+- `search` (optional): Filter accounts by email content
+- `status` (optional): Filter by status (all, Inboxing, Resting)
+- `workspace` (optional): Filter by workspace name
+- `filter` (optional): Special filter (at-risk, protected)
+- `page` (optional): Page number (default: 1)
+- `per_page` (optional): Items per page (default: 25)
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "email": "test@example.com",
+      "domain": "example.com",
+      "sends_per_day": 25,
+      "google_score": 0.75,
+      "outlook_score": 0.5,
+      "status": "Inboxing",
+      "workspace": "Karpos",
+      "last_check": {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "date": "2024-03-15T10:30:45.123456"
+      },
+      "reports_link": "https://example.com/report/123"
+    }
+  ],
+  "meta": {
+    "total": 150,
+    "page": 1,
+    "per_page": 25,
+    "total_pages": 6
+  }
+}
+```
+
+**Response Fields:**
+- `data`: Array of account objects
+  - `email`: Email address
+  - `domain`: Domain part of the email
+  - `sends_per_day`: Daily sending limit
+  - `google_score`: Google deliverability score (0-1)
+  - `outlook_score`: Outlook deliverability score (0-1)
+  - `status`: Account status (Inboxing or Resting)
+  - `workspace`: Bison workspace name
+  - `last_check`: Information about the last check
+    - `id`: Check ID
+    - `date`: ISO formatted date of the last check
+  - `reports_link`: Link to the detailed report
+- `meta`: Pagination metadata
+  - `total`: Total number of accounts
+  - `page`: Current page number
+  - `per_page`: Items per page
+  - `total_pages`: Total number of pages

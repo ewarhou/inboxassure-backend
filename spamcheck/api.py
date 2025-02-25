@@ -1263,6 +1263,151 @@ def get_accounts(
             }
         }
 
+@router.get(
+    "/accounts-bison",
+    response=AccountsResponse,
+    auth=AuthBearer(),
+    summary="Get Bison Accounts List",
+    description="Get a paginated list of Bison email accounts with their latest check results"
+)
+def get_bison_accounts(
+    request,
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    workspace: Optional[str] = None,
+    filter: Optional[str] = None,
+    page: int = 1,
+    per_page: int = 25
+):
+    """
+    Get a list of Bison email accounts with their latest check results.
+    
+    Args:
+        search: Optional email search term
+        status: Optional status filter (all, Inboxing, Resting)
+        workspace: Optional workspace filter
+        filter: Optional special filter (at-risk, protected)
+        page: Page number (default: 1)
+        per_page: Items per page (default: 25)
+    """
+    user = request.auth
+    offset = (page - 1) * per_page
+    
+    # Build the base query
+    query = """
+        WITH latest_checks AS (
+            SELECT 
+                usbr.*,
+                ub.bison_organization_name,
+                ROW_NUMBER() OVER (
+                    PARTITION BY usbr.email_account 
+                    ORDER BY usbr.created_at DESC
+                ) as rn
+            FROM user_spamcheck_bison_reports usbr
+            JOIN user_bison ub ON usbr.bison_organization_id = ub.id
+            WHERE ub.user_id = %s
+    """
+    params = [user.id]
+    
+    # Add search condition if provided
+    if search:
+        query += " AND usbr.email_account LIKE %s"
+        params.append(f"%{search}%")
+    
+    # Add workspace filter if provided
+    if workspace:
+        query += " AND ub.bison_organization_name = %s"
+        params.append(workspace)
+    
+    # Close the CTE and select from it
+    query += """
+        )
+        SELECT 
+            email_account,
+            SUBSTRING_INDEX(email_account, '@', -1) as domain,
+            COALESCE(sending_limit, 25) as sends_per_day,
+            google_pro_score as google_score,
+            outlook_pro_score as outlook_score,
+            CASE 
+                WHEN is_good THEN 'Inboxing'
+                ELSE 'Resting'
+            END as status,
+            bison_organization_name as workspace,
+            id as check_id,
+            created_at as check_date,
+            report_link as reports_link,
+            COUNT(*) OVER() as total_count
+        FROM latest_checks
+        WHERE rn = 1
+    """
+    
+    # Add status filter
+    if status and status.lower() != 'all':
+        is_good = "TRUE" if status.lower() == 'inboxing' else "FALSE"
+        query += f" AND is_good = {is_good}"
+    
+    # Add special filters
+    if filter:
+        if filter.lower() == 'at-risk':
+            query += " AND is_good = FALSE"
+        elif filter.lower() == 'protected':
+            query += " AND is_good = TRUE"
+    
+    # Add pagination
+    query += " ORDER BY check_date DESC LIMIT %s OFFSET %s"
+    params.extend([per_page, offset])
+    
+    # Execute query
+    with connection.cursor() as cursor:
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        
+        if not rows:
+            return {
+                "data": [],
+                "meta": {
+                    "total": 0,
+                    "page": page,
+                    "per_page": per_page,
+                    "total_pages": 0
+                }
+            }
+        
+        # Get total count from first row
+        total_count = rows[0][-1]
+        total_pages = (total_count + per_page - 1) // per_page
+        
+        # Format the data
+        data = []
+        for row in rows:
+            (email, domain, sends_per_day, google_score, outlook_score, 
+             status, workspace_name, check_id, check_date, reports_link, _) = row
+            
+            data.append({
+                "email": email,
+                "domain": domain,
+                "sends_per_day": sends_per_day,
+                "google_score": round_to_quarter(google_score),
+                "outlook_score": round_to_quarter(outlook_score),
+                "status": status,
+                "workspace": workspace_name,
+                "last_check": {
+                    "id": str(check_id),
+                    "date": check_date.isoformat() if check_date else None
+                },
+                "reports_link": reports_link
+            })
+        
+        return {
+            "data": data,
+            "meta": {
+                "total": total_count,
+                "page": page,
+                "per_page": per_page,
+                "total_pages": total_pages
+            }
+        }
+
 @router.post("/create-spamcheck-bison", auth=AuthBearer())
 def create_spamcheck_bison(request, payload: CreateSpamcheckBisonSchema):
     """
