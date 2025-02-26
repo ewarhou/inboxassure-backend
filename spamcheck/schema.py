@@ -186,4 +186,59 @@ class UpdateSpamcheckBisonSchema(Schema):
                 "conditions": "google>=0.5andoutlook>=0.5",
                 "reports_waiting_time": 1.0
             }
-        } 
+        }
+
+class SpamcheckBisonConfigurationSchema(Schema):
+    """Schema for Bison spamcheck configuration details"""
+    domainBased: bool
+    trackOpens: bool = Field(default=False)
+    trackClicks: bool = Field(default=False)
+    waitingTime: str
+    googleInboxCriteria: str
+    outlookInboxCriteria: str
+
+class SpamcheckBisonEmailContentSchema(Schema):
+    """Schema for Bison spamcheck email content"""
+    subject: str
+    body: str
+
+class SpamcheckBisonResultsSchema(Schema):
+    """Schema for Bison spamcheck results summary"""
+    googleScore: float
+    outlookScore: float
+    totalAccounts: int
+    inboxedAccounts: int
+    spamAccounts: int
+
+class SpamcheckBisonDetailsSchema(Schema):
+    """Schema for Bison spamcheck details response"""
+    id: str
+    name: str
+    createdAt: str
+    lastRunDate: str
+    status: str
+    configuration: SpamcheckBisonConfigurationSchema
+    emailContent: SpamcheckBisonEmailContentSchema
+    results: SpamcheckBisonResultsSchema
+
+class SpamcheckBisonDetailsResponseSchema(Schema):
+    """Response schema for get Bison spamcheck details endpoint"""
+    success: bool
+    message: str
+    data: SpamcheckBisonDetailsSchema
+
+class BisonAccountReportSchema(Schema):
+    """Schema for Bison account report"""
+    id: str
+    email: str
+    googleScore: float
+    outlookScore: float
+    status: str
+    reportLink: str
+    createdAt: str
+
+class BisonAccountsReportsResponseSchema(Schema):
+    """Response schema for get Bison accounts reports endpoint"""
+    success: bool
+    message: str
+    data: List[BisonAccountReportSchema] 

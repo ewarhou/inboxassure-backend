@@ -5,8 +5,8 @@ from django.shortcuts import get_object_or_404
 from django.db import transaction, IntegrityError, connection
 from django.core.exceptions import ObjectDoesNotExist
 from authentication.authorization import AuthBearer
-from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema, ListAccountsRequestSchema, ListAccountsResponseSchema, ListSpamchecksResponseSchema, CreateSpamcheckBisonSchema, UpdateSpamcheckBisonSchema
-from .models import UserSpamcheck, UserSpamcheckAccounts, UserSpamcheckCampaignOptions, UserSpamcheckCampaigns, UserSpamcheckReport, UserSpamcheckBison, UserSpamcheckAccountsBison
+from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema, ListAccountsRequestSchema, ListAccountsResponseSchema, ListSpamchecksResponseSchema, CreateSpamcheckBisonSchema, UpdateSpamcheckBisonSchema, SpamcheckBisonDetailsResponseSchema, BisonAccountsReportsResponseSchema
+from .models import UserSpamcheck, UserSpamcheckAccounts, UserSpamcheckCampaignOptions, UserSpamcheckCampaigns, UserSpamcheckReport, UserSpamcheckBison, UserSpamcheckAccountsBison, UserSpamcheckBisonReport
 from settings.models import UserInstantly, UserSettings, UserBison
 import requests
 from django.conf import settings
@@ -35,9 +35,15 @@ def round_to_quarter(score: float) -> float:
     return min(1.0, max(0.0, quarters))
 
 class LastCheckData(Schema):
-    """Schema for last check information"""
+    """Schema for last check data"""
     id: str
     date: str
+
+class AccountHistoryData(Schema):
+    """Schema for account history data"""
+    total_checks: int
+    good_checks: int
+    bad_checks: int
 
 class AccountData(Schema):
     """Schema for account data"""
@@ -50,6 +56,7 @@ class AccountData(Schema):
     workspace: str
     last_check: LastCheckData
     reports_link: str  # Added reports link field
+    history: AccountHistoryData  # Added history field
 
 class PaginationMeta(Schema):
     """Schema for pagination metadata"""
@@ -1272,6 +1279,7 @@ def get_accounts(
 )
 def get_bison_accounts(
     request,
+    spamcheck_id: Optional[int] = None,
     search: Optional[str] = None,
     status: Optional[str] = None,
     workspace: Optional[str] = None,
@@ -1283,6 +1291,7 @@ def get_bison_accounts(
     Get a list of Bison email accounts with their latest check results.
     
     Args:
+        spamcheck_id: Optional ID of the spamcheck to filter accounts by
         search: Optional email search term
         status: Optional status filter (all, Inboxing, Resting)
         workspace: Optional workspace filter
@@ -1309,6 +1318,11 @@ def get_bison_accounts(
     """
     params = [user.id]
     
+    # Add spamcheck filter if provided
+    if spamcheck_id:
+        query += " AND usbr.spamcheck_bison_id = %s"
+        params.append(spamcheck_id)
+    
     # Add search condition if provided
     if search:
         query += " AND usbr.email_account LIKE %s"
@@ -1321,40 +1335,66 @@ def get_bison_accounts(
     
     # Close the CTE and select from it
     query += """
+        ),
+        account_stats AS (
+            SELECT 
+                email_account,
+                COUNT(*) as total_checks,
+                SUM(CASE WHEN is_good = TRUE THEN 1 ELSE 0 END) as good_checks,
+                SUM(CASE WHEN is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
+            FROM user_spamcheck_bison_reports
+            WHERE 1=1
+    """
+    
+    # Add user filter to account_stats using the correct column name
+    query += " AND bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)"
+    params.append(user.id)
+    
+    # Add spamcheck filter to account_stats if provided
+    if spamcheck_id:
+        query += " AND spamcheck_bison_id = %s"
+        params.append(spamcheck_id)
+    
+    query += """
+        GROUP BY email_account
         )
         SELECT 
-            email_account,
-            SUBSTRING_INDEX(email_account, '@', -1) as domain,
-            COALESCE(sending_limit, 25) as sends_per_day,
-            google_pro_score as google_score,
-            outlook_pro_score as outlook_score,
+            lc.email_account,
+            SUBSTRING_INDEX(lc.email_account, '@', -1) as domain,
+            COALESCE(lc.sending_limit, 25) as sends_per_day,
+            lc.google_pro_score as google_score,
+            lc.outlook_pro_score as outlook_score,
             CASE 
-                WHEN is_good THEN 'Inboxing'
+                WHEN lc.is_good THEN 'Inboxing'
                 ELSE 'Resting'
             END as status,
-            bison_organization_name as workspace,
-            id as check_id,
-            created_at as check_date,
-            report_link as reports_link,
+            lc.bison_organization_name as workspace,
+            lc.id as check_id,
+            lc.created_at as check_date,
+            lc.report_link as reports_link,
+            COALESCE(ast.total_checks, 0) as total_checks,
+            COALESCE(ast.good_checks, 0) as good_checks,
+            COALESCE(ast.bad_checks, 0) as bad_checks,
             COUNT(*) OVER() as total_count
-        FROM latest_checks
-        WHERE rn = 1
+        FROM latest_checks lc
+        LEFT JOIN account_stats ast ON lc.email_account = ast.email_account
+        WHERE lc.rn = 1
     """
     
     # Add status filter
     if status and status.lower() != 'all':
         is_good = "TRUE" if status.lower() == 'inboxing' else "FALSE"
-        query += f" AND is_good = {is_good}"
+        query += f" AND lc.is_good = {is_good}"
     
     # Add special filters
     if filter:
         if filter.lower() == 'at-risk':
-            query += " AND is_good = FALSE"
+            query += " AND lc.is_good = FALSE"
         elif filter.lower() == 'protected':
-            query += " AND is_good = TRUE"
+            query += " AND lc.is_good = TRUE"
     
     # Add pagination
-    query += " ORDER BY check_date DESC LIMIT %s OFFSET %s"
+    query += " ORDER BY lc.created_at DESC LIMIT %s OFFSET %s"
     params.extend([per_page, offset])
     
     # Execute query
@@ -1381,7 +1421,8 @@ def get_bison_accounts(
         data = []
         for row in rows:
             (email, domain, sends_per_day, google_score, outlook_score, 
-             status, workspace_name, check_id, check_date, reports_link, _) = row
+             status, workspace_name, check_id, check_date, reports_link, 
+             total_checks, good_checks, bad_checks, _) = row
             
             data.append({
                 "email": email,
@@ -1395,7 +1436,12 @@ def get_bison_accounts(
                     "id": str(check_id),
                     "date": check_date.isoformat() if check_date else None
                 },
-                "reports_link": reports_link
+                "reports_link": reports_link,
+                "history": {
+                    "total_checks": total_checks,
+                    "good_checks": good_checks,
+                    "bad_checks": bad_checks
+                }
             })
         
         return {
@@ -1662,4 +1708,244 @@ def delete_spamcheck_bison(request, spamcheck_id: int):
         return {
             "success": False,
             "message": f"Error deleting spamcheck: {str(e)}"
+        }
+
+@router.get(
+    "/get-spamcheck/{spamcheck_id}",
+    response=SpamcheckBisonDetailsResponseSchema,
+    auth=AuthBearer(),
+    summary="Get Bison Spamcheck Details",
+    description="Get detailed information about a specific Bison spamcheck by its ID"
+)
+def get_bison_spamcheck_details(request, spamcheck_id: int):
+    """
+    Get detailed information about a specific Bison spamcheck by its ID
+    """
+    try:
+        # Get the spamcheck
+        spamcheck = get_object_or_404(UserSpamcheckBison, id=spamcheck_id)
+        
+        # Check if the user has access to this spamcheck
+        if spamcheck.user.id != request.auth.id:
+            return {
+                "success": False,
+                "message": "You don't have permission to access this spamcheck",
+                "data": None
+            }
+        
+        # Get the latest reports for this spamcheck
+        reports = UserSpamcheckBisonReport.objects.filter(spamcheck_bison=spamcheck)
+        
+        # Calculate summary statistics
+        total_accounts = reports.count()
+        inboxed_accounts = reports.filter(is_good=True).count()
+        spam_accounts = total_accounts - inboxed_accounts
+        
+        # Calculate average scores
+        google_score = 0
+        outlook_score = 0
+        
+        if total_accounts > 0:
+            google_score = sum(float(report.google_pro_score) for report in reports) / total_accounts * 100
+            outlook_score = sum(float(report.outlook_pro_score) for report in reports) / total_accounts * 100
+        
+        # Get the last run date (latest report creation date)
+        last_run_date = spamcheck.updated_at
+        if reports.exists():
+            last_run_date = reports.order_by('-created_at').first().created_at
+        
+        # Format waiting time
+        waiting_time = f"{spamcheck.reports_waiting_time} hours"
+        
+        # Parse conditions for Google and Outlook inbox criteria
+        google_inbox_criteria = "Not specified"
+        outlook_inbox_criteria = "Not specified"
+        
+        if spamcheck.conditions:
+            try:
+                log_to_terminal("SpamCheck", "Debug", f"Parsing conditions: {spamcheck.conditions}")
+                
+                # Handle the case where conditions are joined without spaces
+                # Example: "google>0.5andoutlook>0.3sending=25/1"
+                conditions = spamcheck.conditions
+                
+                # Parse Google criteria
+                if "google>" in conditions:
+                    if "google>=" in conditions:
+                        # Extract value after 'google>=' and before 'and' or end of string
+                        start_idx = conditions.index("google>=") + len("google>=")
+                        end_idx = conditions.find("and", start_idx) if "and" in conditions[start_idx:] else len(conditions)
+                        value_str = conditions[start_idx:end_idx].strip()
+                        # Clean the value string
+                        value_str = ''.join(c for c in value_str if c.isdigit() or c == '.')
+                        google_value = float(value_str) * 100
+                        google_inbox_criteria = f"{google_value}% or higher"
+                    elif "google>" in conditions:
+                        # Extract value after 'google>' and before 'and' or end of string
+                        start_idx = conditions.index("google>") + len("google>")
+                        end_idx = conditions.find("and", start_idx) if "and" in conditions[start_idx:] else len(conditions)
+                        value_str = conditions[start_idx:end_idx].strip()
+                        # Clean the value string
+                        value_str = ''.join(c for c in value_str if c.isdigit() or c == '.')
+                        google_value = float(value_str) * 100
+                        google_inbox_criteria = f"Above {google_value}%"
+                
+                # Parse Outlook criteria
+                if "outlook>" in conditions:
+                    if "outlook>=" in conditions:
+                        # Extract value after 'outlook>=' and before 'and' or 'sending=' or end of string
+                        start_idx = conditions.index("outlook>=") + len("outlook>=")
+                        end_idx1 = conditions.find("and", start_idx)
+                        end_idx2 = conditions.find("sending=", start_idx)
+                        end_idx = min(end_idx1 if end_idx1 != -1 else len(conditions), 
+                                      end_idx2 if end_idx2 != -1 else len(conditions))
+                        value_str = conditions[start_idx:end_idx].strip()
+                        # Clean the value string
+                        value_str = ''.join(c for c in value_str if c.isdigit() or c == '.')
+                        outlook_value = float(value_str) * 100
+                        outlook_inbox_criteria = f"{outlook_value}% or higher"
+                    elif "outlook>" in conditions:
+                        # Extract value after 'outlook>' and before 'and' or 'sending=' or end of string
+                        start_idx = conditions.index("outlook>") + len("outlook>")
+                        end_idx1 = conditions.find("and", start_idx)
+                        end_idx2 = conditions.find("sending=", start_idx)
+                        end_idx = min(end_idx1 if end_idx1 != -1 else len(conditions), 
+                                      end_idx2 if end_idx2 != -1 else len(conditions))
+                        value_str = conditions[start_idx:end_idx].strip()
+                        # Clean the value string
+                        value_str = ''.join(c for c in value_str if c.isdigit() or c == '.')
+                        outlook_value = float(value_str) * 100
+                        outlook_inbox_criteria = f"Above {outlook_value}%"
+                
+                log_to_terminal("SpamCheck", "Debug", f"Parsed Google criteria: {google_inbox_criteria}")
+                log_to_terminal("SpamCheck", "Debug", f"Parsed Outlook criteria: {outlook_inbox_criteria}")
+                
+            except Exception as e:
+                log_to_terminal("SpamCheck", "Warning", f"Error parsing conditions: {str(e)}")
+                google_inbox_criteria = "Custom criteria"
+                outlook_inbox_criteria = "Custom criteria"
+        
+        # Construct the response
+        response_data = {
+            "id": str(spamcheck.id),
+            "name": spamcheck.name,
+            "createdAt": spamcheck.created_at.isoformat(),
+            "lastRunDate": last_run_date.isoformat(),
+            "status": spamcheck.status,
+            "configuration": {
+                "domainBased": spamcheck.is_domain_based,
+                "trackOpens": False,  # Placeholder, adjust if you track this
+                "trackClicks": False,  # Placeholder, adjust if you track this
+                "waitingTime": waiting_time,
+                "googleInboxCriteria": google_inbox_criteria,
+                "outlookInboxCriteria": outlook_inbox_criteria
+            },
+            "emailContent": {
+                "subject": spamcheck.subject,
+                "body": spamcheck.body
+            },
+            "results": {
+                "googleScore": round(google_score, 2),
+                "outlookScore": round(outlook_score, 2),
+                "totalAccounts": total_accounts,
+                "inboxedAccounts": inboxed_accounts,
+                "spamAccounts": spam_accounts
+            }
+        }
+        
+        return {
+            "success": True,
+            "message": "Spam check details retrieved successfully",
+            "data": response_data
+        }
+        
+    except Exception as e:
+        log_to_terminal("SpamCheck", "Error", f"Error getting spamcheck details: {str(e)}")
+        # Return a valid response structure even in case of error
+        return {
+            "success": False,
+            "message": f"Error retrieving spam check details: {str(e)}",
+            "data": {
+                "id": str(spamcheck_id),
+                "name": "Error retrieving spamcheck",
+                "createdAt": timezone.now().isoformat(),
+                "lastRunDate": timezone.now().isoformat(),
+                "status": "error",
+                "configuration": {
+                    "domainBased": False,
+                    "trackOpens": False,
+                    "trackClicks": False,
+                    "waitingTime": "N/A",
+                    "googleInboxCriteria": "N/A",
+                    "outlookInboxCriteria": "N/A"
+                },
+                "emailContent": {
+                    "subject": "",
+                    "body": ""
+                },
+                "results": {
+                    "googleScore": 0,
+                    "outlookScore": 0,
+                    "totalAccounts": 0,
+                    "inboxedAccounts": 0,
+                    "spamAccounts": 0
+                }
+            }
+        }
+
+@router.get(
+    "/get-spamcheck-reports/{spamcheck_id}",
+    response=BisonAccountsReportsResponseSchema,
+    auth=AuthBearer(),
+    summary="Get Bison Spamcheck Account Reports",
+    description="Get reports for all accounts related to a specific Bison spamcheck"
+)
+def get_bison_spamcheck_reports(request, spamcheck_id: int):
+    """
+    Get reports for all accounts related to a specific Bison spamcheck
+    """
+    try:
+        # Get the spamcheck
+        spamcheck = get_object_or_404(UserSpamcheckBison, id=spamcheck_id)
+        
+        # Check if the user has access to this spamcheck
+        if spamcheck.user.id != request.auth.id:
+            return {
+                "success": False,
+                "message": "You don't have permission to access this spamcheck",
+                "data": []
+            }
+        
+        # Get all reports for this spamcheck
+        reports = UserSpamcheckBisonReport.objects.filter(spamcheck_bison=spamcheck).order_by('-created_at')
+        
+        # Format the reports data
+        reports_data = []
+        for report in reports:
+            # Determine status based on is_good flag
+            status = "inbox" if report.is_good else "spam"
+            
+            reports_data.append({
+                "id": str(report.id),
+                "email": report.email_account,
+                "googleScore": float(report.google_pro_score) * 100,  # Convert to percentage
+                "outlookScore": float(report.outlook_pro_score) * 100,  # Convert to percentage
+                "status": status,
+                "reportLink": report.report_link,
+                "createdAt": report.created_at.isoformat()
+            })
+        
+        return {
+            "success": True,
+            "message": "Spam check reports retrieved successfully",
+            "data": reports_data
+        }
+        
+    except Exception as e:
+        log_to_terminal("SpamCheck", "Error", f"Error getting spamcheck reports: {str(e)}")
+        # Always return a valid data structure, even if it's an empty list
+        return {
+            "success": False,
+            "message": f"Error retrieving spam check reports: {str(e)}",
+            "data": []
         } 

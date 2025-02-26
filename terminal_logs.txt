@@ -3721,3 +3721,559 @@ django.db.utils.IntegrityError: (1048, "Column 'sends_per_account' cannot be nul
 [2025-02-25 18:24:24] [Bison] [Campaigns] Retrieved 15 cached campaigns for CoachPro
 [2025-02-25 18:24:24] [Bison] [Campaigns] Retrieved 8 cached campaigns for Karpos
 [2025-02-25 18:24:24] [Bison] [Campaigns] Returning campaigns for 2 organizations (took 0.46s)
+[2025-02-25 23:29:42] [BisonCampaigns] [Signal] Detected completed spamcheck: Coachpro All Accounts (ID: 22)
+[2025-02-25 23:29:42] [BisonCampaigns] [Update] Updating campaigns for user dev@vitalitymarketingfirm.com, org: CoachPro
+[2025-02-25 23:29:42] [BisonCampaigns] [Debug] Organization ID: 10, API Key: 31|Rj...
+[2025-02-25 23:29:42] [BisonCampaigns] [Debug] Fetching accounts from: https://app.orbitmailboost.com/api/sender-emails, page: 1
+[2025-02-25 23:29:44] [BisonCampaigns] [Debug] Page 1: Found 15 accounts
+[2025-02-25 23:29:44] [BisonCampaigns] [Debug] Sample account: {"id": 674, "name": "Eric Dombach", "email": "eric@procoachedge.com", "imap_server": "imap.hermes.maildoso.com", "imap_port": 993, "smtp_server": "smtp.maildoso.com", "smtp_port": 587, "daily_limit": 25, "type": "custom", "status": "Connected", "tags": [{"id": 145, "name": "p.Maildoso", "default": false}, {"id": 95, "name": "Google Good", "default": false}, {"id": 98, "name": "Outlook Good", "default": false}], "emails_sent_count": 500, "total_replied_count": 2, "total_opened_count": 7, "unsubscribed_count": 2, "bounced_count": 7, "unique_replied_count": 2, "unique_opened_count": 6, "total_leads_contacted_count": 170, "interested_leads_count": 0}
+[2025-02-25 23:29:44] [BisonCampaigns] [Debug] Fetching accounts from: https://app.orbitmailboost.com/api/sender-emails, page: 2
+[2025-02-25 23:29:45] [BisonCampaigns] [Debug] Page 2: Found 15 accounts
+[2025-02-25 23:29:45] [BisonCampaigns] [Debug] Fetching accounts from: https://app.orbitmailboost.com/api/sender-emails, page: 3
+[2025-02-25 23:29:47] [BisonCampaigns] [Debug] Page 3: Found 15 accounts
+[2025-02-25 23:29:47] [BisonCampaigns] [Debug] Fetching accounts from: https://app.orbitmailboost.com/api/sender-emails, page: 4
+[2025-02-25 23:29:48] [BisonCampaigns] [Debug] Page 4: Found 15 accounts
+[2025-02-25 23:29:48] [BisonCampaigns] [Debug] Fetching accounts from: https://app.orbitmailboost.com/api/sender-emails, page: 5
+[2025-02-25 23:29:50] [BisonCampaigns] [Debug] Page 5: Found 15 accounts
+[2025-02-25 23:29:50] [BisonCampaigns] [Debug] Fetching accounts from: https://app.orbitmailboost.com/api/sender-emails, page: 6
+[2025-02-25 23:29:51] [BisonCampaigns] [Debug] Page 6: Found 15 accounts
+[2025-02-25 23:29:51] [BisonCampaigns] [Debug] Fetching accounts from: https://app.orbitmailboost.com/api/sender-emails, page: 7
+[2025-02-25 23:29:52] [BisonCampaigns] [Debug] Page 7: Found 15 accounts
+[2025-02-25 23:29:52] [BisonCampaigns] [Debug] Fetching accounts from: https://app.orbitmailboost.com/api/sender-emails, page: 8
+[2025-02-25 23:29:54] [BisonCampaigns] [Debug] Page 8: Found 15 accounts
+[2025-02-25 23:29:54] [BisonCampaigns] [Debug] Fetching accounts from: https://app.orbitmailboost.com/api/sender-emails, page: 9
+[2025-02-25 23:29:55] [BisonCampaigns] [Debug] Page 9: Found 15 accounts
+[2025-02-25 23:29:55] [BisonCampaigns] [Debug] Fetching accounts from: https://app.orbitmailboost.com/api/sender-emails, page: 10
+[2025-02-25 23:30:00] [BisonCampaigns] [Debug] Page 10: Found 15 accounts
+[2025-02-25 23:30:00] [BisonCampaigns] [Debug] Fetching accounts from: https://app.orbitmailboost.com/api/sender-emails, page: 11
+[2025-02-25 23:30:02] [BisonCampaigns] [Debug] Page 11: Found 10 accounts
+[2025-02-25 23:30:02] [BisonCampaigns] [Accounts] Found total 160 accounts in Bison (took 19.61s)
+[2025-02-25 23:30:02] [BisonCampaigns] [Accounts] Found 144 unique accounts (took 0.00s)
+[2025-02-25 23:30:02] [BisonCampaigns] [Debug] Processing 15 batches of accounts
+[2025-02-25 23:30:02] [BisonCampaigns] [Debug] Processing batch 1/15
+[2025-02-25 23:30:02] [BisonCampaigns] [Debug] Fetching campaigns for account 674 from: https://app.orbitmailboost.com/api/sender-emails/674/campaigns
+[2025-02-25 23:30:03] [BisonCampaigns] [Debug] Account 674: Found 15 campaigns
+[2025-02-25 23:30:03] [BisonCampaigns] [Debug] Sample campaign: {"id": 6, "name": "CoachPro for RIA's v2 - Other & Google", "status": "paused", "emails_sent": 6814, "opened": 0, "unique_opens": 0, "replied": 41, "unique_replies": 41, "bounced": 50, "unsubscribed": 24, "interested": 0, "total_leads_contacted": 2252, "max_emails_per_day": 400, "max_new_leads_per_day": 200, "plain_text": true, "open_tracking": false, "total_leads": 2914, "can_unsubscribe": false, "unsubscribe_text": null, "created_at": "2024-10-05T17:30:34.000000Z", "updated_at": "2024-12-06T16:36:14.000000Z"}
+[2025-02-25 23:30:03] [BisonCampaigns] [Debug] Fetching campaigns for account 666 from: https://app.orbitmailboost.com/api/sender-emails/666/campaigns
+[2025-02-25 23:30:06] [BisonCampaigns] [Debug] Account 666: Found 15 campaigns
+[2025-02-25 23:30:06] [BisonCampaigns] [Debug] Fetching campaigns for account 667 from: https://app.orbitmailboost.com/api/sender-emails/667/campaigns
+[2025-02-25 23:30:08] [BisonCampaigns] [Debug] Account 667: Found 15 campaigns
+[2025-02-25 23:30:08] [BisonCampaigns] [Debug] Fetching campaigns for account 668 from: https://app.orbitmailboost.com/api/sender-emails/668/campaigns
+[2025-02-25 23:30:10] [BisonCampaigns] [Debug] Account 668: Found 15 campaigns
+[2025-02-25 23:30:10] [BisonCampaigns] [Debug] Fetching campaigns for account 669 from: https://app.orbitmailboost.com/api/sender-emails/669/campaigns
+[2025-02-25 23:30:11] [BisonCampaigns] [Debug] Account 669: Found 15 campaigns
+[2025-02-25 23:30:11] [BisonCampaigns] [Debug] Fetching campaigns for account 671 from: https://app.orbitmailboost.com/api/sender-emails/671/campaigns
+[2025-02-25 23:30:13] [BisonCampaigns] [Debug] Account 671: Found 15 campaigns
+[2025-02-25 23:30:13] [BisonCampaigns] [Debug] Fetching campaigns for account 672 from: https://app.orbitmailboost.com/api/sender-emails/672/campaigns
+[2025-02-25 23:30:17] [BisonCampaigns] [Debug] Account 672: Found 15 campaigns
+[2025-02-25 23:30:17] [BisonCampaigns] [Debug] Fetching campaigns for account 673 from: https://app.orbitmailboost.com/api/sender-emails/673/campaigns
+[2025-02-25 23:30:19] [BisonCampaigns] [Debug] Account 673: Found 15 campaigns
+[2025-02-25 23:30:19] [BisonCampaigns] [Debug] Fetching campaigns for account 670 from: https://app.orbitmailboost.com/api/sender-emails/670/campaigns
+[2025-02-25 23:30:20] [BisonCampaigns] [Debug] Account 670: Found 15 campaigns
+[2025-02-25 23:30:20] [BisonCampaigns] [Debug] Fetching campaigns for account 641 from: https://app.orbitmailboost.com/api/sender-emails/641/campaigns
+[2025-02-25 23:30:21] [BisonCampaigns] [Debug] Account 641: Found 15 campaigns
+[2025-02-25 23:30:21] [BisonCampaigns] [Debug] Processing batch 2/15
+[2025-02-25 23:30:21] [BisonCampaigns] [Debug] Fetching campaigns for account 642 from: https://app.orbitmailboost.com/api/sender-emails/642/campaigns
+[2025-02-25 23:30:23] [BisonCampaigns] [Debug] Account 642: Found 15 campaigns
+[2025-02-25 23:30:23] [BisonCampaigns] [Debug] Fetching campaigns for account 643 from: https://app.orbitmailboost.com/api/sender-emails/643/campaigns
+[2025-02-25 23:30:24] [BisonCampaigns] [Debug] Account 643: Found 15 campaigns
+[2025-02-25 23:30:24] [BisonCampaigns] [Debug] Fetching campaigns for account 644 from: https://app.orbitmailboost.com/api/sender-emails/644/campaigns
+[2025-02-25 23:30:25] [BisonCampaigns] [Debug] Account 644: Found 15 campaigns
+[2025-02-25 23:30:25] [BisonCampaigns] [Debug] Fetching campaigns for account 647 from: https://app.orbitmailboost.com/api/sender-emails/647/campaigns
+[2025-02-25 23:30:26] [BisonCampaigns] [Debug] Account 647: Found 15 campaigns
+[2025-02-25 23:30:26] [BisonCampaigns] [Debug] Fetching campaigns for account 648 from: https://app.orbitmailboost.com/api/sender-emails/648/campaigns
+[2025-02-25 23:30:27] [BisonCampaigns] [Debug] Account 648: Found 15 campaigns
+[2025-02-25 23:30:27] [BisonCampaigns] [Debug] Fetching campaigns for account 637 from: https://app.orbitmailboost.com/api/sender-emails/637/campaigns
+[2025-02-25 23:30:28] [BisonCampaigns] [Debug] Account 637: Found 15 campaigns
+[2025-02-25 23:30:28] [BisonCampaigns] [Debug] Fetching campaigns for account 638 from: https://app.orbitmailboost.com/api/sender-emails/638/campaigns
+[2025-02-25 23:30:29] [BisonCampaigns] [Debug] Account 638: Found 15 campaigns
+[2025-02-25 23:30:29] [BisonCampaigns] [Debug] Fetching campaigns for account 639 from: https://app.orbitmailboost.com/api/sender-emails/639/campaigns
+[2025-02-25 23:30:31] [BisonCampaigns] [Debug] Account 639: Found 15 campaigns
+[2025-02-25 23:30:31] [BisonCampaigns] [Debug] Fetching campaigns for account 640 from: https://app.orbitmailboost.com/api/sender-emails/640/campaigns
+[2025-02-25 23:30:32] [BisonCampaigns] [Debug] Account 640: Found 15 campaigns
+[2025-02-25 23:30:32] [BisonCampaigns] [Debug] Fetching campaigns for account 645 from: https://app.orbitmailboost.com/api/sender-emails/645/campaigns
+[2025-02-25 23:30:33] [BisonCampaigns] [Debug] Account 645: Found 15 campaigns
+[2025-02-25 23:30:33] [BisonCampaigns] [Debug] Processing batch 3/15
+[2025-02-25 23:30:33] [BisonCampaigns] [Debug] Fetching campaigns for account 646 from: https://app.orbitmailboost.com/api/sender-emails/646/campaigns
+[2025-02-25 23:30:36] [BisonCampaigns] [Debug] Account 646: Found 15 campaigns
+[2025-02-25 23:30:36] [BisonCampaigns] [Debug] Fetching campaigns for account 660 from: https://app.orbitmailboost.com/api/sender-emails/660/campaigns
+[2025-02-25 23:30:38] [BisonCampaigns] [Debug] Account 660: Found 15 campaigns
+[2025-02-25 23:30:38] [BisonCampaigns] [Debug] Fetching campaigns for account 649 from: https://app.orbitmailboost.com/api/sender-emails/649/campaigns
+[2025-02-25 23:30:39] [BisonCampaigns] [Debug] Account 649: Found 15 campaigns
+[2025-02-25 23:30:39] [BisonCampaigns] [Debug] Fetching campaigns for account 661 from: https://app.orbitmailboost.com/api/sender-emails/661/campaigns
+[2025-02-25 23:30:41] [BisonCampaigns] [Debug] Account 661: Found 15 campaigns
+[2025-02-25 23:30:41] [BisonCampaigns] [Debug] Fetching campaigns for account 663 from: https://app.orbitmailboost.com/api/sender-emails/663/campaigns
+[2025-02-25 23:30:42] [BisonCampaigns] [Debug] Account 663: Found 15 campaigns
+[2025-02-25 23:30:42] [BisonCampaigns] [Debug] Fetching campaigns for account 662 from: https://app.orbitmailboost.com/api/sender-emails/662/campaigns
+[2025-02-25 23:30:44] [BisonCampaigns] [Debug] Account 662: Found 15 campaigns
+[2025-02-25 23:30:44] [BisonCampaigns] [Debug] Fetching campaigns for account 659 from: https://app.orbitmailboost.com/api/sender-emails/659/campaigns
+[2025-02-25 23:30:45] [BisonCampaigns] [Debug] Account 659: Found 15 campaigns
+[2025-02-25 23:30:45] [BisonCampaigns] [Debug] Fetching campaigns for account 657 from: https://app.orbitmailboost.com/api/sender-emails/657/campaigns
+[2025-02-25 23:30:46] [BisonCampaigns] [Debug] Account 657: Found 15 campaigns
+[2025-02-25 23:30:46] [BisonCampaigns] [Debug] Fetching campaigns for account 658 from: https://app.orbitmailboost.com/api/sender-emails/658/campaigns
+[2025-02-25 23:30:47] [BisonCampaigns] [Debug] Account 658: Found 15 campaigns
+[2025-02-25 23:30:47] [BisonCampaigns] [Debug] Fetching campaigns for account 651 from: https://app.orbitmailboost.com/api/sender-emails/651/campaigns
+[2025-02-25 23:30:48] [BisonCampaigns] [Debug] Account 651: Found 15 campaigns
+[2025-02-25 23:30:48] [BisonCampaigns] [Debug] Processing batch 4/15
+[2025-02-25 23:30:48] [BisonCampaigns] [Debug] Fetching campaigns for account 652 from: https://app.orbitmailboost.com/api/sender-emails/652/campaigns
+[2025-02-25 23:30:49] [BisonCampaigns] [Debug] Account 652: Found 15 campaigns
+[2025-02-25 23:30:49] [BisonCampaigns] [Debug] Fetching campaigns for account 653 from: https://app.orbitmailboost.com/api/sender-emails/653/campaigns
+[2025-02-25 23:30:50] [BisonCampaigns] [Debug] Account 653: Found 15 campaigns
+[2025-02-25 23:30:50] [BisonCampaigns] [Debug] Fetching campaigns for account 655 from: https://app.orbitmailboost.com/api/sender-emails/655/campaigns
+[2025-02-25 23:30:51] [BisonCampaigns] [Debug] Account 655: Found 15 campaigns
+[2025-02-25 23:30:51] [BisonCampaigns] [Debug] Fetching campaigns for account 654 from: https://app.orbitmailboost.com/api/sender-emails/654/campaigns
+[2025-02-25 23:30:52] [BisonCampaigns] [Debug] Account 654: Found 15 campaigns
+[2025-02-25 23:30:52] [BisonCampaigns] [Debug] Fetching campaigns for account 656 from: https://app.orbitmailboost.com/api/sender-emails/656/campaigns
+[2025-02-25 23:30:53] [BisonCampaigns] [Debug] Account 656: Found 15 campaigns
+[2025-02-25 23:30:53] [BisonCampaigns] [Debug] Fetching campaigns for account 606 from: https://app.orbitmailboost.com/api/sender-emails/606/campaigns
+[2025-02-25 23:30:54] [BisonCampaigns] [Debug] Account 606: Found 15 campaigns
+[2025-02-25 23:30:54] [BisonCampaigns] [Debug] Fetching campaigns for account 612 from: https://app.orbitmailboost.com/api/sender-emails/612/campaigns
+[2025-02-25 23:30:55] [BisonCampaigns] [Debug] Account 612: Found 15 campaigns
+[2025-02-25 23:30:55] [BisonCampaigns] [Debug] Fetching campaigns for account 611 from: https://app.orbitmailboost.com/api/sender-emails/611/campaigns
+[2025-02-25 23:30:56] [BisonCampaigns] [Debug] Account 611: Found 15 campaigns
+[2025-02-25 23:30:56] [BisonCampaigns] [Debug] Fetching campaigns for account 610 from: https://app.orbitmailboost.com/api/sender-emails/610/campaigns
+[2025-02-25 23:30:58] [BisonCampaigns] [Debug] Account 610: Found 15 campaigns
+[2025-02-25 23:30:58] [BisonCampaigns] [Debug] Fetching campaigns for account 609 from: https://app.orbitmailboost.com/api/sender-emails/609/campaigns
+[2025-02-25 23:30:59] [BisonCampaigns] [Debug] Account 609: Found 15 campaigns
+[2025-02-25 23:30:59] [BisonCampaigns] [Debug] Processing batch 5/15
+[2025-02-25 23:30:59] [BisonCampaigns] [Debug] Fetching campaigns for account 608 from: https://app.orbitmailboost.com/api/sender-emails/608/campaigns
+[2025-02-25 23:31:00] [BisonCampaigns] [Debug] Account 608: Found 15 campaigns
+[2025-02-25 23:31:00] [BisonCampaigns] [Debug] Fetching campaigns for account 607 from: https://app.orbitmailboost.com/api/sender-emails/607/campaigns
+[2025-02-25 23:31:01] [BisonCampaigns] [Debug] Account 607: Found 15 campaigns
+[2025-02-25 23:31:01] [BisonCampaigns] [Debug] Fetching campaigns for account 605 from: https://app.orbitmailboost.com/api/sender-emails/605/campaigns
+[2025-02-25 23:31:02] [BisonCampaigns] [Debug] Account 605: Found 15 campaigns
+[2025-02-25 23:31:02] [BisonCampaigns] [Debug] Fetching campaigns for account 600 from: https://app.orbitmailboost.com/api/sender-emails/600/campaigns
+[2025-02-25 23:31:03] [BisonCampaigns] [Debug] Account 600: Found 15 campaigns
+[2025-02-25 23:31:03] [BisonCampaigns] [Debug] Fetching campaigns for account 596 from: https://app.orbitmailboost.com/api/sender-emails/596/campaigns
+[2025-02-25 23:31:04] [BisonCampaigns] [Debug] Account 596: Found 15 campaigns
+[2025-02-25 23:31:04] [BisonCampaigns] [Debug] Fetching campaigns for account 597 from: https://app.orbitmailboost.com/api/sender-emails/597/campaigns
+[2025-02-25 23:31:05] [BisonCampaigns] [Debug] Account 597: Found 15 campaigns
+[2025-02-25 23:31:05] [BisonCampaigns] [Debug] Fetching campaigns for account 598 from: https://app.orbitmailboost.com/api/sender-emails/598/campaigns
+[2025-02-25 23:31:06] [BisonCampaigns] [Debug] Account 598: Found 15 campaigns
+[2025-02-25 23:31:06] [BisonCampaigns] [Debug] Fetching campaigns for account 599 from: https://app.orbitmailboost.com/api/sender-emails/599/campaigns
+[2025-02-25 23:31:08] [BisonCampaigns] [Debug] Account 599: Found 15 campaigns
+[2025-02-25 23:31:08] [BisonCampaigns] [Debug] Fetching campaigns for account 602 from: https://app.orbitmailboost.com/api/sender-emails/602/campaigns
+[2025-02-25 23:31:09] [BisonCampaigns] [Debug] Account 602: Found 15 campaigns
+[2025-02-25 23:31:09] [BisonCampaigns] [Debug] Fetching campaigns for account 603 from: https://app.orbitmailboost.com/api/sender-emails/603/campaigns
+[2025-02-25 23:31:10] [BisonCampaigns] [Debug] Account 603: Found 15 campaigns
+[2025-02-25 23:31:10] [BisonCampaigns] [Debug] Processing batch 6/15
+[2025-02-25 23:31:10] [BisonCampaigns] [Debug] Fetching campaigns for account 613 from: https://app.orbitmailboost.com/api/sender-emails/613/campaigns
+[2025-02-25 23:31:11] [BisonCampaigns] [Debug] Account 613: Found 15 campaigns
+[2025-02-25 23:31:11] [BisonCampaigns] [Debug] Fetching campaigns for account 623 from: https://app.orbitmailboost.com/api/sender-emails/623/campaigns
+[2025-02-25 23:31:13] [BisonCampaigns] [Debug] Account 623: Found 15 campaigns
+[2025-02-25 23:31:13] [BisonCampaigns] [Debug] Fetching campaigns for account 595 from: https://app.orbitmailboost.com/api/sender-emails/595/campaigns
+[2025-02-25 23:31:15] [BisonCampaigns] [Debug] Account 595: Found 15 campaigns
+[2025-02-25 23:31:15] [BisonCampaigns] [Debug] Fetching campaigns for account 630 from: https://app.orbitmailboost.com/api/sender-emails/630/campaigns
+[2025-02-25 23:31:16] [BisonCampaigns] [Debug] Account 630: Found 15 campaigns
+[2025-02-25 23:31:16] [BisonCampaigns] [Debug] Fetching campaigns for account 629 from: https://app.orbitmailboost.com/api/sender-emails/629/campaigns
+[2025-02-25 23:31:18] [BisonCampaigns] [Debug] Account 629: Found 15 campaigns
+[2025-02-25 23:31:18] [BisonCampaigns] [Debug] Fetching campaigns for account 628 from: https://app.orbitmailboost.com/api/sender-emails/628/campaigns
+[2025-02-25 23:31:19] [BisonCampaigns] [Debug] Account 628: Found 15 campaigns
+[2025-02-25 23:31:19] [BisonCampaigns] [Debug] Fetching campaigns for account 627 from: https://app.orbitmailboost.com/api/sender-emails/627/campaigns
+[2025-02-25 23:31:20] [BisonCampaigns] [Debug] Account 627: Found 15 campaigns
+[2025-02-25 23:31:20] [BisonCampaigns] [Debug] Fetching campaigns for account 626 from: https://app.orbitmailboost.com/api/sender-emails/626/campaigns
+[2025-02-25 23:31:22] [BisonCampaigns] [Debug] Account 626: Found 15 campaigns
+[2025-02-25 23:31:22] [BisonCampaigns] [Debug] Fetching campaigns for account 625 from: https://app.orbitmailboost.com/api/sender-emails/625/campaigns
+[2025-02-25 23:31:24] [BisonCampaigns] [Debug] Account 625: Found 15 campaigns
+[2025-02-25 23:31:24] [BisonCampaigns] [Debug] Fetching campaigns for account 624 from: https://app.orbitmailboost.com/api/sender-emails/624/campaigns
+[2025-02-25 23:31:25] [BisonCampaigns] [Debug] Account 624: Found 15 campaigns
+[2025-02-25 23:31:25] [BisonCampaigns] [Debug] Processing batch 7/15
+[2025-02-25 23:31:25] [BisonCampaigns] [Debug] Fetching campaigns for account 616 from: https://app.orbitmailboost.com/api/sender-emails/616/campaigns
+[2025-02-25 23:31:27] [BisonCampaigns] [Debug] Account 616: Found 15 campaigns
+[2025-02-25 23:31:27] [BisonCampaigns] [Debug] Fetching campaigns for account 618 from: https://app.orbitmailboost.com/api/sender-emails/618/campaigns
+[2025-02-25 23:31:28] [BisonCampaigns] [Debug] Account 618: Found 15 campaigns
+[2025-02-25 23:31:28] [BisonCampaigns] [Debug] Fetching campaigns for account 617 from: https://app.orbitmailboost.com/api/sender-emails/617/campaigns
+[2025-02-25 23:31:30] [BisonCampaigns] [Debug] Account 617: Found 15 campaigns
+[2025-02-25 23:31:30] [BisonCampaigns] [Debug] Fetching campaigns for account 619 from: https://app.orbitmailboost.com/api/sender-emails/619/campaigns
+[2025-02-25 23:31:31] [BisonCampaigns] [Debug] Account 619: Found 15 campaigns
+[2025-02-25 23:31:31] [BisonCampaigns] [Debug] Fetching campaigns for account 562 from: https://app.orbitmailboost.com/api/sender-emails/562/campaigns
+[2025-02-25 23:31:33] [BisonCampaigns] [Debug] Account 562: Found 15 campaigns
+[2025-02-25 23:31:33] [BisonCampaigns] [Debug] Fetching campaigns for account 563 from: https://app.orbitmailboost.com/api/sender-emails/563/campaigns
+[2025-02-25 23:31:34] [BisonCampaigns] [Debug] Account 563: Found 15 campaigns
+[2025-02-25 23:31:34] [BisonCampaigns] [Debug] Fetching campaigns for account 564 from: https://app.orbitmailboost.com/api/sender-emails/564/campaigns
+[2025-02-25 23:31:36] [BisonCampaigns] [Debug] Account 564: Found 15 campaigns
+[2025-02-25 23:31:36] [BisonCampaigns] [Debug] Fetching campaigns for account 565 from: https://app.orbitmailboost.com/api/sender-emails/565/campaigns
+[2025-02-25 23:31:37] [BisonCampaigns] [Debug] Account 565: Found 15 campaigns
+[2025-02-25 23:31:37] [BisonCampaigns] [Debug] Fetching campaigns for account 566 from: https://app.orbitmailboost.com/api/sender-emails/566/campaigns
+[2025-02-25 23:31:38] [BisonCampaigns] [Debug] Account 566: Found 15 campaigns
+[2025-02-25 23:31:38] [BisonCampaigns] [Debug] Fetching campaigns for account 567 from: https://app.orbitmailboost.com/api/sender-emails/567/campaigns
+[2025-02-25 23:31:39] [BisonCampaigns] [Debug] Account 567: Found 15 campaigns
+[2025-02-25 23:31:39] [BisonCampaigns] [Debug] Processing batch 8/15
+[2025-02-25 23:31:39] [BisonCampaigns] [Debug] Fetching campaigns for account 568 from: https://app.orbitmailboost.com/api/sender-emails/568/campaigns
+[2025-02-25 23:31:41] [BisonCampaigns] [Debug] Account 568: Found 15 campaigns
+[2025-02-25 23:31:41] [BisonCampaigns] [Debug] Fetching campaigns for account 569 from: https://app.orbitmailboost.com/api/sender-emails/569/campaigns
+[2025-02-25 23:31:42] [BisonCampaigns] [Debug] Account 569: Found 15 campaigns
+[2025-02-25 23:31:42] [BisonCampaigns] [Debug] Fetching campaigns for account 570 from: https://app.orbitmailboost.com/api/sender-emails/570/campaigns
+[2025-02-25 23:31:43] [BisonCampaigns] [Debug] Account 570: Found 15 campaigns
+[2025-02-25 23:31:43] [BisonCampaigns] [Debug] Fetching campaigns for account 571 from: https://app.orbitmailboost.com/api/sender-emails/571/campaigns
+[2025-02-25 23:31:45] [BisonCampaigns] [Debug] Account 571: Found 15 campaigns
+[2025-02-25 23:31:45] [BisonCampaigns] [Debug] Fetching campaigns for account 572 from: https://app.orbitmailboost.com/api/sender-emails/572/campaigns
+[2025-02-25 23:31:46] [BisonCampaigns] [Debug] Account 572: Found 15 campaigns
+[2025-02-25 23:31:46] [BisonCampaigns] [Debug] Fetching campaigns for account 573 from: https://app.orbitmailboost.com/api/sender-emails/573/campaigns
+[2025-02-25 23:31:48] [BisonCampaigns] [Debug] Account 573: Found 15 campaigns
+[2025-02-25 23:31:48] [BisonCampaigns] [Debug] Fetching campaigns for account 574 from: https://app.orbitmailboost.com/api/sender-emails/574/campaigns
+[2025-02-25 23:31:50] [BisonCampaigns] [Debug] Account 574: Found 15 campaigns
+[2025-02-25 23:31:50] [BisonCampaigns] [Debug] Fetching campaigns for account 575 from: https://app.orbitmailboost.com/api/sender-emails/575/campaigns
+[2025-02-25 23:31:51] [BisonCampaigns] [Debug] Account 575: Found 15 campaigns
+[2025-02-25 23:31:51] [BisonCampaigns] [Debug] Fetching campaigns for account 576 from: https://app.orbitmailboost.com/api/sender-emails/576/campaigns
+[2025-02-25 23:31:53] [BisonCampaigns] [Debug] Account 576: Found 15 campaigns
+[2025-02-25 23:31:53] [BisonCampaigns] [Debug] Fetching campaigns for account 577 from: https://app.orbitmailboost.com/api/sender-emails/577/campaigns
+[2025-02-25 23:31:54] [BisonCampaigns] [Debug] Account 577: Found 15 campaigns
+[2025-02-25 23:31:54] [BisonCampaigns] [Debug] Processing batch 9/15
+[2025-02-25 23:31:54] [BisonCampaigns] [Debug] Fetching campaigns for account 578 from: https://app.orbitmailboost.com/api/sender-emails/578/campaigns
+[2025-02-25 23:31:55] [BisonCampaigns] [Debug] Account 578: Found 15 campaigns
+[2025-02-25 23:31:55] [BisonCampaigns] [Debug] Fetching campaigns for account 579 from: https://app.orbitmailboost.com/api/sender-emails/579/campaigns
+[2025-02-25 23:31:56] [BisonCampaigns] [Debug] Account 579: Found 15 campaigns
+[2025-02-25 23:31:56] [BisonCampaigns] [Debug] Fetching campaigns for account 580 from: https://app.orbitmailboost.com/api/sender-emails/580/campaigns
+[2025-02-25 23:31:58] [BisonCampaigns] [Debug] Account 580: Found 15 campaigns
+[2025-02-25 23:31:58] [BisonCampaigns] [Debug] Fetching campaigns for account 581 from: https://app.orbitmailboost.com/api/sender-emails/581/campaigns
+[2025-02-25 23:32:00] [BisonCampaigns] [Debug] Account 581: Found 15 campaigns
+[2025-02-25 23:32:00] [BisonCampaigns] [Debug] Fetching campaigns for account 582 from: https://app.orbitmailboost.com/api/sender-emails/582/campaigns
+[2025-02-25 23:32:01] [BisonCampaigns] [Debug] Account 582: Found 15 campaigns
+[2025-02-25 23:32:01] [BisonCampaigns] [Debug] Fetching campaigns for account 583 from: https://app.orbitmailboost.com/api/sender-emails/583/campaigns
+[2025-02-25 23:32:03] [BisonCampaigns] [Debug] Account 583: Found 15 campaigns
+[2025-02-25 23:32:03] [BisonCampaigns] [Debug] Fetching campaigns for account 584 from: https://app.orbitmailboost.com/api/sender-emails/584/campaigns
+[2025-02-25 23:32:04] [BisonCampaigns] [Debug] Account 584: Found 15 campaigns
+[2025-02-25 23:32:04] [BisonCampaigns] [Debug] Fetching campaigns for account 585 from: https://app.orbitmailboost.com/api/sender-emails/585/campaigns
+[2025-02-25 23:32:05] [BisonCampaigns] [Debug] Account 585: Found 15 campaigns
+[2025-02-25 23:32:05] [BisonCampaigns] [Debug] Fetching campaigns for account 586 from: https://app.orbitmailboost.com/api/sender-emails/586/campaigns
+[2025-02-25 23:32:06] [BisonCampaigns] [Debug] Account 586: Found 15 campaigns
+[2025-02-25 23:32:06] [BisonCampaigns] [Debug] Fetching campaigns for account 587 from: https://app.orbitmailboost.com/api/sender-emails/587/campaigns
+[2025-02-25 23:32:08] [BisonCampaigns] [Debug] Account 587: Found 15 campaigns
+[2025-02-25 23:32:08] [BisonCampaigns] [Debug] Processing batch 10/15
+[2025-02-25 23:32:08] [BisonCampaigns] [Debug] Fetching campaigns for account 588 from: https://app.orbitmailboost.com/api/sender-emails/588/campaigns
+[2025-02-25 23:32:09] [BisonCampaigns] [Debug] Account 588: Found 15 campaigns
+[2025-02-25 23:32:09] [BisonCampaigns] [Debug] Fetching campaigns for account 589 from: https://app.orbitmailboost.com/api/sender-emails/589/campaigns
+[2025-02-25 23:32:11] [BisonCampaigns] [Debug] Account 589: Found 15 campaigns
+[2025-02-25 23:32:11] [BisonCampaigns] [Debug] Fetching campaigns for account 590 from: https://app.orbitmailboost.com/api/sender-emails/590/campaigns
+[2025-02-25 23:32:12] [BisonCampaigns] [Debug] Account 590: Found 15 campaigns
+[2025-02-25 23:32:12] [BisonCampaigns] [Debug] Fetching campaigns for account 591 from: https://app.orbitmailboost.com/api/sender-emails/591/campaigns
+[2025-02-25 23:32:14] [BisonCampaigns] [Debug] Account 591: Found 15 campaigns
+[2025-02-25 23:32:14] [BisonCampaigns] [Debug] Fetching campaigns for account 592 from: https://app.orbitmailboost.com/api/sender-emails/592/campaigns
+[2025-02-25 23:32:15] [BisonCampaigns] [Debug] Account 592: Found 15 campaigns
+[2025-02-25 23:32:15] [BisonCampaigns] [Debug] Fetching campaigns for account 593 from: https://app.orbitmailboost.com/api/sender-emails/593/campaigns
+[2025-02-25 23:32:17] [BisonCampaigns] [Debug] Account 593: Found 15 campaigns
+[2025-02-25 23:32:17] [BisonCampaigns] [Debug] Fetching campaigns for account 594 from: https://app.orbitmailboost.com/api/sender-emails/594/campaigns
+[2025-02-25 23:32:18] [BisonCampaigns] [Debug] Account 594: Found 15 campaigns
+[2025-02-25 23:32:18] [BisonCampaigns] [Debug] Fetching campaigns for account 538 from: https://app.orbitmailboost.com/api/sender-emails/538/campaigns
+[2025-02-25 23:32:19] [BisonCampaigns] [Debug] Account 538: Found 15 campaigns
+[2025-02-25 23:32:19] [BisonCampaigns] [Debug] Fetching campaigns for account 539 from: https://app.orbitmailboost.com/api/sender-emails/539/campaigns
+[2025-02-25 23:32:21] [BisonCampaigns] [Debug] Account 539: Found 15 campaigns
+[2025-02-25 23:32:21] [BisonCampaigns] [Debug] Fetching campaigns for account 540 from: https://app.orbitmailboost.com/api/sender-emails/540/campaigns
+[2025-02-25 23:32:22] [BisonCampaigns] [Debug] Account 540: Found 15 campaigns
+[2025-02-25 23:32:22] [BisonCampaigns] [Debug] Processing batch 11/15
+[2025-02-25 23:32:22] [BisonCampaigns] [Debug] Fetching campaigns for account 541 from: https://app.orbitmailboost.com/api/sender-emails/541/campaigns
+[2025-02-25 23:32:23] [BisonCampaigns] [Debug] Account 541: Found 15 campaigns
+[2025-02-25 23:32:23] [BisonCampaigns] [Debug] Fetching campaigns for account 542 from: https://app.orbitmailboost.com/api/sender-emails/542/campaigns
+[2025-02-25 23:32:24] [BisonCampaigns] [Debug] Account 542: Found 15 campaigns
+[2025-02-25 23:32:24] [BisonCampaigns] [Debug] Fetching campaigns for account 543 from: https://app.orbitmailboost.com/api/sender-emails/543/campaigns
+[2025-02-25 23:32:26] [BisonCampaigns] [Debug] Account 543: Found 15 campaigns
+[2025-02-25 23:32:26] [BisonCampaigns] [Debug] Fetching campaigns for account 544 from: https://app.orbitmailboost.com/api/sender-emails/544/campaigns
+[2025-02-25 23:32:27] [BisonCampaigns] [Debug] Account 544: Found 15 campaigns
+[2025-02-25 23:32:27] [BisonCampaigns] [Debug] Fetching campaigns for account 545 from: https://app.orbitmailboost.com/api/sender-emails/545/campaigns
+[2025-02-25 23:32:29] [BisonCampaigns] [Debug] Account 545: Found 15 campaigns
+[2025-02-25 23:32:29] [BisonCampaigns] [Debug] Fetching campaigns for account 546 from: https://app.orbitmailboost.com/api/sender-emails/546/campaigns
+[2025-02-25 23:32:31] [BisonCampaigns] [Debug] Account 546: Found 15 campaigns
+[2025-02-25 23:32:31] [BisonCampaigns] [Debug] Fetching campaigns for account 547 from: https://app.orbitmailboost.com/api/sender-emails/547/campaigns
+[2025-02-25 23:32:32] [BisonCampaigns] [Debug] Account 547: Found 15 campaigns
+[2025-02-25 23:32:32] [BisonCampaigns] [Debug] Fetching campaigns for account 548 from: https://app.orbitmailboost.com/api/sender-emails/548/campaigns
+[2025-02-25 23:32:33] [BisonCampaigns] [Debug] Account 548: Found 15 campaigns
+[2025-02-25 23:32:33] [BisonCampaigns] [Debug] Fetching campaigns for account 549 from: https://app.orbitmailboost.com/api/sender-emails/549/campaigns
+[2025-02-25 23:32:34] [BisonCampaigns] [Debug] Account 549: Found 15 campaigns
+[2025-02-25 23:32:34] [BisonCampaigns] [Debug] Fetching campaigns for account 550 from: https://app.orbitmailboost.com/api/sender-emails/550/campaigns
+[2025-02-25 23:32:35] [BisonCampaigns] [Debug] Account 550: Found 15 campaigns
+[2025-02-25 23:32:35] [BisonCampaigns] [Debug] Processing batch 12/15
+[2025-02-25 23:32:35] [BisonCampaigns] [Debug] Fetching campaigns for account 551 from: https://app.orbitmailboost.com/api/sender-emails/551/campaigns
+[2025-02-25 23:32:37] [BisonCampaigns] [Debug] Account 551: Found 15 campaigns
+[2025-02-25 23:32:37] [BisonCampaigns] [Debug] Fetching campaigns for account 552 from: https://app.orbitmailboost.com/api/sender-emails/552/campaigns
+[2025-02-25 23:32:38] [BisonCampaigns] [Debug] Account 552: Found 15 campaigns
+[2025-02-25 23:32:38] [BisonCampaigns] [Debug] Fetching campaigns for account 553 from: https://app.orbitmailboost.com/api/sender-emails/553/campaigns
+[2025-02-25 23:32:39] [BisonCampaigns] [Debug] Account 553: Found 15 campaigns
+[2025-02-25 23:32:39] [BisonCampaigns] [Debug] Fetching campaigns for account 554 from: https://app.orbitmailboost.com/api/sender-emails/554/campaigns
+[2025-02-25 23:32:41] [BisonCampaigns] [Debug] Account 554: Found 15 campaigns
+[2025-02-25 23:32:41] [BisonCampaigns] [Debug] Fetching campaigns for account 555 from: https://app.orbitmailboost.com/api/sender-emails/555/campaigns
+[2025-02-25 23:32:42] [BisonCampaigns] [Debug] Account 555: Found 15 campaigns
+[2025-02-25 23:32:42] [BisonCampaigns] [Debug] Fetching campaigns for account 556 from: https://app.orbitmailboost.com/api/sender-emails/556/campaigns
+[2025-02-25 23:32:43] [BisonCampaigns] [Debug] Account 556: Found 15 campaigns
+[2025-02-25 23:32:43] [BisonCampaigns] [Debug] Fetching campaigns for account 557 from: https://app.orbitmailboost.com/api/sender-emails/557/campaigns
+[2025-02-25 23:32:45] [BisonCampaigns] [Debug] Account 557: Found 15 campaigns
+[2025-02-25 23:32:45] [BisonCampaigns] [Debug] Fetching campaigns for account 558 from: https://app.orbitmailboost.com/api/sender-emails/558/campaigns
+[2025-02-25 23:32:47] [BisonCampaigns] [Debug] Account 558: Found 15 campaigns
+[2025-02-25 23:32:47] [BisonCampaigns] [Debug] Fetching campaigns for account 559 from: https://app.orbitmailboost.com/api/sender-emails/559/campaigns
+[2025-02-25 23:32:50] [BisonCampaigns] [Debug] Account 559: Found 15 campaigns
+[2025-02-25 23:32:50] [BisonCampaigns] [Debug] Fetching campaigns for account 560 from: https://app.orbitmailboost.com/api/sender-emails/560/campaigns
+[2025-02-25 23:32:53] [BisonCampaigns] [Debug] Account 560: Found 15 campaigns
+[2025-02-25 23:32:53] [BisonCampaigns] [Debug] Processing batch 13/15
+[2025-02-25 23:32:53] [BisonCampaigns] [Debug] Fetching campaigns for account 561 from: https://app.orbitmailboost.com/api/sender-emails/561/campaigns
+[2025-02-25 23:32:55] [BisonCampaigns] [Debug] Account 561: Found 15 campaigns
+[2025-02-25 23:32:55] [BisonCampaigns] [Debug] Fetching campaigns for account 515 from: https://app.orbitmailboost.com/api/sender-emails/515/campaigns
+[2025-02-25 23:32:56] [BisonCampaigns] [Debug] Account 515: Found 15 campaigns
+[2025-02-25 23:32:56] [BisonCampaigns] [Debug] Fetching campaigns for account 516 from: https://app.orbitmailboost.com/api/sender-emails/516/campaigns
+[2025-02-25 23:32:58] [BisonCampaigns] [Debug] Account 516: Found 15 campaigns
+[2025-02-25 23:32:58] [BisonCampaigns] [Debug] Fetching campaigns for account 517 from: https://app.orbitmailboost.com/api/sender-emails/517/campaigns
+[2025-02-25 23:33:01] [BisonCampaigns] [Debug] Account 517: Found 15 campaigns
+[2025-02-25 23:33:01] [BisonCampaigns] [Debug] Fetching campaigns for account 518 from: https://app.orbitmailboost.com/api/sender-emails/518/campaigns
+[2025-02-25 23:33:03] [BisonCampaigns] [Debug] Account 518: Found 15 campaigns
+[2025-02-25 23:33:03] [BisonCampaigns] [Debug] Fetching campaigns for account 519 from: https://app.orbitmailboost.com/api/sender-emails/519/campaigns
+[2025-02-25 23:33:04] [BisonCampaigns] [Debug] Account 519: Found 15 campaigns
+[2025-02-25 23:33:04] [BisonCampaigns] [Debug] Fetching campaigns for account 520 from: https://app.orbitmailboost.com/api/sender-emails/520/campaigns
+[2025-02-25 23:33:05] [BisonCampaigns] [Debug] Account 520: Found 15 campaigns
+[2025-02-25 23:33:05] [BisonCampaigns] [Debug] Fetching campaigns for account 521 from: https://app.orbitmailboost.com/api/sender-emails/521/campaigns
+[2025-02-25 23:33:06] [BisonCampaigns] [Debug] Account 521: Found 15 campaigns
+[2025-02-25 23:33:06] [BisonCampaigns] [Debug] Fetching campaigns for account 522 from: https://app.orbitmailboost.com/api/sender-emails/522/campaigns
+[2025-02-25 23:33:07] [BisonCampaigns] [Debug] Account 522: Found 15 campaigns
+[2025-02-25 23:33:07] [BisonCampaigns] [Debug] Fetching campaigns for account 523 from: https://app.orbitmailboost.com/api/sender-emails/523/campaigns
+[2025-02-25 23:33:09] [BisonCampaigns] [Debug] Account 523: Found 15 campaigns
+[2025-02-25 23:33:09] [BisonCampaigns] [Debug] Processing batch 14/15
+[2025-02-25 23:33:09] [BisonCampaigns] [Debug] Fetching campaigns for account 524 from: https://app.orbitmailboost.com/api/sender-emails/524/campaigns
+[2025-02-25 23:33:12] [BisonCampaigns] [Debug] Account 524: Found 15 campaigns
+[2025-02-25 23:33:12] [BisonCampaigns] [Debug] Fetching campaigns for account 525 from: https://app.orbitmailboost.com/api/sender-emails/525/campaigns
+[2025-02-25 23:33:13] [BisonCampaigns] [Debug] Account 525: Found 15 campaigns
+[2025-02-25 23:33:13] [BisonCampaigns] [Debug] Fetching campaigns for account 526 from: https://app.orbitmailboost.com/api/sender-emails/526/campaigns
+[2025-02-25 23:33:15] [BisonCampaigns] [Debug] Account 526: Found 15 campaigns
+[2025-02-25 23:33:15] [BisonCampaigns] [Debug] Fetching campaigns for account 527 from: https://app.orbitmailboost.com/api/sender-emails/527/campaigns
+[2025-02-25 23:33:16] [BisonCampaigns] [Debug] Account 527: Found 15 campaigns
+[2025-02-25 23:33:16] [BisonCampaigns] [Debug] Fetching campaigns for account 528 from: https://app.orbitmailboost.com/api/sender-emails/528/campaigns
+[2025-02-25 23:33:17] [BisonCampaigns] [Debug] Account 528: Found 15 campaigns
+[2025-02-25 23:33:17] [BisonCampaigns] [Debug] Fetching campaigns for account 529 from: https://app.orbitmailboost.com/api/sender-emails/529/campaigns
+[2025-02-25 23:33:19] [BisonCampaigns] [Debug] Account 529: Found 15 campaigns
+[2025-02-25 23:33:19] [BisonCampaigns] [Debug] Fetching campaigns for account 530 from: https://app.orbitmailboost.com/api/sender-emails/530/campaigns
+[2025-02-25 23:33:20] [BisonCampaigns] [Debug] Account 530: Found 15 campaigns
+[2025-02-25 23:33:20] [BisonCampaigns] [Debug] Fetching campaigns for account 531 from: https://app.orbitmailboost.com/api/sender-emails/531/campaigns
+[2025-02-25 23:33:22] [BisonCampaigns] [Debug] Account 531: Found 15 campaigns
+[2025-02-25 23:33:22] [BisonCampaigns] [Debug] Fetching campaigns for account 532 from: https://app.orbitmailboost.com/api/sender-emails/532/campaigns
+[2025-02-25 23:33:23] [BisonCampaigns] [Debug] Account 532: Found 15 campaigns
+[2025-02-25 23:33:23] [BisonCampaigns] [Debug] Fetching campaigns for account 533 from: https://app.orbitmailboost.com/api/sender-emails/533/campaigns
+[2025-02-25 23:33:24] [BisonCampaigns] [Debug] Account 533: Found 15 campaigns
+[2025-02-25 23:33:24] [BisonCampaigns] [Debug] Processing batch 15/15
+[2025-02-25 23:33:24] [BisonCampaigns] [Debug] Fetching campaigns for account 534 from: https://app.orbitmailboost.com/api/sender-emails/534/campaigns
+[2025-02-25 23:33:25] [BisonCampaigns] [Debug] Account 534: Found 15 campaigns
+[2025-02-25 23:33:25] [BisonCampaigns] [Debug] Fetching campaigns for account 535 from: https://app.orbitmailboost.com/api/sender-emails/535/campaigns
+[2025-02-25 23:33:26] [BisonCampaigns] [Debug] Account 535: Found 15 campaigns
+[2025-02-25 23:33:26] [BisonCampaigns] [Debug] Fetching campaigns for account 536 from: https://app.orbitmailboost.com/api/sender-emails/536/campaigns
+[2025-02-25 23:33:27] [BisonCampaigns] [Debug] Account 536: Found 15 campaigns
+[2025-02-25 23:33:27] [BisonCampaigns] [Debug] Fetching campaigns for account 537 from: https://app.orbitmailboost.com/api/sender-emails/537/campaigns
+[2025-02-25 23:33:28] [BisonCampaigns] [Debug] Account 537: Found 15 campaigns
+[2025-02-25 23:33:28] [BisonCampaigns] [Campaigns] Found 15 unique campaigns (took 206.57s)
+[2025-02-25 23:33:28] [BisonCampaigns] [Debug] Fetching all campaigns from: https://app.orbitmailboost.com/api/campaigns
+[2025-02-25 23:33:32] [BisonCampaigns] [Debug] API returned 15 campaigns
+[2025-02-25 23:33:32] [BisonCampaigns] [Debug] Sample campaign details: {"id": 65, "name": "ProfitDriver (Google Only)", "status": "active", "emails_sent": 26878, "opened": 0, "unique_opens": 0, "replied": 108, "unique_replies": 102, "bounced": 6, "unsubscribed": 93, "interested": 3, "total_leads_contacted": 4061, "max_emails_per_day": 1000, "max_new_leads_per_day": 1000, "plain_text": true, "open_tracking": false, "total_leads": 4401, "can_unsubscribe": false, "unsubscribe_text": null, "created_at": "2025-01-14T14:51:06.000000Z", "updated_at": "2025-02-25T22:47:41.000000Z", "tags": []}
+[2025-02-25 23:33:32] [BisonCampaigns] [Details] Fetched details for 15 campaigns (took 4.03s)
+[2025-02-25 23:33:32] [BisonCampaigns] [Debug] Processing 1 chunks of emails for scores
+[2025-02-25 23:33:32] [BisonCampaigns] [Debug] Processing email chunk 1/1
+[2025-02-25 23:33:32] [BisonCampaigns] [Debug] Found 144 score results for chunk 1
+[2025-02-25 23:33:32] [BisonCampaigns] [Debug] Score for e.dombach@coachproguide.com: Google=100.0, Outlook=75.0, Limit=25
+[2025-02-25 23:33:32] [BisonCampaigns] [Debug] Score for e.dombach@coachproimpact.com: Google=100.0, Outlook=50.0, Limit=25
+[2025-02-25 23:33:32] [BisonCampaigns] [Debug] Score for e.dombach@coachproinsights.com: Google=75.0, Outlook=25.0, Limit=1
+[2025-02-25 23:33:32] [BisonCampaigns] [Scores] Fetched scores for 144 accounts (took 0.13s)
+[2025-02-25 23:33:32] [BisonCampaigns] [Debug] Found 15 existing campaigns in database
+[2025-02-25 23:33:32] [BisonCampaigns] [Debug] Processing campaign: CoachPro for RIA's v2 - Other & Google (ID: 6)
+[2025-02-25 23:33:32] [BisonCampaigns] [Debug] Campaign 6 has 160 connected emails
+[2025-02-25 23:33:32] [BisonCampaigns] [Debug] Campaign 6 has 160 connected emails
+[2025-02-25 23:33:32] [BisonCampaigns] [Debug] Campaign 6 has 160 emails with scores in our database
+[2025-02-25 23:33:32] [BisonCampaigns] [Debug] has_accounts_with_scores = True
+[2025-02-25 23:33:32] [BisonCampaigns] [Debug] Campaign 6 average scores: Google=99.38, Outlook=77.34
+[2025-02-25 23:33:32] [BisonCampaigns] [Debug] Campaign 6 max daily sends: 400, avg sending limit: 24
+[2025-02-25 23:33:32] [BisonCampaigns] [Debug] Updating existing campaign 6 in database
+[2025-02-25 23:33:32] [BisonCampaigns] [Debug] Previous values - Google: 99.53, Outlook: 81.09, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Updated values - Google: 99.38, Outlook: 77.34, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Update] Updated campaign: CoachPro for RIA's v2 - Other & Google (ID: 6)
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Processing campaign: RSCP: Accountants (Aug 22) (ID: 12)
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 12 has 160 connected emails
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 12 has 160 connected emails
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 12 has 160 emails with scores in our database
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] has_accounts_with_scores = True
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 12 average scores: Google=99.38, Outlook=77.34
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 12 max daily sends: 1000, avg sending limit: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Updating existing campaign 12 in database
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Previous values - Google: 99.53, Outlook: 81.09, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Updated values - Google: 99.38, Outlook: 77.34, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Update] Updated campaign: RSCP: Accountants (Aug 22) (ID: 12)
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Processing campaign: CoachPro for Accountants v2 (ID: 1)
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 1 has 160 connected emails
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 1 has 160 connected emails
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 1 has 160 emails with scores in our database
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] has_accounts_with_scores = True
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 1 average scores: Google=99.38, Outlook=77.34
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 1 max daily sends: 400, avg sending limit: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Updating existing campaign 1 in database
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Previous values - Google: 99.53, Outlook: 81.09, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Updated values - Google: 99.38, Outlook: 77.34, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Update] Updated campaign: CoachPro for Accountants v2 (ID: 1)
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Processing campaign: CoachPro for Accountants v2 (redo) (ID: 21)
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 21 has 160 connected emails
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 21 has 160 connected emails
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 21 has 160 emails with scores in our database
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] has_accounts_with_scores = True
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 21 average scores: Google=99.38, Outlook=77.34
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 21 max daily sends: 400, avg sending limit: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Updating existing campaign 21 in database
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Previous values - Google: 99.53, Outlook: 81.09, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Updated values - Google: 99.38, Outlook: 77.34, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Update] Updated campaign: CoachPro for Accountants v2 (redo) (ID: 21)
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Processing campaign: CoachPro for Accountants v2 (redo) - Other Inboxes (ID: 23)
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 23 has 160 connected emails
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 23 has 160 connected emails
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 23 has 160 emails with scores in our database
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] has_accounts_with_scores = True
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 23 average scores: Google=99.38, Outlook=77.34
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 23 max daily sends: 1200, avg sending limit: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Updating existing campaign 23 in database
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Previous values - Google: 99.53, Outlook: 81.09, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Updated values - Google: 99.38, Outlook: 77.34, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Update] Updated campaign: CoachPro for Accountants v2 (redo) - Other Inboxes (ID: 23)
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Processing campaign: CoachPro for Accountants v2 (redo) - Outlook (ID: 25)
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 25 has 160 connected emails
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 25 has 160 connected emails
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 25 has 160 emails with scores in our database
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] has_accounts_with_scores = True
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 25 average scores: Google=99.38, Outlook=77.34
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 25 max daily sends: 400, avg sending limit: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Updating existing campaign 25 in database
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Previous values - Google: 99.53, Outlook: 81.09, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Updated values - Google: 99.38, Outlook: 77.34, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Update] Updated campaign: CoachPro for Accountants v2 (redo) - Outlook (ID: 25)
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Processing campaign: CoachPro for Accountants v2 (redo) - Google (ID: 24)
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 24 has 160 connected emails
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 24 has 160 connected emails
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 24 has 160 emails with scores in our database
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] has_accounts_with_scores = True
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 24 average scores: Google=99.38, Outlook=77.34
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 24 max daily sends: 600, avg sending limit: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Updating existing campaign 24 in database
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Previous values - Google: 99.53, Outlook: 81.09, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Updated values - Google: 99.38, Outlook: 77.34, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Update] Updated campaign: CoachPro for Accountants v2 (redo) - Google (ID: 24)
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Processing campaign: CoachPro for RIA's v2 - Outlook (ID: 31)
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 31 has 160 connected emails
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 31 has 160 connected emails
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 31 has 160 emails with scores in our database
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] has_accounts_with_scores = True
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 31 average scores: Google=99.38, Outlook=77.34
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 31 max daily sends: 100, avg sending limit: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Updating existing campaign 31 in database
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Previous values - Google: 99.53, Outlook: 81.09, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Updated values - Google: 99.38, Outlook: 77.34, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Update] Updated campaign: CoachPro for RIA's v2 - Outlook (ID: 31)
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Processing campaign: Funnel Boss Non Gary - Google (ID: 37)
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 37 has 160 connected emails
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 37 has 160 connected emails
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 37 has 160 emails with scores in our database
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] has_accounts_with_scores = True
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 37 average scores: Google=99.38, Outlook=77.34
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 37 max daily sends: 500, avg sending limit: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Updating existing campaign 37 in database
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Previous values - Google: 99.53, Outlook: 81.09, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Updated values - Google: 99.38, Outlook: 77.34, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Update] Updated campaign: Funnel Boss Non Gary - Google (ID: 37)
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Processing campaign: Funnel Boss Gary - Google (ID: 38)
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 38 has 160 connected emails
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 38 has 160 connected emails
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 38 has 160 emails with scores in our database
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] has_accounts_with_scores = True
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 38 average scores: Google=99.38, Outlook=77.34
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Campaign 38 max daily sends: 500, avg sending limit: 24
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Updating existing campaign 38 in database
+[2025-02-25 23:33:33] [BisonCampaigns] [Debug] Previous values - Google: 99.53, Outlook: 81.09, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Updated values - Google: 99.38, Outlook: 77.34, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:34] [BisonCampaigns] [Update] Updated campaign: Funnel Boss Gary - Google (ID: 38)
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Processing campaign: ProfitDriver Gary - Google (ID: 44)
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 44 has 160 connected emails
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 44 has 160 connected emails
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 44 has 160 emails with scores in our database
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] has_accounts_with_scores = True
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 44 average scores: Google=99.38, Outlook=77.34
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 44 max daily sends: 500, avg sending limit: 24
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Updating existing campaign 44 in database
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Previous values - Google: 99.53, Outlook: 81.09, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Updated values - Google: 99.38, Outlook: 77.34, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:34] [BisonCampaigns] [Update] Updated campaign: ProfitDriver Gary - Google (ID: 44)
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Processing campaign: ProfitDriver Non Gary - Google Mostly (ID: 45)
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 45 has 160 connected emails
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 45 has 160 connected emails
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 45 has 160 emails with scores in our database
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] has_accounts_with_scores = True
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 45 average scores: Google=99.38, Outlook=77.34
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 45 max daily sends: 500, avg sending limit: 24
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Updating existing campaign 45 in database
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Previous values - Google: 99.53, Outlook: 81.09, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Updated values - Google: 99.38, Outlook: 77.34, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:34] [BisonCampaigns] [Update] Updated campaign: ProfitDriver Non Gary - Google Mostly (ID: 45)
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Processing campaign: ProfitDriver Non Gary - Google Mostly - New Short / No Long (ID: 56)
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 56 has 160 connected emails
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 56 has 160 connected emails
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 56 has 160 emails with scores in our database
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] has_accounts_with_scores = True
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 56 average scores: Google=99.38, Outlook=77.34
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 56 max daily sends: 500, avg sending limit: 24
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Updating existing campaign 56 in database
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Previous values - Google: 99.53, Outlook: 81.09, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Updated values - Google: 99.38, Outlook: 77.34, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:34] [BisonCampaigns] [Update] Updated campaign: ProfitDriver Non Gary - Google Mostly - New Short / No Long (ID: 56)
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Processing campaign: 2 types - Outlook (ID: 59)
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 59 has 160 connected emails
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 59 has 160 connected emails
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 59 has 160 emails with scores in our database
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] has_accounts_with_scores = True
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 59 average scores: Google=99.38, Outlook=77.34
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 59 max daily sends: 1000, avg sending limit: 24
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Updating existing campaign 59 in database
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Previous values - Google: 99.53, Outlook: 81.09, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Updated values - Google: 99.38, Outlook: 77.34, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:34] [BisonCampaigns] [Update] Updated campaign: 2 types - Outlook (ID: 59)
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Processing campaign: Profit Driver Angle 3 | No Outlook | Jan 6th 2025 (ID: 63)
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 63 has 160 connected emails
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 63 has 160 connected emails
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 63 has 160 emails with scores in our database
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] has_accounts_with_scores = True
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 63 average scores: Google=99.38, Outlook=77.34
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Campaign 63 max daily sends: 800, avg sending limit: 24
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Updating existing campaign 63 in database
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Previous values - Google: 99.53, Outlook: 81.09, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:34] [BisonCampaigns] [Debug] Updated values - Google: 99.38, Outlook: 77.34, Connected: 144, Sends per account: 24
+[2025-02-25 23:33:34] [BisonCampaigns] [Update] Updated campaign: Profit Driver Angle 3 | No Outlook | Jan 6th 2025 (ID: 63)
+[2025-02-25 23:33:34] [BisonCampaigns] [Update] Updated 15 campaigns (took 1.77s)
+[2025-02-25 23:33:34] [BisonCampaigns] [Complete] Total execution time: 232.11s
+[2025-02-25 23:33:34] [Signals] [DashboardSummary] Updating dashboard summary for CoachPro
+[2025-02-25 23:33:50] [Signals] [DashboardSummary] Found 160 accounts for CoachPro
+[2025-02-25 23:33:50] [Signals] [DashboardSummary] Created dashboard summary for CoachPro
+[2025-02-25 23:33:50] [Signals] [ProviderPerformance] Updating provider performance for CoachPro
+[2025-02-25 23:34:10] [Signals] [ProviderPerformance] Found 160 accounts for CoachPro
+[2025-02-25 23:34:10] [Signals] [ProviderPerformance] Found 144 accounts with provider tags
+[2025-02-25 23:34:10] [Signals] [ProviderPerformance] Created provider performance record for Maildoso in CoachPro
+[2025-02-25 23:34:10] [Signals] [SendingPower] Updating sending power for CoachPro
+[2025-02-25 23:34:10] [Signals] [SendingPower] Created sending power record for CoachPro: 3500
+[2025-02-25 23:58:14] [BisonPerformance] [Request] Request for dev@vitalitymarketingfirm.com
+[2025-02-25 23:58:14] [BisonPerformance] [DateRange] Range: 2025-01-26 to 2025-02-25
+[2025-02-25 23:58:14] [BisonPerformance] [Processing] Organization: CoachPro
+[2025-02-25 23:58:14] [BisonPerformance] [Error] Error processing org CoachPro: DISTINCT ON fields is not supported by this database backend
+[2025-02-25 23:58:14] [BisonPerformance] [Processing] Organization: Karpos
+[2025-02-25 23:58:14] [BisonPerformance] [Error] Error processing org Karpos: DISTINCT ON fields is not supported by this database backend
+[2025-02-25 23:58:14] [BisonPerformance] [Output] Returning 0 provider entries
+[2025-02-26 00:01:44] [BisonPerformance] [Request] Request for dev@vitalitymarketingfirm.com
+[2025-02-26 00:01:44] [BisonPerformance] [DateRange] Range: 2025-01-27 to 2025-02-26
+[2025-02-26 00:01:44] [BisonPerformance] [Processing] Organization: CoachPro
+[2025-02-26 00:01:44] [BisonPerformance] [Debug] Found 1 unique providers
+[2025-02-26 00:01:44] [BisonPerformance] [Debug] Found 1 provider performance records
+[2025-02-26 00:01:44] [BisonPerformance] [Processing] Organization: Karpos
+[2025-02-26 00:01:44] [BisonPerformance] [Debug] Found 1 unique providers
+[2025-02-26 00:01:44] [BisonPerformance] [Debug] Found 1 provider performance records
+[2025-02-26 00:01:44] [BisonPerformance] [Output] Returning 2 provider entries
+[2025-02-26 00:06:19] [BisonDashboard] [API] User dev@vitalitymarketingfirm.com requested dashboard summary
+[2025-02-26 00:06:19] [BisonDashboard] [API] Found 2 active Bison organizations
+[2025-02-26 00:06:19] [BisonDashboard] [API] Processing org: CoachPro
+[2025-02-26 00:06:19] [BisonDashboard] [API] Found dashboard summary from 2025-02-25 23:33:50.768192+00:00
+[2025-02-26 00:06:19] [BisonDashboard] [API] Added summary for CoachPro to response
+[2025-02-26 00:06:19] [BisonDashboard] [API] Processing org: Karpos
+[2025-02-26 00:06:19] [BisonDashboard] [API] Found dashboard summary from 2025-02-25 20:38:08.707976+00:00
+[2025-02-26 00:06:19] [BisonDashboard] [API] Added summary for Karpos to response
+[2025-02-26 00:06:19] [BisonDashboard] [API] Returning 2 organization summaries
+[2025-02-26 01:07:13] [SpamCheck] [Error] Error getting spamcheck details: No UserSpamcheckBison matches the given query.
+[2025-02-26 01:08:12] [SpamCheck] [Error] Error getting spamcheck details: No UserSpamcheckBison matches the given query.
+[2025-02-26 01:13:55] [SpamCheck] [Warning] Error parsing conditions: could not convert string to float: '0.3sending=25/1'
+[2025-02-26 01:15:33] [SpamCheck] [Debug] Parsing conditions: google>0.5andoutlook>0.3sending=25/1
+[2025-02-26 01:15:33] [SpamCheck] [Debug] Parsed Google criteria: Above 50.0%
+[2025-02-26 01:15:33] [SpamCheck] [Debug] Parsed Outlook criteria: Above 30.0%
+[2025-02-26 01:16:24] [SpamCheck] [Debug] Parsing conditions: google>0.5andoutlook>0.3sending=25/1
+[2025-02-26 01:16:24] [SpamCheck] [Debug] Parsed Google criteria: Above 50.0%
+[2025-02-26 01:16:24] [SpamCheck] [Debug] Parsed Outlook criteria: Above 30.0%

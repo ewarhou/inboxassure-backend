@@ -1,37 +1,16 @@
 # InboxAssure Backend API Documentation
 
-Base URL: http://inboxassure-backend.imnodev.com
-
-## Bison Analytics Endpoints
+## Analytics Endpoints for Bison
 
 ### 1. Bison Dashboard Summary
 
-Retrieves summary metrics for the dashboard per Bison organization including account stats and email delivery predictions.
+**Endpoint:** `GET /api/analytics/dashboard/summary-bison`
 
-**Endpoint:** `/analytics/dashboard/summary-bison`  
-**Method:** GET  
-**Authentication:** Bearer Token  
+**Authentication:** Bearer Token
 
-**Response:**
-```json
-[
-  {
-    "organization_id": "123",
-    "organization_name": "Karpos",
-    "checked_accounts": 160,
-    "at_risk_accounts": 40,
-    "protected_accounts": 120,
-    "spam_emails_count": 1000,
-    "inbox_emails_count": 3000,
-    "spam_emails_percentage": 25.0,
-    "inbox_emails_percentage": 75.0,
-    "overall_deliverability": 85.5,
-    "last_check_date": "2024-03-15T10:30:45.123456"
-  }
-]
-```
+**Description:** Get summary metrics for the dashboard per Bison organization including account stats and email delivery predictions. Uses cached data for improved performance.
 
-**Response Fields:**
+**Response:** List of organization summaries with the following fields:
 - `organization_id`: Bison organization ID
 - `organization_name`: Bison workspace name
 - `checked_accounts`: Number of accounts that exist in both Bison and reports
@@ -42,129 +21,190 @@ Retrieves summary metrics for the dashboard per Bison organization including acc
 - `spam_emails_percentage`: Percentage of emails going to spam
 - `inbox_emails_percentage`: Percentage of emails going to inbox
 - `overall_deliverability`: Overall deliverability score
-- `last_check_date`: ISO formatted date of the last check (empty string if no check)
+- `last_check_date`: ISO formatted date of the last check
 
-### 2. Bison Sending Power
-
-Get daily sending power (good accounts × sending limit) per Bison workspace within a date range.
-
-**Endpoint:** `/analytics/dashboard/sending-power-bison`  
-**Method:** GET  
-**Authentication:** Bearer Token  
-
-**Query Parameters:**
-- `start_date` (optional): Start date in YYYY-MM-DD format. Defaults to 30 days ago.
-- `end_date` (optional): End date in YYYY-MM-DD format. Defaults to current date.
-
-**Response:**
+**Example Response:**
 ```json
-{
-  "data": [
-    {
-      "date": "2024-03-15",
-      "workspace_name": "Karpos",
-      "sending_power": 3000
-    },
-    {
-      "date": "2024-03-14",
-      "workspace_name": "Karpos",
-      "sending_power": 2800
-    }
-  ]
-}
+[
+  {
+    "organization_id": "123",
+    "organization_name": "Karpos",
+    "checked_accounts": 150,
+    "at_risk_accounts": 25,
+    "protected_accounts": 125,
+    "spam_emails_count": 75,
+    "inbox_emails_count": 3125,
+    "spam_emails_percentage": 2.34,
+    "inbox_emails_percentage": 97.66,
+    "overall_deliverability": 92.5,
+    "last_check_date": "2024-07-15T14:30:45.123456Z"
+  }
+]
 ```
 
-**Response Fields:**
-- `date`: The date for which the sending power is calculated
-- `workspace_name`: Name of the Bison workspace
-- `sending_power`: Total sending power (good accounts × sending limit)
+### 2. Bison Provider Performance Metrics
 
-### 3. Bison Provider Performance
+**Endpoint:** `GET /api/analytics/dashboard/provider-performance-bison`
 
-Get performance metrics per provider for Bison accounts including daily aggregated scores and sending power.
+**Authentication:** Bearer Token
 
-**Endpoint:** `/analytics/dashboard/provider-performance-bison`  
-**Method:** GET  
-**Authentication:** Bearer Token  
+**Description:** Get performance metrics per provider for Bison accounts including daily aggregated scores and sending power. Uses cached data from the UserBisonProviderPerformance table.
 
-**Query Parameters:**
+**Parameters:**
 - `start_date` (optional): Start date in YYYY-MM-DD format. Defaults to 30 days ago.
 - `end_date` (optional): End date in YYYY-MM-DD format. Defaults to current date.
 
-**Response:**
+**Response:** Provider performance data with the following fields:
+- `organization`: Bison workspace name
+- `provider`: Email provider name (e.g., Gmail, Outlook)
+- `start_date`: Start date of the data period
+- `end_date`: End date of the data period
+- `total_accounts`: Total number of accounts for this provider
+- `reply_rate`: Reply rate (if available)
+- `bounce_rate`: Bounce rate (if available)
+- `google_score`: Google deliverability score (0-1)
+- `outlook_score`: Outlook deliverability score (0-1)
+- `overall_score`: Average of Google and Outlook scores
+- `sending_power`: Total sending power (good accounts × sending limit)
+
+**Example Response:**
 ```json
 {
   "data": [
     {
       "organization": "Karpos",
       "provider": "Gmail",
-      "start_date": "2024-02-15",
-      "end_date": "2024-03-15",
-      "total_accounts": 85,
+      "start_date": "2024-06-15",
+      "end_date": "2024-07-15",
+      "total_accounts": 125,
       "reply_rate": null,
       "bounce_rate": null,
       "google_score": 0.92,
       "outlook_score": 0.88,
       "overall_score": 0.90,
-      "sending_power": 2125
-    },
-    {
-      "organization": "Karpos",
-      "provider": "Yahoo",
-      "start_date": "2024-02-15",
-      "end_date": "2024-03-15",
-      "total_accounts": 35,
-      "reply_rate": null,
-      "bounce_rate": null,
-      "google_score": 0.85,
-      "outlook_score": 0.79,
-      "overall_score": 0.82,
-      "sending_power": 875
+      "sending_power": 3125
     }
   ]
 }
 ```
 
-**Response Fields:**
-- `organization`: Name of the Bison organization/workspace
-- `provider`: Email provider name (Gmail, Yahoo, etc.)
-- `start_date`: Start date of the analysis period
-- `end_date`: End date of the analysis period
-- `total_accounts`: Total number of accounts for this provider
-- `reply_rate`: Reply rate (currently null, reserved for future use)
-- `bounce_rate`: Bounce rate (currently null, reserved for future use)
-- `google_score`: Average Google deliverability score (0-1)
-- `outlook_score`: Average Outlook deliverability score (0-1)
-- `overall_score`: Average of Google and Outlook scores
-- `sending_power`: Total sending power for this provider (good accounts × sending limit)
+### 3. Bison Sending Power
 
-## Implementation Notes
+**Endpoint:** `GET /api/analytics/dashboard/sending-power-bison`
 
-1. All Bison endpoints fetch data from the Bison API and deduplicate accounts by email to handle potential duplicates.
-2. Data is processed in chunks to avoid SQL parameter limits.
-3. Provider tags are identified by the prefix "p." in the tag name.
-4. Scores for Bison are in the range 0-1, unlike Instantly which uses 0-4.
-5. The endpoints handle pagination internally and return complete results.
+**Authentication:** Bearer Token
 
-## Spamcheck Endpoints
+**Description:** Get daily sending power (good accounts × sending limit) per Bison workspace within a date range. Uses cached data from the UserBisonSendingPower table.
 
-### 1. Get Bison Accounts List
+**Parameters:**
+- `start_date` (optional): Start date in YYYY-MM-DD format. Defaults to 30 days ago.
+- `end_date` (optional): End date in YYYY-MM-DD format. Defaults to current date.
 
-Retrieves a paginated list of Bison email accounts with their latest check results.
+**Response:** Daily sending power data with the following fields:
+- `date`: Date in ISO format (YYYY-MM-DD)
+- `workspace_name`: Bison workspace name
+- `sending_power`: Total sending power for that day
 
-**Endpoint:** `/spamcheck/accounts-bison`  
-**Method:** GET  
-**Authentication:** Bearer Token  
+**Example Response:**
+```json
+{
+  "data": [
+    {
+      "date": "2024-07-15",
+      "workspace_name": "Karpos",
+      "sending_power": 3125
+    },
+    {
+      "date": "2024-07-14",
+      "workspace_name": "Karpos",
+      "sending_power": 3000
+    }
+  ]
+}
+```
 
-**Query Parameters:**
-- `search` (optional): Filter accounts by email content
-- `status` (optional): Filter by status (all, Inboxing, Resting)
-- `workspace` (optional): Filter by workspace name
+### 4. Bison Campaigns
+
+**Endpoint:** `GET /api/analytics/bison/campaigns`
+
+**Authentication:** Bearer Token
+
+**Description:** Get all campaigns from Bison with connected emails and deliverability scores, grouped by organization. Uses cached data from the UserCampaignsBison table for improved performance.
+
+**Response:** List of organizations with their campaigns:
+- `organization_id`: Bison organization ID
+- `organization_name`: Bison workspace name
+- `campaigns`: List of campaigns with the following fields:
+  - `id`: Campaign ID
+  - `name`: Campaign name
+  - `connectedEmails`: Count of emails connected to this campaign
+  - `sendsPerAccount`: Number of sends per account
+  - `googleScore`: Google deliverability score (0-100)
+  - `outlookScore`: Outlook deliverability score (0-100)
+  - `maxDailySends`: Maximum daily sends
+
+**Example Response:**
+```json
+[
+  {
+    "organization_id": "123",
+    "organization_name": "Karpos",
+    "campaigns": [
+      {
+        "id": 456,
+        "name": "Summer Promotion",
+        "connectedEmails": 50,
+        "sendsPerAccount": 25,
+        "googleScore": 92.5,
+        "outlookScore": 88.7,
+        "maxDailySends": 1250
+      }
+    ]
+  }
+]
+```
+
+## Spamcheck Endpoints for Bison
+
+### 1. Bison Accounts List
+
+**Endpoint:** `GET /api/spamcheck/accounts-bison`
+
+**Authentication:** Bearer Token
+
+**Description:** Get a paginated list of Bison email accounts with their latest check results and account history statistics.
+
+**Parameters:**
+- `spamcheck_id` (optional): ID of the spamcheck to filter accounts by
+- `search` (optional): Email search term for filtering accounts
+- `status` (optional): Status filter (all, Inboxing, Resting)
+- `workspace` (optional): Workspace filter
 - `filter` (optional): Special filter (at-risk, protected)
 - `page` (optional): Page number (default: 1)
 - `per_page` (optional): Items per page (default: 25)
 
-**Response:**
+**Response:** Paginated list of accounts with the following fields:
+- `data`: Array of account objects with the following fields:
+  - `email`: Email address
+  - `domain`: Domain name extracted from email
+  - `sends_per_day`: Daily sending limit
+  - `google_score`: Google deliverability score (0-1)
+  - `outlook_score`: Outlook deliverability score (0-1)
+  - `status`: Account status (Inboxing or Resting)
+  - `workspace`: Bison workspace name
+  - `last_check`: Object with check ID and date
+  - `reports_link`: Link to detailed reports
+  - `history`: Account history statistics with:
+    - `total_checks`: Total number of checks performed
+    - `good_checks`: Number of successful checks
+    - `bad_checks`: Number of failed checks
+- `meta`: Pagination metadata with:
+  - `total`: Total number of accounts
+  - `page`: Current page number
+  - `per_page`: Items per page
+  - `total_pages`: Total number of pages
+
+**Example Response:**
 ```json
 {
   "data": [
@@ -173,14 +213,19 @@ Retrieves a paginated list of Bison email accounts with their latest check resul
       "domain": "example.com",
       "sends_per_day": 25,
       "google_score": 0.75,
-      "outlook_score": 0.5,
+      "outlook_score": 1.0,
       "status": "Inboxing",
       "workspace": "Karpos",
       "last_check": {
-        "id": "550e8400-e29b-41d4-a716-446655440000",
-        "date": "2024-03-15T10:30:45.123456"
+        "id": "123",
+        "date": "2024-07-15T14:30:45.123456Z"
       },
-      "reports_link": "https://example.com/report/123"
+      "reports_link": "https://app.emailguard.io/reports/123",
+      "history": {
+        "total_checks": 10,
+        "good_checks": 8,
+        "bad_checks": 2
+      }
     }
   ],
   "meta": {
@@ -192,21 +237,73 @@ Retrieves a paginated list of Bison email accounts with their latest check resul
 }
 ```
 
-**Response Fields:**
-- `data`: Array of account objects
-  - `email`: Email address
-  - `domain`: Domain part of the email
-  - `sends_per_day`: Daily sending limit
-  - `google_score`: Google deliverability score (0-1)
-  - `outlook_score`: Outlook deliverability score (0-1)
-  - `status`: Account status (Inboxing or Resting)
-  - `workspace`: Bison workspace name
-  - `last_check`: Information about the last check
-    - `id`: Check ID
-    - `date`: ISO formatted date of the last check
-  - `reports_link`: Link to the detailed report
-- `meta`: Pagination metadata
-  - `total`: Total number of accounts
-  - `page`: Current page number
-  - `per_page`: Items per page
-  - `total_pages`: Total number of pages
+### 2. Bison Spamcheck Details
+
+**Endpoint:** `GET /api/spamcheck/get-spamcheck/{spamcheck_id}`
+
+**Authentication:** Bearer Token
+
+**Description:** Get detailed information about a specific Bison spamcheck by its ID, including configuration, email content, and results.
+
+**Parameters:**
+- `spamcheck_id`: ID of the spamcheck to retrieve details for
+
+**Response:** Detailed spamcheck information with the following fields:
+- `success`: Boolean indicating if the request was successful
+- `message`: Status message
+- `data`: Spamcheck details object with:
+  - `id`: Spamcheck ID
+  - `name`: Spamcheck name
+  - `createdAt`: Creation date in ISO format
+  - `lastRunDate`: Last run date in ISO format
+  - `status`: Current status
+  - `configuration`: Configuration settings with:
+    - `domainBased`: Whether the check is domain-based
+    - `trackOpens`: Whether open tracking is enabled
+    - `trackClicks`: Whether click tracking is enabled
+    - `waitingTime`: Reports waiting time
+    - `googleInboxCriteria`: Google inbox criteria
+    - `outlookInboxCriteria`: Outlook inbox criteria
+  - `emailContent`: Email content with:
+    - `subject`: Email subject
+    - `body`: Email body
+  - `results`: Test results with:
+    - `googleScore`: Average Google score (0-100)
+    - `outlookScore`: Average Outlook score (0-100)
+    - `totalAccounts`: Total number of accounts tested
+    - `inboxedAccounts`: Number of accounts that inboxed
+    - `spamAccounts`: Number of accounts that went to spam
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Spam check details retrieved successfully",
+  "data": {
+    "id": "123",
+    "name": "Weekly Deliverability Test",
+    "createdAt": "2024-07-10T09:15:30.123456Z",
+    "lastRunDate": "2024-07-15T14:30:45.123456Z",
+    "status": "completed",
+    "configuration": {
+      "domainBased": false,
+      "trackOpens": false,
+      "trackClicks": false,
+      "waitingTime": "24 hours",
+      "googleInboxCriteria": "Above 50%",
+      "outlookInboxCriteria": "Above 30%"
+    },
+    "emailContent": {
+      "subject": "Test Email Subject",
+      "body": "This is a test email body content."
+    },
+    "results": {
+      "googleScore": 85.75,
+      "outlookScore": 92.30,
+      "totalAccounts": 150,
+      "inboxedAccounts": 125,
+      "spamAccounts": 25
+    }
+  }
+}
+```
