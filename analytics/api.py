@@ -3,7 +3,7 @@ from typing import List, Optional, Dict, Any
 from ninja import Router, Schema, Query
 from ninja.pagination import paginate
 from ninja.security import HttpBearer
-from django.db.models import Avg
+from django.db.models import Avg, Max
 from django.utils import timezone
 from django.db import connection
 from authentication.authorization import AuthBearer
@@ -664,14 +664,37 @@ def get_bison_provider_performance(
         
         try:
             # Get the most recent provider performance records for this organization
-            performance_records = UserBisonProviderPerformance.objects.filter(
+            # Using a different approach that works with MySQL instead of PostgreSQL-specific distinct
+            from django.db.models import Max
+            
+            # First, get the latest created_at for each provider
+            latest_records = UserBisonProviderPerformance.objects.filter(
                 user=user,
                 bison_organization=org
-            ).order_by('provider_name', '-created_at').distinct('provider_name')
+            ).values('provider_name').annotate(
+                latest_created=Max('created_at')
+            )
+            
+            log_to_terminal("BisonPerformance", "Debug", f"Found {len(latest_records)} unique providers")
+            
+            # Then, get the actual records using the provider name and latest created_at
+            performance_records = []
+            for record in latest_records:
+                provider_record = UserBisonProviderPerformance.objects.filter(
+                    user=user,
+                    bison_organization=org,
+                    provider_name=record['provider_name'],
+                    created_at=record['latest_created']
+                ).first()
+                
+                if provider_record:
+                    performance_records.append(provider_record)
             
             if not performance_records:
                 log_to_terminal("BisonPerformance", "Warning", f"No provider performance records found for {org.bison_organization_name}")
                 continue
+            
+            log_to_terminal("BisonPerformance", "Debug", f"Found {len(performance_records)} provider performance records")
             
             # Add each provider's performance data to the response
             for record in performance_records:
@@ -691,6 +714,8 @@ def get_bison_provider_performance(
                 
         except Exception as e:
             log_to_terminal("BisonPerformance", "Error", f"Error processing org {org.bison_organization_name}: {str(e)}")
+            import traceback
+            log_to_terminal("BisonPerformance", "Error", f"Traceback: {traceback.format_exc()}")
             continue
     
     log_to_terminal("BisonPerformance", "Output", f"Returning {len(data)} provider entries")
