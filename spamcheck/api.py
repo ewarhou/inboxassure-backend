@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.db import transaction, IntegrityError, connection
 from django.core.exceptions import ObjectDoesNotExist
 from authentication.authorization import AuthBearer
-from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema, ListAccountsRequestSchema, ListAccountsResponseSchema, ListSpamchecksResponseSchema, CreateSpamcheckBisonSchema, UpdateSpamcheckBisonSchema, SpamcheckBisonDetailsResponseSchema, BisonAccountsReportsResponseSchema
+from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema, ListAccountsRequestSchema, ListAccountsResponseSchema, ListSpamchecksResponseSchema, CreateSpamcheckBisonSchema, UpdateSpamcheckBisonSchema, SpamcheckBisonDetailsResponseSchema, BisonAccountsReportsResponseSchema, CampaignCopyResponse
 from .models import UserSpamcheck, UserSpamcheckAccounts, UserSpamcheckCampaignOptions, UserSpamcheckCampaigns, UserSpamcheckReport, UserSpamcheckBison, UserSpamcheckAccountsBison, UserSpamcheckBisonReport
 from settings.models import UserInstantly, UserSettings, UserBison
 import requests
@@ -1578,6 +1578,8 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
         - reports_waiting_time: Optional, reports waiting time
     """
     user = request.auth
+    log_to_terminal("Spamcheck", "Update Bison", f"Starting update for spamcheck ID {spamcheck_id}")
+    log_to_terminal("Spamcheck", "Update Bison", f"Payload received: {payload.dict()}")
     
     try:
         # Get the spamcheck and verify ownership
@@ -1585,9 +1587,11 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
             id=spamcheck_id,
             user=user
         )
+        log_to_terminal("Spamcheck", "Update Bison", f"Found spamcheck: {spamcheck.name} with status {spamcheck.status}")
         
         # Check if status allows updates
         if spamcheck.status not in ['pending', 'failed', 'completed']:
+            log_to_terminal("Spamcheck", "Update Bison", f"Cannot update spamcheck with status '{spamcheck.status}'")
             return {
                 "success": False,
                 "message": f"Cannot update spamcheck with status '{spamcheck.status}'. Only pending, failed, or completed spamchecks can be updated."
@@ -1595,35 +1599,120 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
         
         try:
             with transaction.atomic():
+                log_to_terminal("Spamcheck", "Update Bison", "Starting transaction for update")
+                
+                # For simple updates (just subject/body/text_only), use direct SQL update to avoid triggering signals
+                if (payload.subject is not None or payload.body is not None or payload.text_only is not None) and \
+                   payload.name is None and \
+                   payload.scheduled_at is None and \
+                   payload.recurring_days is None and \
+                   payload.is_domain_based is None and \
+                   payload.conditions is None and \
+                   payload.reports_waiting_time is None and \
+                   payload.accounts is None:
+                    
+                    log_to_terminal("Spamcheck", "Update Bison", "Performing simple update with direct SQL")
+                    
+                    # Build update fields dictionary
+                    update_fields_dict = {}
+                    
+                    if payload.subject is not None:
+                        log_to_terminal("Spamcheck", "Update Bison", f"Will update subject")
+                        update_fields_dict['subject'] = payload.subject
+                    
+                    if payload.body is not None:
+                        log_to_terminal("Spamcheck", "Update Bison", f"Will update body (length: {len(payload.body)})")
+                        update_fields_dict['body'] = payload.body
+                    
+                    if payload.text_only is not None:
+                        log_to_terminal("Spamcheck", "Update Bison", f"Will update plain_text to '{payload.text_only}'")
+                        update_fields_dict['plain_text'] = payload.text_only
+                    
+                    # Always update updated_at
+                    update_fields_dict['updated_at'] = timezone.now()
+                    
+                    # Use update() method which translates to a direct SQL UPDATE
+                    rows_updated = UserSpamcheckBison.objects.filter(id=spamcheck_id).update(**update_fields_dict)
+                    
+                    log_to_terminal("Spamcheck", "Update Bison", f"Simple update completed, {rows_updated} rows affected")
+                    
+                    # Refresh our spamcheck object to get the updated values
+                    spamcheck.refresh_from_db()
+                    
+                    return {
+                        "success": True,
+                        "message": "Spamcheck updated successfully with direct SQL",
+                        "data": {
+                            "id": spamcheck.id,
+                            "name": spamcheck.name,
+                            "status": spamcheck.status,
+                            "fields_updated": list(update_fields_dict.keys())
+                        }
+                    }
+                
+                # For complex updates, use the normal ORM approach with update_fields
+                log_to_terminal("Spamcheck", "Update Bison", "Performing complex update with ORM")
+                
+                # Track which fields to update
+                update_fields = []
+                
                 # Update spamcheck fields if provided
                 if payload.name is not None:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Updating name from '{spamcheck.name}' to '{payload.name}'")
                     spamcheck.name = payload.name
+                    update_fields.append('name')
                 if payload.scheduled_at is not None:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Updating scheduled_at to '{payload.scheduled_at}'")
                     spamcheck.scheduled_at = payload.scheduled_at
+                    update_fields.append('scheduled_at')
                 if payload.recurring_days is not None:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Updating recurring_days to '{payload.recurring_days}'")
                     spamcheck.recurring_days = payload.recurring_days
+                    update_fields.append('recurring_days')
                 if payload.is_domain_based is not None:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Updating is_domain_based to '{payload.is_domain_based}'")
                     spamcheck.is_domain_based = payload.is_domain_based
+                    update_fields.append('is_domain_based')
                 if payload.conditions is not None:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Updating conditions to '{payload.conditions}'")
                     spamcheck.conditions = payload.conditions
+                    update_fields.append('conditions')
                 if payload.reports_waiting_time is not None:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Updating reports_waiting_time to '{payload.reports_waiting_time}'")
                     spamcheck.reports_waiting_time = payload.reports_waiting_time
+                    update_fields.append('reports_waiting_time')
                 if payload.text_only is not None:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Updating plain_text to '{payload.text_only}'")
                     spamcheck.plain_text = payload.text_only
+                    update_fields.append('plain_text')
                 if payload.subject is not None:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Updating subject to '{payload.subject}'")
                     spamcheck.subject = payload.subject
+                    update_fields.append('subject')
                 if payload.body is not None:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Updating body (length: {len(payload.body)})")
                     spamcheck.body = payload.body
-                spamcheck.save()
+                    update_fields.append('body')
+                
+                # Always update updated_at
+                update_fields.append('updated_at')
+                
+                log_to_terminal("Spamcheck", "Update Bison", f"About to save spamcheck changes with fields: {update_fields}")
+                spamcheck.save(update_fields=update_fields)
+                log_to_terminal("Spamcheck", "Update Bison", "Spamcheck saved successfully")
                 
                 # Update accounts if provided
                 accounts_updated = False
                 if payload.accounts is not None:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Updating accounts list with {len(payload.accounts)} accounts")
                     # Delete existing accounts
+                    existing_count = UserSpamcheckAccountsBison.objects.filter(bison_spamcheck=spamcheck).count()
+                    log_to_terminal("Spamcheck", "Update Bison", f"Deleting {existing_count} existing accounts")
                     UserSpamcheckAccountsBison.objects.filter(bison_spamcheck=spamcheck).delete()
                     
                     # Create new accounts
                     for email in payload.accounts:
+                        log_to_terminal("Spamcheck", "Update Bison", f"Adding account: {email}")
                         UserSpamcheckAccountsBison.objects.create(
                             user=user,
                             organization=spamcheck.user_organization,
@@ -1631,7 +1720,9 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
                             email_account=email
                         )
                     accounts_updated = True
+                    log_to_terminal("Spamcheck", "Update Bison", "Accounts updated successfully")
                 
+                log_to_terminal("Spamcheck", "Update Bison", "Update completed successfully")
                 return {
                     "success": True,
                     "message": "Spamcheck updated successfully",
@@ -1641,17 +1732,20 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
                         "scheduled_at": spamcheck.scheduled_at,
                         "recurring_days": spamcheck.recurring_days,
                         "status": spamcheck.status,
-                        "accounts_updated": accounts_updated
+                        "accounts_updated": accounts_updated,
+                        "fields_updated": update_fields
                     }
                 }
                 
-        except IntegrityError:
+        except IntegrityError as ie:
+            log_to_terminal("Spamcheck", "Update Bison", f"IntegrityError: {str(ie)}")
             return {
                 "success": False,
                 "message": f"A spamcheck with the name '{payload.name}' already exists for this organization. Please use a different name."
             }
             
     except UserSpamcheckBison.DoesNotExist:
+        log_to_terminal("Spamcheck", "Update Bison", f"Spamcheck with ID {spamcheck_id} not found")
         return {
             "success": False,
             "message": f"Spamcheck with ID {spamcheck_id} not found or you don't have permission to update it."
@@ -1948,4 +2042,151 @@ def get_bison_spamcheck_reports(request, spamcheck_id: int):
             "success": False,
             "message": f"Error retrieving spam check reports: {str(e)}",
             "data": []
+        } 
+
+@router.get(
+    "/fetch-campaign-copy-bison/{campaign_id}", 
+    auth=AuthBearer(),
+    response=CampaignCopyResponse,
+    summary="Fetch Bison Campaign Copy",
+    description="Fetch email subject and body from a Bison campaign's first sequence step"
+)
+def fetch_campaign_copy(request, campaign_id: str):
+    """
+    Fetch email copy (subject and body) from a campaign
+    
+    Parameters:
+        - campaign_id: ID of the campaign to fetch copy from
+    """
+    user = request.auth
+    log_to_terminal("Spamcheck", "FetchCopy", f"Fetching copy for campaign ID {campaign_id}")
+    
+    try:
+        # Get the user's Bison organization - handle multiple organizations
+        user_bison_orgs = UserBison.objects.filter(
+            user=user,
+            bison_organization_status=True  # Make sure organization is active
+        )
+        
+        if not user_bison_orgs.exists():
+            log_to_terminal("Spamcheck", "FetchCopy", f"User {user.email} has no active Bison organization")
+            return {
+                "success": False,
+                "message": "You don't have an active Bison organization configured",
+                "data": {
+                    "subject": "",
+                    "body": "",
+                    "campaign_id": campaign_id
+                }
+            }
+        
+        # Use the first active organization
+        user_bison = user_bison_orgs.first()
+        log_to_terminal("Spamcheck", "FetchCopy", f"Using Bison organization: {user_bison.bison_organization_name}")
+        
+        # Make API request to fetch campaign sequence steps
+        api_url = f"{user_bison.base_url.rstrip('/')}/api/campaigns/{campaign_id}/sequence-steps"
+        log_to_terminal("Spamcheck", "FetchCopy", f"Making API request to: {api_url}")
+        
+        response = requests.get(
+            api_url,
+            headers={
+                "Authorization": f"Bearer {user_bison.bison_organization_api_key}",
+                "Content-Type": "application/json"
+            }
+        )
+        
+        if response.status_code != 200:
+            log_to_terminal("Spamcheck", "FetchCopy", f"API Error: {response.status_code} - {response.text}")
+            return {
+                "success": False,
+                "message": f"Error fetching campaign copy: {response.text}",
+                "data": {
+                    "subject": "",
+                    "body": "",
+                    "campaign_id": campaign_id
+                }
+            }
+        
+        # Parse response
+        data = response.json()
+        steps = data.get('data', [])
+        
+        if not steps:
+            log_to_terminal("Spamcheck", "FetchCopy", f"No sequence steps found for campaign {campaign_id}")
+            return {
+                "success": False,
+                "message": "No sequence steps found for this campaign",
+                "data": {
+                    "subject": "",
+                    "body": "",
+                    "campaign_id": campaign_id
+                }
+            }
+        
+        # Get the first step (step 1)
+        first_step = steps[0]
+        subject = first_step.get('email_subject', '')
+        html_body = first_step.get('email_body', '')
+        
+        # Convert HTML to plain text while preserving formatting
+        try:
+            import re
+            from html import unescape
+            
+            # Function to convert HTML to formatted plain text
+            def html_to_text(html):
+                if not html:
+                    return ""
+                
+                # Unescape HTML entities
+                html = unescape(html)
+                
+                # Replace common block elements with newlines
+                html = re.sub(r'</(div|p|h\d|ul|ol|li|blockquote|pre|table|tr)>', '\n', html)
+                
+                # Replace <br> tags with newlines
+                html = re.sub(r'<br[^>]*>', '\n', html)
+                
+                # Replace multiple consecutive newlines with just two
+                html = re.sub(r'\n{3,}', '\n\n', html)
+                
+                # Remove all remaining HTML tags
+                html = re.sub(r'<[^>]*>', '', html)
+                
+                # Trim leading/trailing whitespace
+                html = html.strip()
+                
+                return html
+            
+            # Convert the HTML body to plain text
+            plain_body = html_to_text(html_body)
+            log_to_terminal("Spamcheck", "FetchCopy", f"Successfully converted HTML to plain text")
+            
+        except Exception as e:
+            log_to_terminal("Spamcheck", "FetchCopy", f"Error converting HTML to text: {str(e)}")
+            plain_body = html_body  # Fallback to original HTML if conversion fails
+        
+        log_to_terminal("Spamcheck", "FetchCopy", f"Successfully fetched copy for campaign {campaign_id}")
+        
+        return {
+            "success": True,
+            "message": "Campaign copy fetched successfully",
+            "data": {
+                "subject": subject,
+                "body": plain_body,
+                "campaign_id": campaign_id
+            }
+        }
+        
+    except Exception as e:
+        log_to_terminal("Spamcheck", "FetchCopy", f"Error fetching campaign copy: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Error fetching campaign copy: {str(e)}",
+            "data": {
+                "subject": "",
+                "body": "",
+                "campaign_id": campaign_id
+            }
         } 

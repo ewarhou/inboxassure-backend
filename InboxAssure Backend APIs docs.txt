@@ -307,3 +307,144 @@
   }
 }
 ```
+
+### 3. Update Bison Spamcheck
+
+**Endpoint:** `PUT /api/spamcheck/update-spamcheck-bison/{spamcheck_id}`
+
+**Authentication:** Bearer Token
+
+**Description:** Update an existing Bison spamcheck's details, including name, email content, and configuration settings.
+
+**Parameters:**
+- `spamcheck_id`: ID of the spamcheck to update
+
+**Request Body:** JSON object with the following optional fields:
+- `name`: New name for the spamcheck
+- `accounts`: New list of email accounts to check
+- `text_only`: Whether to send text-only emails
+- `subject`: New email subject template
+- `body`: New email body template
+- `scheduled_at`: New scheduled time (ISO format)
+- `recurring_days`: New recurring days setting
+- `is_domain_based`: Whether to filter accounts by domain
+- `conditions`: Conditions for sending (e.g., 'google>=0.5andoutlook>=0.5')
+- `reports_waiting_time`: Time in hours to wait before generating reports
+
+**Response:** Update result with the following fields:
+- `success`: Boolean indicating if the update was successful
+- `message`: Status message
+- `data`: Updated spamcheck details with:
+  - `id`: Spamcheck ID
+  - `name`: Updated spamcheck name
+  - `scheduled_at`: Updated scheduled time
+  - `recurring_days`: Updated recurring days setting
+  - `status`: Current status
+  - `accounts_updated`: Boolean indicating if accounts were updated
+
+**Example Request:**
+```json
+{
+  "name": "Updated Test Spamcheck",
+  "subject": "Updated Subject Line",
+  "body": "This is the updated email body content.",
+  "text_only": true,
+  "conditions": "google>=0.6andoutlook>=0.5"
+}
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Spamcheck updated successfully",
+  "data": {
+    "id": 123,
+    "name": "Updated Test Spamcheck",
+    "scheduled_at": "2024-08-01T10:00:00.000000Z",
+    "recurring_days": 7,
+    "status": "pending",
+    "accounts_updated": false
+  }
+}
+```
+
+### 4. Update Spamcheck Title, Subject and Body
+
+**Endpoint:** `PUT /api/spamcheck/update-spamcheck-sql/{spamcheck_id}`
+
+**Authentication:** Bearer Token
+
+**Description:** Update only the title, subject, and body of an existing spamcheck using direct SQL for improved performance. This endpoint is optimized for quick updates to email content without modifying other configuration settings.
+
+**Parameters:**
+- `spamcheck_id`: ID of the spamcheck to update
+
+**Request Body:** JSON object with the following fields:
+- `name`: New name for the spamcheck
+- `subject`: New email subject
+- `body`: New email body content
+
+**Response:** Update result with the following fields:
+- `success`: Boolean indicating if the update was successful
+- `message`: Status message
+- `data`: Updated spamcheck details with:
+  - `id`: Spamcheck ID
+  - `name`: Updated spamcheck name
+  - `subject`: Updated email subject
+  - `body`: Updated email body
+
+**Example Request:**
+```json
+{
+  "name": "Quick Update Test",
+  "subject": "Updated Subject Line for Testing",
+  "body": "This is the updated email body content for quick testing."
+}
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Spamcheck content updated successfully",
+  "data": {
+    "id": 123,
+    "name": "Quick Update Test",
+    "subject": "Updated Subject Line for Testing",
+    "body": "This is the updated email body content for quick testing."
+  }
+}
+```
+
+### 5. Fetch Campaign Email Copy
+
+**Endpoint:** `GET /api/spamcheck/fetch-campaign-copy-bison/{campaign_id}`
+
+**Authentication:** Bearer Token
+
+**Description:** Fetch email subject and body from a Bison campaign's first sequence step. This endpoint retrieves the email content from a campaign and converts HTML to formatted plain text.
+
+**Parameters:**
+- `campaign_id`: ID of the Bison campaign to fetch copy from
+
+**Response:** Campaign copy data with the following fields:
+- `success`: Boolean indicating if the request was successful
+- `message`: Status message
+- `data`: Campaign copy data with:
+  - `subject`: Email subject line
+  - `body`: Email body content (HTML converted to formatted plain text)
+  - `campaign_id`: ID of the campaign
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Campaign copy fetched successfully",
+  "data": {
+    "subject": "Summer Promotion Announcement",
+    "body": "Hello,\n\nWe're excited to announce our summer promotion!\n\nCheck out these amazing deals:\n- 20% off all products\n- Free shipping on orders over $50\n\nVisit our website today.\n\nBest regards,\nThe Marketing Team",
+    "campaign_id": "456"
+  }
+}
+```

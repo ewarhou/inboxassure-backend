@@ -22,6 +22,14 @@ def handle_spamcheck_status_change(sender, instance, created, **kwargs):
     # Skip if this is a new record being created
     if created:
         return
+    
+    # Get the update_fields from kwargs to check if status was updated
+    update_fields = kwargs.get('update_fields')
+    
+    # If update_fields is provided and 'status' is not in it, skip processing
+    if update_fields is not None and 'status' not in update_fields:
+        log_to_terminal("BisonCampaigns", "Signal", f"Skipping API calls - status field not updated for spamcheck: {instance.name} (ID: {instance.id})")
+        return
         
     # Check if status is now "completed"
     if instance.status == "completed":
@@ -34,6 +42,8 @@ def handle_spamcheck_status_change(sender, instance, created, **kwargs):
         update_bison_provider_performance(instance)
         # Call function to update sending power
         update_bison_sending_power(instance)
+    else:
+        log_to_terminal("BisonCampaigns", "Signal", f"Spamcheck status is {instance.status}, not triggering API calls")
 
 def update_bison_campaigns_table(spamcheck):
     """

@@ -241,4 +241,16 @@ class BisonAccountsReportsResponseSchema(Schema):
     """Response schema for get Bison accounts reports endpoint"""
     success: bool
     message: str
-    data: List[BisonAccountReportSchema] 
+    data: List[BisonAccountReportSchema]
+
+class CampaignCopyData(Schema):
+    """Schema for campaign copy data"""
+    subject: str = Field(..., description="Email subject from the campaign")
+    body: str = Field(..., description="Email body from the campaign")
+    campaign_id: str = Field(..., description="ID of the campaign")
+
+class CampaignCopyResponse(Schema):
+    """Schema for campaign copy response"""
+    success: bool
+    message: str
+    data: CampaignCopyData 
