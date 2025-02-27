@@ -1590,11 +1590,11 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
         log_to_terminal("Spamcheck", "Update Bison", f"Found spamcheck: {spamcheck.name} with status {spamcheck.status}")
         
         # Check if status allows updates
-        if spamcheck.status not in ['pending', 'failed', 'completed']:
+        if spamcheck.status not in ['pending', 'failed', 'completed', 'paused']:
             log_to_terminal("Spamcheck", "Update Bison", f"Cannot update spamcheck with status '{spamcheck.status}'")
             return {
                 "success": False,
-                "message": f"Cannot update spamcheck with status '{spamcheck.status}'. Only pending, failed, or completed spamchecks can be updated."
+                "message": f"Cannot update spamcheck with status '{spamcheck.status}'. Only pending, failed, completed, or paused spamchecks can be updated."
             }
         
         try:
