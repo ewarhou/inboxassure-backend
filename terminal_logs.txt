@@ -1,3 +1,10 @@
 [2025-02-27 01:18:47] [Spamcheck] [TogglePause] User dev@vitalitymarketingfirm.com toggling pause for Bison spamcheck ID 24
 [2025-02-27 01:18:48] [BisonCampaigns] [Signal] Spamcheck status is paused, not triggering API calls
 [2025-02-27 01:18:48] [Spamcheck] [TogglePause] Successfully toggled Bison spamcheck 'All Accounts CoachPro Edited' to paused
+[2025-02-27 02:09:34] [Spamcheck] [Update Bison] Starting update for spamcheck ID 21
+[2025-02-27 02:09:34] [Spamcheck] [Update Bison] Payload received: {'name': None, 'accounts': None, 'text_only': None, 'subject': 'Updated Subject', 'body': None, 'scheduled_at': None, 'recurring_days': None, 'is_domain_based': None, 'conditions': None, 'reports_waiting_time': None}
+[2025-02-27 02:09:34] [Spamcheck] [Update Bison] Found spamcheck: Karpos All Accounts Test with status paused
+[2025-02-27 02:09:34] [Spamcheck] [Update Bison] Starting transaction for update
+[2025-02-27 02:09:34] [Spamcheck] [Update Bison] Performing simple update with direct SQL
+[2025-02-27 02:09:34] [Spamcheck] [Update Bison] Will update subject
+[2025-02-27 02:09:34] [Spamcheck] [Update Bison] Simple update completed, 1 rows affected
