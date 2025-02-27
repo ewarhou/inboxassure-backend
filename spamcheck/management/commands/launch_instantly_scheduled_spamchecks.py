@@ -44,7 +44,11 @@ Runs via cron: * * * * * (every minute)
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.db.models import Q
-from spamcheck.models import UserSpamcheck, UserSpamcheckCampaigns
+from spamcheck.models import (
+    UserSpamcheck, 
+    UserSpamcheckCampaigns,
+    SpamcheckErrorLog
+)
 from settings.models import UserSettings, UserInstantly
 import aiohttp
 import asyncio
@@ -56,6 +60,7 @@ import requests
 import random
 from itertools import groupby
 from operator import attrgetter
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -333,6 +338,23 @@ class Command(BaseCommand):
 
                 except Exception as e:
                     self.stdout.write(self.style.ERROR(f"Error processing account {account.email_account}: {str(e)}"))
+                    
+                    # Log the error
+                    try:
+                        await asyncio.to_thread(
+                            SpamcheckErrorLog.objects.create,
+                            user=spamcheck.user,
+                            spamcheck=spamcheck,
+                            error_type='processing_error',
+                            provider='instantly',
+                            error_message=f"Error processing account {account.email_account}: {str(e)}",
+                            error_details={'full_error': str(e), 'traceback': traceback.format_exc()},
+                            account_email=account.email_account,
+                            step='process_account'
+                        )
+                    except Exception as log_error:
+                        self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
+                    
                     # Update spamcheck status to failed
                     spamcheck.status = 'failed'
                     await asyncio.to_thread(spamcheck.save)
@@ -348,6 +370,22 @@ class Command(BaseCommand):
 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Error processing spamcheck {spamcheck.id}: {str(e)}"))
+            
+            # Log the error
+            try:
+                await asyncio.to_thread(
+                    SpamcheckErrorLog.objects.create,
+                    user=spamcheck.user,
+                    spamcheck=spamcheck,
+                    error_type='processing_error',
+                    provider='instantly',
+                    error_message=f"Error processing spamcheck {spamcheck.id}: {str(e)}",
+                    error_details={'full_error': str(e), 'traceback': traceback.format_exc()},
+                    step='process_spamcheck'
+                )
+            except Exception as log_error:
+                self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
+            
             # Update spamcheck status to failed
             spamcheck.status = 'failed'
             await asyncio.to_thread(spamcheck.save)

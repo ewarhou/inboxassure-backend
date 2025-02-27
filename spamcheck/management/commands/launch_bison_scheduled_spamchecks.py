@@ -38,7 +38,11 @@ Runs via cron: * * * * * (every minute)
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.db.models import Q
-from spamcheck.models import UserSpamcheckBison, UserSpamcheckAccountsBison, UserSpamcheckReport
+from spamcheck.models import (
+    UserSpamcheckBison, 
+    UserSpamcheckAccountsBison,
+    SpamcheckErrorLog
+)
 from settings.models import UserSettings, UserBison
 import aiohttp
 import asyncio
@@ -50,6 +54,7 @@ import random
 from itertools import groupby
 from operator import attrgetter
 from django.db import transaction
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -213,6 +218,21 @@ class Command(BaseCommand):
             
             if not user_settings.emailguard_api_key or not user_settings.emailguard_status:
                 self.stdout.write(self.style.ERROR("EmailGuard is not properly configured. Please check API key and connection status."))
+                
+                # Log the error
+                try:
+                    await asyncio.to_thread(
+                        SpamcheckErrorLog.objects.create,
+                        user=spamcheck.user,
+                        bison_spamcheck=spamcheck,
+                        error_type='configuration_error',
+                        provider='emailguard',
+                        error_message="EmailGuard is not properly configured. Please check API key and connection status.",
+                        step='check_emailguard_configuration'
+                    )
+                except Exception as log_error:
+                    self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
+                
                 spamcheck.status = 'failed'
                 await asyncio.to_thread(spamcheck.save)
                 return False
@@ -304,6 +324,22 @@ class Command(BaseCommand):
                             
                     except Exception as e:
                         self.stdout.write(self.style.ERROR(f"Error processing domain {domain}: {str(e)}"))
+                        
+                        # Log the error
+                        try:
+                            await asyncio.to_thread(
+                                SpamcheckErrorLog.objects.create,
+                                user=spamcheck.user,
+                                bison_spamcheck=spamcheck,
+                                error_type='processing_error',
+                                provider='bison',
+                                error_message=f"Error processing domain {domain}: {str(e)}",
+                                error_details={'full_error': str(e), 'traceback': traceback.format_exc()},
+                                step='process_domain'
+                            )
+                        except Exception as log_error:
+                            self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
+                        
                         spamcheck.status = 'failed'
                         await asyncio.to_thread(spamcheck.save)
                         return False
@@ -352,6 +388,23 @@ class Command(BaseCommand):
 
                     except Exception as e:
                         self.stdout.write(self.style.ERROR(f"Error processing account {account.email_account}: {str(e)}"))
+                        
+                        # Log the error
+                        try:
+                            await asyncio.to_thread(
+                                SpamcheckErrorLog.objects.create,
+                                user=spamcheck.user,
+                                bison_spamcheck=spamcheck,
+                                error_type='processing_error',
+                                provider='bison',
+                                error_message=f"Error processing account {account.email_account}: {str(e)}",
+                                error_details={'full_error': str(e), 'traceback': traceback.format_exc()},
+                                account_email=account.email_account,
+                                step='process_account'
+                            )
+                        except Exception as log_error:
+                            self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
+                        
                         spamcheck.status = 'failed'
                         await asyncio.to_thread(spamcheck.save)
                         return False
@@ -364,12 +417,44 @@ class Command(BaseCommand):
                 await asyncio.to_thread(spamcheck.save)
                 return True
             else:
+                self.stdout.write(self.style.ERROR(f"No accounts were successfully processed for spamcheck {spamcheck.id}"))
+                
+                # Log the error
+                try:
+                    await asyncio.to_thread(
+                        SpamcheckErrorLog.objects.create,
+                        user=spamcheck.user,
+                        bison_spamcheck=spamcheck,
+                        error_type='processing_error',
+                        provider='bison',
+                        error_message=f"No accounts were successfully processed for spamcheck {spamcheck.id}",
+                        step='process_accounts'
+                    )
+                except Exception as log_error:
+                    self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
+                
                 spamcheck.status = 'failed'
                 await asyncio.to_thread(spamcheck.save)
                 return False
 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Error processing spamcheck {spamcheck.id}: {str(e)}"))
+            
+            # Log the error
+            try:
+                await asyncio.to_thread(
+                    SpamcheckErrorLog.objects.create,
+                    user=spamcheck.user,
+                    bison_spamcheck=spamcheck,
+                    error_type='processing_error',
+                    provider='bison',
+                    error_message=f"Error processing spamcheck {spamcheck.id}: {str(e)}",
+                    error_details={'full_error': str(e), 'traceback': traceback.format_exc()},
+                    step='process_spamcheck'
+                )
+            except Exception as log_error:
+                self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
+            
             spamcheck.status = 'failed'
             await asyncio.to_thread(spamcheck.save)
             return False
