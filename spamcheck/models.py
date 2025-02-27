@@ -274,4 +274,64 @@ class UserSpamcheckBisonReport(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"Bison Spam Check Report for {self.email_account}"
+        return f"Bison Report for {self.email_account} ({self.id})"
+
+
+class SpamcheckErrorLog(models.Model):
+    """
+    Model to log errors that occur during spamcheck execution.
+    This helps in debugging and troubleshooting failed spamchecks.
+    """
+    ERROR_TYPES = [
+        ('api_error', 'API Error'),
+        ('connection_error', 'Connection Error'),
+        ('authentication_error', 'Authentication Error'),
+        ('validation_error', 'Validation Error'),
+        ('timeout_error', 'Timeout Error'),
+        ('unknown_error', 'Unknown Error')
+    ]
+    
+    PROVIDER_CHOICES = [
+        ('instantly', 'Instantly'),
+        ('emailguard', 'EmailGuard'),
+        ('bison', 'Bison'),
+        ('system', 'System')
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='spamcheck_error_logs')
+    spamcheck = models.ForeignKey(
+        UserSpamcheck, 
+        on_delete=models.CASCADE, 
+        related_name='error_logs',
+        null=True,
+        blank=True,
+        help_text='The spamcheck that encountered the error'
+    )
+    bison_spamcheck = models.ForeignKey(
+        UserSpamcheckBison, 
+        on_delete=models.CASCADE, 
+        related_name='error_logs',
+        null=True,
+        blank=True,
+        help_text='The Bison spamcheck that encountered the error'
+    )
+    error_type = models.CharField(max_length=50, choices=ERROR_TYPES, default='unknown_error')
+    provider = models.CharField(max_length=20, choices=PROVIDER_CHOICES, default='system')
+    error_message = models.TextField(help_text='The error message returned by the API or system')
+    error_details = models.JSONField(null=True, blank=True, help_text='Additional details about the error in JSON format')
+    account_email = models.EmailField(null=True, blank=True, help_text='The email account being processed when the error occurred')
+    step = models.CharField(max_length=255, null=True, blank=True, help_text='The step in the process where the error occurred')
+    api_endpoint = models.CharField(max_length=255, null=True, blank=True, help_text='The API endpoint that returned the error')
+    status_code = models.IntegerField(null=True, blank=True, help_text='The HTTP status code returned by the API')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'spamcheck_error_logs'
+        verbose_name = 'Spamcheck Error Log'
+        verbose_name_plural = 'Spamcheck Error Logs'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        spamcheck_name = self.spamcheck.name if self.spamcheck else (self.bison_spamcheck.name if self.bison_spamcheck else "Unknown")
+        return f"Error in {spamcheck_name}: {self.error_type} - {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"

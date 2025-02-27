@@ -6,7 +6,7 @@ from django.db import transaction, IntegrityError, connection
 from django.core.exceptions import ObjectDoesNotExist
 from authentication.authorization import AuthBearer
 from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema, ListAccountsRequestSchema, ListAccountsResponseSchema, ListSpamchecksResponseSchema, CreateSpamcheckBisonSchema, UpdateSpamcheckBisonSchema, SpamcheckBisonDetailsResponseSchema, BisonAccountsReportsResponseSchema, CampaignCopyResponse
-from .models import UserSpamcheck, UserSpamcheckAccounts, UserSpamcheckCampaignOptions, UserSpamcheckCampaigns, UserSpamcheckReport, UserSpamcheckBison, UserSpamcheckAccountsBison, UserSpamcheckBisonReport
+from .models import UserSpamcheck, UserSpamcheckAccounts, UserSpamcheckCampaignOptions, UserSpamcheckCampaigns, UserSpamcheckReport, UserSpamcheckBison, UserSpamcheckAccountsBison, UserSpamcheckBisonReport, SpamcheckErrorLog
 from settings.models import UserInstantly, UserSettings, UserBison
 import requests
 from django.conf import settings
@@ -357,6 +357,7 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
     Launch a spamcheck immediately
     """
     user = request.auth
+    spamcheck = None
     
     try:
         # Get the spamcheck and verify ownership
@@ -379,35 +380,85 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
         try:
             user_settings = UserSettings.objects.get(user=user)
         except UserSettings.DoesNotExist:
+            error_message = "User settings not found. Please configure API keys first."
+            # Log the error
+            SpamcheckErrorLog.objects.create(
+                user=user,
+                spamcheck=spamcheck,
+                error_type='validation_error',
+                provider='system',
+                error_message=error_message,
+                step='initialization'
+            )
             return {
                 "success": False,
-                "message": "User settings not found. Please configure API keys first."
+                "message": error_message
             }
             
         # Verify user settings and tokens
         if not user_settings.emailguard_api_key:
+            error_message = "EmailGuard API key not found. Please configure it first."
+            # Log the error
+            SpamcheckErrorLog.objects.create(
+                user=user,
+                spamcheck=spamcheck,
+                error_type='authentication_error',
+                provider='emailguard',
+                error_message=error_message,
+                step='initialization'
+            )
             return {
                 "success": False,
-                "message": "EmailGuard API key not found. Please configure it first."
+                "message": error_message
             }
             
         if not user_settings.instantly_user_token or not user_settings.instantly_status:
+            error_message = "Instantly user token not found or inactive. Please reconnect your Instantly account."
+            # Log the error
+            SpamcheckErrorLog.objects.create(
+                user=user,
+                spamcheck=spamcheck,
+                error_type='authentication_error',
+                provider='instantly',
+                error_message=error_message,
+                step='initialization'
+            )
             return {
                 "success": False,
-                "message": "Instantly user token not found or inactive. Please reconnect your Instantly account."
+                "message": error_message
             }
             
         # Verify organization status and tokens
         if not spamcheck.user_organization.instantly_organization_status:
+            error_message = "Selected Instantly organization is not active. Please activate it first."
+            # Log the error
+            SpamcheckErrorLog.objects.create(
+                user=user,
+                spamcheck=spamcheck,
+                error_type='authentication_error',
+                provider='instantly',
+                error_message=error_message,
+                step='organization_validation'
+            )
             return {
                 "success": False,
-                "message": "Selected Instantly organization is not active. Please activate it first."
+                "message": error_message
             }
             
         if not spamcheck.user_organization.instantly_organization_token:
+            error_message = "Organization token not found. Please reconnect the organization."
+            # Log the error
+            SpamcheckErrorLog.objects.create(
+                user=user,
+                spamcheck=spamcheck,
+                error_type='authentication_error',
+                provider='instantly',
+                error_message=error_message,
+                step='organization_validation'
+            )
             return {
                 "success": False,
-                "message": "Organization token not found. Please reconnect the organization."
+                "message": error_message
             }
             
         # Start transaction and set status to in_progress at the beginning
@@ -419,9 +470,22 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
             # Get accounts
             accounts = spamcheck.accounts.all()
             if not accounts:
+                error_message = "No accounts found for this spamcheck."
+                # Log the error
+                SpamcheckErrorLog.objects.create(
+                    user=user,
+                    spamcheck=spamcheck,
+                    error_type='validation_error',
+                    provider='system',
+                    error_message=error_message,
+                    step='account_validation'
+                )
+                # Set status back to failed
+                spamcheck.status = 'failed'
+                spamcheck.save()
                 return {
                     "success": False,
-                    "message": "No accounts found for this spamcheck."
+                    "message": error_message
                 }
                 
             # For each account
@@ -659,12 +723,79 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
                     print(f"{'='*50}\n")
                     
                 except Exception as e:
-                    print(f"Error processing account {account.email_account}: {str(e)}")
+                    error_message = f"Error processing account {account.email_account}: {str(e)}"
+                    print(error_message)
+                    
+                    # Determine error type and provider based on the exception message
+                    error_type = 'unknown_error'
+                    provider = 'system'
+                    step = 'unknown'
+                    api_endpoint = None
+                    status_code = None
+                    
+                    if "Failed to update account limit" in str(e):
+                        error_type = 'api_error'
+                        provider = 'instantly'
+                        step = 'update_account_limit'
+                        api_endpoint = "https://app.instantly.ai/backend/api/v1/account/update/bulk"
+                    elif "Failed to get EmailGuard tag" in str(e):
+                        error_type = 'api_error'
+                        provider = 'emailguard'
+                        step = 'get_emailguard_tag'
+                        api_endpoint = "https://app.emailguard.io/api/v1/inbox-placement-tests"
+                    elif "Failed to create campaign" in str(e):
+                        error_type = 'api_error'
+                        provider = 'instantly'
+                        step = 'create_campaign'
+                        api_endpoint = "https://api.instantly.ai/api/v2/campaigns"
+                    elif "Failed to add leads" in str(e):
+                        error_type = 'api_error'
+                        provider = 'instantly'
+                        step = 'add_leads'
+                        api_endpoint = "https://app.instantly.ai/backend/api/v1/lead/add"
+                    elif "Failed to launch campaign" in str(e):
+                        error_type = 'api_error'
+                        provider = 'instantly'
+                        step = 'launch_campaign'
+                        api_endpoint = "https://api.instantly.ai/api/v2/campaigns/{campaign_id}/activate"
+                    elif "timeout" in str(e).lower():
+                        error_type = 'timeout_error'
+                    elif "connection" in str(e).lower():
+                        error_type = 'connection_error'
+                    
+                    # Extract status code if present in the error message
+                    import re
+                    status_code_match = re.search(r'status code (\d+)', str(e))
+                    if status_code_match:
+                        try:
+                            status_code = int(status_code_match.group(1))
+                        except:
+                            pass
+                    
+                    # Log the error
+                    SpamcheckErrorLog.objects.create(
+                        user=user,
+                        spamcheck=spamcheck,
+                        error_type=error_type,
+                        provider=provider,
+                        error_message=str(e),
+                        error_details={
+                            'full_error': str(e),
+                            'account_email': account.email_account
+                        },
+                        account_email=account.email_account,
+                        step=step,
+                        api_endpoint=api_endpoint,
+                        status_code=status_code
+                    )
+                    
+                    # Update spamcheck status to failed
                     spamcheck.status = 'failed'
                     spamcheck.save()
+                    
                     return {
                         "success": False,
-                        "message": f"Error processing account {account.email_account}: {str(e)}"
+                        "message": error_message
                     }
             
             return {
@@ -679,14 +810,41 @@ def launch_spamcheck_instantly(request, payload: LaunchSpamcheckSchema):
             }
             
     except UserSpamcheck.DoesNotExist:
+        error_message = f"Spamcheck with ID {payload.spamcheck_id} not found or you don't have permission to launch it."
+        # Log the error
+        SpamcheckErrorLog.objects.create(
+            user=user,
+            error_type='validation_error',
+            provider='system',
+            error_message=error_message,
+            step='spamcheck_lookup'
+        )
         return {
             "success": False,
-            "message": f"Spamcheck with ID {payload.spamcheck_id} not found or you don't have permission to launch it."
+            "message": error_message
         }
     except Exception as e:
+        error_message = f"Error launching spamcheck: {str(e)}. Please try again or contact support if the issue persists."
+        
+        # Log the error
+        SpamcheckErrorLog.objects.create(
+            user=user,
+            spamcheck=spamcheck if spamcheck else None,
+            error_type='unknown_error',
+            provider='system',
+            error_message=str(e),
+            error_details={'full_error': str(e)},
+            step='general'
+        )
+        
+        # If we have a spamcheck object, update its status to failed
+        if spamcheck:
+            spamcheck.status = 'failed'
+            spamcheck.save()
+            
         return {
             "success": False,
-            "message": f"Error launching spamcheck: {str(e)}. Please try again or contact support if the issue persists."
+            "message": error_message
         }
 
 @router.post("/clear-organization-spamchecks/{organization_id}", auth=AuthBearer())

@@ -9,9 +9,10 @@ This command handles recurring spamchecks by:
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from spamcheck.models import UserSpamcheck, UserSpamcheckBison
+from spamcheck.models import UserSpamcheck, UserSpamcheckBison, SpamcheckErrorLog
 from datetime import timedelta
 import logging
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +82,28 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"✓ Updated Instantly spamcheck {spamcheck.id}"))
 
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"Error processing Instantly spamcheck {spamcheck.id}: {str(e)}"))
+                error_message = f"Error processing Instantly spamcheck {spamcheck.id}: {str(e)}"
+                self.stdout.write(self.style.ERROR(error_message))
+                
+                # Log the error
+                try:
+                    SpamcheckErrorLog.objects.create(
+                        user=spamcheck.user,
+                        spamcheck=spamcheck,
+                        error_type='recurring_error',
+                        provider='system',
+                        error_message=error_message,
+                        error_details={'full_error': str(e), 'traceback': traceback.format_exc()},
+                        step='process_recurring_instantly'
+                    )
+                    
+                    # Update spamcheck status to failed
+                    spamcheck.status = 'failed'
+                    spamcheck.save()
+                    
+                except Exception as log_error:
+                    self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
+                
                 continue
     
     def process_bison_spamchecks(self, now, one_hour_ago):
@@ -130,5 +152,26 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"✓ Updated Bison spamcheck {spamcheck.id}"))
 
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"Error processing Bison spamcheck {spamcheck.id}: {str(e)}"))
+                error_message = f"Error processing Bison spamcheck {spamcheck.id}: {str(e)}"
+                self.stdout.write(self.style.ERROR(error_message))
+                
+                # Log the error
+                try:
+                    SpamcheckErrorLog.objects.create(
+                        user=spamcheck.user,
+                        bison_spamcheck=spamcheck,
+                        error_type='recurring_error',
+                        provider='system',
+                        error_message=error_message,
+                        error_details={'full_error': str(e), 'traceback': traceback.format_exc()},
+                        step='process_recurring_bison'
+                    )
+                    
+                    # Update spamcheck status to failed
+                    spamcheck.status = 'failed'
+                    spamcheck.save()
+                    
+                except Exception as log_error:
+                    self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
+                
                 continue 

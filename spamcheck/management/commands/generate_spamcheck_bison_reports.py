@@ -38,7 +38,8 @@ from django.db.models import Q, F
 from spamcheck.models import (
     UserSpamcheckBison,
     UserSpamcheckAccountsBison,
-    UserSpamcheckBisonReport
+    UserSpamcheckBisonReport,
+    SpamcheckErrorLog
 )
 from settings.models import UserSettings
 from asgiref.sync import sync_to_async
@@ -278,6 +279,18 @@ class Command(BaseCommand):
             if not account.last_emailguard_tag:
                 self.stdout.write(f"   ⚠️ No EmailGuard tag for account {account.email_account}")
                 self.skipped_accounts.append(f"{account.email_account} (No EmailGuard tag)")
+                
+                # Log the error
+                await asyncio.to_thread(
+                    SpamcheckErrorLog.objects.create,
+                    user=account.bison_spamcheck.user,
+                    bison_spamcheck=account.bison_spamcheck,
+                    error_type='validation_error',
+                    provider='emailguard',
+                    error_message=f"No EmailGuard tag for account {account.email_account}",
+                    account_email=account.email_account,
+                    step='report_generation'
+                )
                 return False
             
             # Get EmailGuard report
@@ -355,6 +368,17 @@ class Command(BaseCommand):
                                 self.stdout.write(f"   ✅ Successfully processed {domain_account.email_account}")
                             else:
                                 self.stdout.write(f"   ❌ Failed to update sending limit for {domain_account.email_account}")
+                                # Log the error
+                                await asyncio.to_thread(
+                                    SpamcheckErrorLog.objects.create,
+                                    user=account.bison_spamcheck.user,
+                                    bison_spamcheck=account.bison_spamcheck,
+                                    error_type='api_error',
+                                    provider='bison',
+                                    error_message=f"Failed to update sending limit for {domain_account.email_account}",
+                                    account_email=domain_account.email_account,
+                                    step='update_sending_limit'
+                                )
                     else:
                         # Single account processing
                         self.stdout.write(f"   📝 Creating report for {account.email_account}")
@@ -385,20 +409,76 @@ class Command(BaseCommand):
                             self.stdout.write(f"   ✅ Successfully processed {account.email_account}")
                         else:
                             self.stdout.write(f"   ❌ Failed to update sending limit for {account.email_account}")
+                            # Log the error
+                            await asyncio.to_thread(
+                                SpamcheckErrorLog.objects.create,
+                                user=account.bison_spamcheck.user,
+                                bison_spamcheck=account.bison_spamcheck,
+                                error_type='api_error',
+                                provider='bison',
+                                error_message=f"Failed to update sending limit for {account.email_account}",
+                                account_email=account.email_account,
+                                step='update_sending_limit'
+                            )
 
                     return True
                 else:
                     self.stdout.write(self.style.ERROR(f"   ❌ EmailGuard API failed for {account.email_account}: {response.status_code}"))
                     self.failed_accounts.append(f"{account.email_account} (EmailGuard API failed: {response.status_code})")
+                    
+                    # Log the error
+                    await asyncio.to_thread(
+                        SpamcheckErrorLog.objects.create,
+                        user=account.bison_spamcheck.user,
+                        bison_spamcheck=account.bison_spamcheck,
+                        error_type='api_error',
+                        provider='emailguard',
+                        error_message=f"EmailGuard API failed with status code {response.status_code}",
+                        account_email=account.email_account,
+                        step='fetch_emailguard_report',
+                        api_endpoint=url,
+                        status_code=response.status_code
+                    )
                     return False
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"   ❌ Error fetching EmailGuard report for {account.email_account}: {str(e)}"))
                 self.failed_accounts.append(f"{account.email_account} (Error fetching report: {str(e)})")
+                
+                # Log the error
+                await asyncio.to_thread(
+                    SpamcheckErrorLog.objects.create,
+                    user=account.bison_spamcheck.user,
+                    bison_spamcheck=account.bison_spamcheck,
+                    error_type='connection_error' if 'connection' in str(e).lower() else 'unknown_error',
+                    provider='emailguard',
+                    error_message=str(e),
+                    error_details={'full_error': str(e)},
+                    account_email=account.email_account,
+                    step='fetch_emailguard_report',
+                    api_endpoint=url
+                )
                 return False
 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"   ❌ Error processing account {account.email_account}: {str(e)}"))
             self.failed_accounts.append(f"{account.email_account} (Processing error: {str(e)})")
+            
+            # Log the error
+            try:
+                await asyncio.to_thread(
+                    SpamcheckErrorLog.objects.create,
+                    user=account.bison_spamcheck.user,
+                    bison_spamcheck=account.bison_spamcheck,
+                    error_type='unknown_error',
+                    provider='system',
+                    error_message=str(e),
+                    error_details={'full_error': str(e)},
+                    account_email=account.email_account,
+                    step='process_account'
+                )
+            except Exception as log_error:
+                self.stdout.write(self.style.ERROR(f"   ❌ Error logging error: {str(log_error)}"))
+            
             return False
 
     async def process_spamcheck(self, spamcheck):
@@ -414,6 +494,22 @@ class Command(BaseCommand):
                 user_settings = await self.get_user_settings(spamcheck.user)
             except UserSettings.DoesNotExist:
                 self.stdout.write(self.style.ERROR(f"❌ User settings not found for spamcheck {spamcheck.id}"))
+                
+                # Log the error
+                await asyncio.to_thread(
+                    SpamcheckErrorLog.objects.create,
+                    user=spamcheck.user,
+                    bison_spamcheck=spamcheck,
+                    error_type='validation_error',
+                    provider='system',
+                    error_message=f"User settings not found for spamcheck {spamcheck.id}",
+                    step='get_user_settings'
+                )
+                
+                # Set spamcheck status to failed
+                spamcheck.status = 'failed'
+                await asyncio.to_thread(spamcheck.save)
+                
                 return False
 
             # Get accounts with related data prefetched
@@ -423,6 +519,22 @@ class Command(BaseCommand):
 
             if not accounts:
                 self.stdout.write(self.style.WARNING(f"⚠️ No accounts found for spamcheck {spamcheck.id}"))
+                
+                # Log the error
+                await asyncio.to_thread(
+                    SpamcheckErrorLog.objects.create,
+                    user=spamcheck.user,
+                    bison_spamcheck=spamcheck,
+                    error_type='validation_error',
+                    provider='system',
+                    error_message=f"No accounts found for spamcheck {spamcheck.id}",
+                    step='get_accounts'
+                )
+                
+                # Set spamcheck status to failed
+                spamcheck.status = 'failed'
+                await asyncio.to_thread(spamcheck.save)
+                
                 return False
 
             self.stdout.write(f"\n📊 Processing spamcheck {spamcheck.id}:")
@@ -592,6 +704,27 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"❌ Error processing spamcheck {spamcheck.id}: {str(e)}"))
             import traceback
             self.stdout.write(self.style.ERROR(traceback.format_exc()))
+            
+            # Log the error
+            try:
+                await asyncio.to_thread(
+                    SpamcheckErrorLog.objects.create,
+                    user=spamcheck.user,
+                    bison_spamcheck=spamcheck,
+                    error_type='unknown_error',
+                    provider='system',
+                    error_message=str(e),
+                    error_details={'full_error': str(e), 'traceback': traceback.format_exc()},
+                    step='process_spamcheck'
+                )
+                
+                # Set spamcheck status to failed
+                spamcheck.status = 'failed'
+                await asyncio.to_thread(spamcheck.save)
+                
+            except Exception as log_error:
+                self.stdout.write(self.style.ERROR(f"❌ Error logging error: {str(log_error)}"))
+                
             return False
 
     async def get_ready_spamchecks(self):
