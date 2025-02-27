@@ -1,0 +1,3 @@
+[2025-02-27 01:18:47] [Spamcheck] [TogglePause] User dev@vitalitymarketingfirm.com toggling pause for Bison spamcheck ID 24
+[2025-02-27 01:18:48] [BisonCampaigns] [Signal] Spamcheck status is paused, not triggering API calls
+[2025-02-27 01:18:48] [Spamcheck] [TogglePause] Successfully toggled Bison spamcheck 'All Accounts CoachPro Edited' to paused

@@ -1804,6 +1804,57 @@ def delete_spamcheck_bison(request, spamcheck_id: int):
             "message": f"Error deleting spamcheck: {str(e)}"
         }
 
+@router.post("/toggle-pause-bison/{spamcheck_id}", auth=AuthBearer())
+def toggle_pause_spamcheck_bison(request, spamcheck_id: int):
+    """
+    Toggle Bison spamcheck between paused and pending status.
+    Only works if current status is paused, pending, or completed.
+    """
+    user = request.auth
+    log_to_terminal("Spamcheck", "TogglePause", f"User {user.email} toggling pause for Bison spamcheck ID {spamcheck_id}")
+    
+    try:
+        # Get the spamcheck and verify ownership
+        spamcheck = get_object_or_404(UserSpamcheckBison, id=spamcheck_id, user=user)
+        
+        # Check if status allows toggling
+        if spamcheck.status not in ['pending', 'paused', 'completed']:
+            log_to_terminal("Spamcheck", "TogglePause", f"Cannot toggle pause for spamcheck with status '{spamcheck.status}'")
+            return {
+                "success": False,
+                "message": f"Cannot toggle pause for spamcheck with status '{spamcheck.status}'. Only pending, paused, or completed spamchecks can be toggled."
+            }
+        
+        # Toggle status
+        new_status = 'paused' if spamcheck.status in ['pending', 'completed'] else 'pending'
+        spamcheck.status = new_status
+        spamcheck.save()
+        
+        log_to_terminal("Spamcheck", "TogglePause", f"Successfully toggled Bison spamcheck '{spamcheck.name}' to {new_status}")
+        
+        return {
+            "success": True,
+            "message": f"Spamcheck '{spamcheck.name}' is now {new_status}",
+            "data": {
+                "id": spamcheck.id,
+                "name": spamcheck.name,
+                "status": new_status
+            }
+        }
+        
+    except UserSpamcheckBison.DoesNotExist:
+        log_to_terminal("Spamcheck", "TogglePause", f"Bison spamcheck with ID {spamcheck_id} not found")
+        return {
+            "success": False,
+            "message": f"Spamcheck with ID {spamcheck_id} not found or you don't have permission to modify it."
+        }
+    except Exception as e:
+        log_to_terminal("Spamcheck", "TogglePause", f"Error toggling Bison spamcheck pause status: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Error toggling spamcheck pause status: {str(e)}"
+        }
+
 @router.get(
     "/get-spamcheck/{spamcheck_id}",
     response=SpamcheckBisonDetailsResponseSchema,

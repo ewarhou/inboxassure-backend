@@ -448,3 +448,35 @@
   }
 }
 ```
+
+### 6. Toggle Pause Bison Spamcheck
+
+**Endpoint:** `POST /api/spamcheck/toggle-pause-bison/{spamcheck_id}`
+
+**Authentication:** Bearer Token
+
+**Description:** Toggle a Bison spamcheck between paused and pending status. This endpoint allows you to pause a running spamcheck or resume a paused one. Only works if the current status is paused, pending, or completed.
+
+**Parameters:**
+- `spamcheck_id`: ID of the Bison spamcheck to toggle
+
+**Response:** Toggle result with the following fields:
+- `success`: Boolean indicating if the toggle was successful
+- `message`: Status message
+- `data`: Updated spamcheck details with:
+  - `id`: Spamcheck ID
+  - `name`: Spamcheck name
+  - `status`: New status (paused or pending)
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Spamcheck 'Weekly Deliverability Test' is now paused",
+  "data": {
+    "id": 123,
+    "name": "Weekly Deliverability Test",
+    "status": "paused"
+  }
+}
+```

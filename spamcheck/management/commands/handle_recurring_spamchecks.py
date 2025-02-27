@@ -1,6 +1,6 @@
 """
 This command handles recurring spamchecks by:
-1. Finding completed spamchecks with recurring_days set
+1. Finding completed spamchecks with recurring_days set (both Instantly and Bison)
 2. If completed for more than 1 hour:
    - Sets status back to pending
    - Updates scheduled_at to recurring_days after original schedule
@@ -9,14 +9,14 @@ This command handles recurring spamchecks by:
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from spamcheck.models import UserSpamcheck
+from spamcheck.models import UserSpamcheck, UserSpamcheckBison
 from datetime import timedelta
 import logging
 
 logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
-    help = 'Handle recurring spamchecks'
+    help = 'Handle recurring spamchecks for both Instantly and Bison'
 
     def handle(self, *args, **options):
         """Entry point for the command"""
@@ -27,6 +27,20 @@ class Command(BaseCommand):
         self.stdout.write(f"Handling recurring spamchecks at {now}")
         self.stdout.write(f"{'='*50}\n")
 
+        # Process Instantly spamchecks
+        self.process_instantly_spamchecks(now, one_hour_ago)
+        
+        # Process Bison spamchecks
+        self.process_bison_spamchecks(now, one_hour_ago)
+
+        self.stdout.write("\nDone handling all recurring spamchecks")
+    
+    def process_instantly_spamchecks(self, now, one_hour_ago):
+        """Process Instantly spamchecks with recurring settings"""
+        self.stdout.write(f"\n{'-'*50}")
+        self.stdout.write("Processing Instantly spamchecks")
+        self.stdout.write(f"{'-'*50}\n")
+        
         # Find completed spamchecks with recurring_days
         spamchecks = UserSpamcheck.objects.filter(
             status='completed',
@@ -38,14 +52,14 @@ class Command(BaseCommand):
         )
 
         if not spamchecks:
-            self.stdout.write("No recurring spamchecks to handle")
+            self.stdout.write("No recurring Instantly spamchecks to handle")
             return
 
-        self.stdout.write(f"Found {spamchecks.count()} spamchecks to handle")
+        self.stdout.write(f"Found {spamchecks.count()} Instantly spamchecks to handle")
 
         for spamcheck in spamchecks:
             try:
-                self.stdout.write(f"\nProcessing spamcheck {spamcheck.id}:")
+                self.stdout.write(f"\nProcessing Instantly spamcheck {spamcheck.id}:")
                 self.stdout.write(f"- Name: {spamcheck.name}")
                 self.stdout.write(f"- Original schedule: {spamcheck.scheduled_at}")
                 self.stdout.write(f"- Recurring days: {spamcheck.recurring_days}")
@@ -64,10 +78,57 @@ class Command(BaseCommand):
                 spamcheck.scheduled_at = next_schedule
                 spamcheck.save()
 
-                self.stdout.write(self.style.SUCCESS(f"✓ Updated spamcheck {spamcheck.id}"))
+                self.stdout.write(self.style.SUCCESS(f"✓ Updated Instantly spamcheck {spamcheck.id}"))
 
             except Exception as e:
-                self.stdout.write(self.style.ERROR(f"Error processing spamcheck {spamcheck.id}: {str(e)}"))
+                self.stdout.write(self.style.ERROR(f"Error processing Instantly spamcheck {spamcheck.id}: {str(e)}"))
                 continue
+    
+    def process_bison_spamchecks(self, now, one_hour_ago):
+        """Process Bison spamchecks with recurring settings"""
+        self.stdout.write(f"\n{'-'*50}")
+        self.stdout.write("Processing Bison spamchecks")
+        self.stdout.write(f"{'-'*50}\n")
+        
+        # Find completed Bison spamchecks with recurring_days
+        bison_spamchecks = UserSpamcheckBison.objects.filter(
+            status='completed',
+            recurring_days__isnull=False,
+            recurring_days__gt=0,
+            updated_at__lte=one_hour_ago  # Completed for more than 1 hour
+        ).exclude(
+            status__in=['failed', 'paused']  # Skip failed and paused
+        )
 
-        self.stdout.write("\nDone handling recurring spamchecks") 
+        if not bison_spamchecks:
+            self.stdout.write("No recurring Bison spamchecks to handle")
+            return
+
+        self.stdout.write(f"Found {bison_spamchecks.count()} Bison spamchecks to handle")
+
+        for spamcheck in bison_spamchecks:
+            try:
+                self.stdout.write(f"\nProcessing Bison spamcheck {spamcheck.id}:")
+                self.stdout.write(f"- Name: {spamcheck.name}")
+                self.stdout.write(f"- Original schedule: {spamcheck.scheduled_at}")
+                self.stdout.write(f"- Recurring days: {spamcheck.recurring_days}")
+
+                # Calculate next schedule based on original schedule
+                if spamcheck.scheduled_at:
+                    next_schedule = spamcheck.scheduled_at + timedelta(days=spamcheck.recurring_days)
+                else:
+                    # If no original schedule, use current time as base
+                    next_schedule = now + timedelta(days=spamcheck.recurring_days)
+
+                self.stdout.write(f"- Next schedule: {next_schedule}")
+
+                # Update spamcheck
+                spamcheck.status = 'pending'
+                spamcheck.scheduled_at = next_schedule
+                spamcheck.save()
+
+                self.stdout.write(self.style.SUCCESS(f"✓ Updated Bison spamcheck {spamcheck.id}"))
+
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Error processing Bison spamcheck {spamcheck.id}: {str(e)}"))
+                continue 
