@@ -184,7 +184,7 @@ class Command(BaseCommand):
             </style>
         </head>
         <body>
-            {message_body.replace('\n', '<br>')}
+            {message_body.replace(chr(10), '<br>')}
             <br><br>
             {filter_phrase}
         </body>
