@@ -126,7 +126,7 @@ class Command(BaseCommand):
 
     async def get_bison_account_id(self, session, email_account, bison_api_key, base_url):
         """Get Bison account ID and status for email account"""
-        url = f"{base_url}/api/sender-emails/{email_account}"
+        url = f"{base_url.rstrip('/')}/api/sender-emails/{email_account}"
         headers = {
             "Authorization": f"Bearer {bison_api_key}",
             "Content-Type": "application/json"
@@ -151,7 +151,7 @@ class Command(BaseCommand):
 
     async def send_bison_email(self, session, spamcheck, account, test_emails, bison_api_key, bison_account_id, filter_phrase, base_url):
         """Send email via Bison API"""
-        url = f"{base_url}/api/replies/new"
+        url = f"{base_url.rstrip('/')}/api/replies/new"
         headers = {
             "Authorization": f"Bearer {bison_api_key}",
             "Content-Type": "application/json"

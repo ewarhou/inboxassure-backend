@@ -185,7 +185,7 @@ class Command(BaseCommand):
     async def update_sending_limit(self, organization, email_id, daily_limit):
         """Update sending limit for email account in Bison"""
         try:
-            url = f"{organization.base_url}/api/sender-emails/{email_id}"
+            url = f"{organization.base_url.rstrip('/')}/api/sender-emails/{email_id}"
             headers = {
                 "Authorization": f"Bearer {organization.bison_organization_api_key}",
                 "Content-Type": "application/json"
