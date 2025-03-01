@@ -64,6 +64,7 @@ class Command(BaseCommand):
     def __init__(self):
         super().__init__()
         self.rate_limit = asyncio.Semaphore(10)  # Rate limit: 10 requests per second
+        self.server_error_count = 0  # Counter for server errors
 
     def get_domain_from_email(self, email):
         """Extract domain from email address"""
@@ -168,10 +169,34 @@ class Command(BaseCommand):
             for email in test_emails
         ]
         
+        # Format the message body as HTML for better formatting
+        # We'll keep the content_type parameter as 'text' if plain_text is enabled
+        # This way Bison will handle the HTML-to-text conversion properly
+        message_body = spamcheck.body
+        
+        # Add proper HTML formatting
+        formatted_message = f"""
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; }}
+                p {{ margin-bottom: 15px; }}
+            </style>
+        </head>
+        <body>
+            {message_body.replace('\n', '<br>')}
+            <br><br>
+            {filter_phrase}
+        </body>
+        </html>
+        """
+        
         data = {
             "subject": spamcheck.subject,
-            "message": f"{spamcheck.body}\n\n{filter_phrase}",
+            "message": formatted_message,
             "sender_email_id": bison_account_id,
+            # Keep content_type as 'text' if plain_text is enabled in spamcheck
+            # This tells Bison to handle the HTML-to-text conversion
             "content_type": "text" if spamcheck.plain_text else "html",
             "to_emails": to_emails
         }
@@ -192,6 +217,28 @@ class Command(BaseCommand):
                             return True
                         else:
                             raise Exception(f"Bison API returned success=false: {response_text}")
+                    elif response.status == 500 and "Server Error" in response_text:
+                        # Increment server error count
+                        self.server_error_count += 1
+                        self.stdout.write(self.style.WARNING(f"Bison Server Error detected (count: {self.server_error_count}). Skipping account."))
+                        
+                        # Log the error but don't fail the entire spamcheck
+                        await asyncio.to_thread(
+                            SpamcheckErrorLog.objects.create,
+                            user=spamcheck.user,
+                            bison_spamcheck=spamcheck,
+                            error_type='server_error',
+                            provider='bison',
+                            error_message=f"Bison Server Error when sending email for account {account.email_account}",
+                            error_details={'response': response_text},
+                            account_email=account.email_account,
+                            step='send_bison_email',
+                            api_endpoint=url,
+                            status_code=response.status
+                        )
+                        
+                        # Return False but don't raise exception to skip this account
+                        return False
                     elif response.status == 422:
                         self.stdout.write(self.style.ERROR(f"Validation error from Bison API: {response_text}"))
                         raise Exception(f"Validation error from Bison API: {response_text}")
@@ -205,6 +252,9 @@ class Command(BaseCommand):
         """Process a single spamcheck"""
         try:
             self.stdout.write(f"\nProcessing Bison spamcheck {spamcheck.id}")
+            
+            # Reset server error counter for this spamcheck
+            self.server_error_count = 0
             
             # Get required settings and tokens
             user_settings = await asyncio.to_thread(
@@ -323,7 +373,14 @@ class Command(BaseCommand):
                                 self.stdout.write(f"Skipping disconnected account: {account.email_account}")
                             
                     except Exception as e:
-                        self.stdout.write(self.style.ERROR(f"Error processing domain {domain}: {str(e)}"))
+                        error_message = str(e)
+                        self.stdout.write(self.style.ERROR(f"Error processing domain {domain}: {error_message}"))
+                        
+                        # Check if this is a server error that we're already tracking
+                        if "Failed to send email: 500 - " in error_message and "Server Error" in error_message:
+                            # Skip this domain but continue processing others
+                            self.stdout.write(self.style.WARNING(f"Skipping domain {domain} due to Bison Server Error"))
+                            continue
                         
                         # Log the error
                         try:
@@ -333,16 +390,25 @@ class Command(BaseCommand):
                                 bison_spamcheck=spamcheck,
                                 error_type='processing_error',
                                 provider='bison',
-                                error_message=f"Error processing domain {domain}: {str(e)}",
-                                error_details={'full_error': str(e), 'traceback': traceback.format_exc()},
+                                error_message=f"Error processing domain {domain}: {error_message}",
+                                error_details={'full_error': error_message, 'traceback': traceback.format_exc()},
                                 step='process_domain'
                             )
                         except Exception as log_error:
                             self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
                         
-                        spamcheck.status = 'failed'
-                        await asyncio.to_thread(spamcheck.save)
-                        return False
+                        # Only fail the spamcheck if we have 5 or more server errors
+                        if self.server_error_count >= 5:
+                            self.stdout.write(self.style.ERROR(f"Too many Bison Server Errors ({self.server_error_count}). Marking spamcheck as failed."))
+                            spamcheck.status = 'failed'
+                            await asyncio.to_thread(spamcheck.save)
+                            return False
+                        
+                        # For non-server errors, fail the spamcheck as before
+                        if "Server Error" not in error_message:
+                            spamcheck.status = 'failed'
+                            await asyncio.to_thread(spamcheck.save)
+                            return False
                         
             else:
                 # Non-domain based processing - one tag per account
@@ -387,7 +453,14 @@ class Command(BaseCommand):
                         successful_accounts += 1
 
                     except Exception as e:
-                        self.stdout.write(self.style.ERROR(f"Error processing account {account.email_account}: {str(e)}"))
+                        error_message = str(e)
+                        self.stdout.write(self.style.ERROR(f"Error processing account {account.email_account}: {error_message}"))
+                        
+                        # Check if this is a server error that we're already tracking
+                        if "Failed to send email: 500 - " in error_message and "Server Error" in error_message:
+                            # Skip this account but continue processing others
+                            self.stdout.write(self.style.WARNING(f"Skipping account {account.email_account} due to Bison Server Error"))
+                            continue
                         
                         # Log the error
                         try:
@@ -397,23 +470,30 @@ class Command(BaseCommand):
                                 bison_spamcheck=spamcheck,
                                 error_type='processing_error',
                                 provider='bison',
-                                error_message=f"Error processing account {account.email_account}: {str(e)}",
-                                error_details={'full_error': str(e), 'traceback': traceback.format_exc()},
+                                error_message=f"Error processing account {account.email_account}: {error_message}",
+                                error_details={'full_error': error_message, 'traceback': traceback.format_exc()},
                                 account_email=account.email_account,
                                 step='process_account'
                             )
                         except Exception as log_error:
                             self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
                         
-                        spamcheck.status = 'failed'
-                        await asyncio.to_thread(spamcheck.save)
-                        return False
+                        # Only fail the spamcheck if we have 5 or more server errors
+                        if self.server_error_count >= 5:
+                            self.stdout.write(self.style.ERROR(f"Too many Bison Server Errors ({self.server_error_count}). Marking spamcheck as failed."))
+                            spamcheck.status = 'failed'
+                            await asyncio.to_thread(spamcheck.save)
+                            return False
+                        
+                        # For non-server errors, fail the spamcheck as before
+                        if "Server Error" not in error_message:
+                            spamcheck.status = 'failed'
+                            await asyncio.to_thread(spamcheck.save)
+                            return False
 
             # Only update to in_progress if at least one account was successful
             if successful_accounts > 0:
                 spamcheck.status = 'in_progress'
-                if spamcheck.recurring_days:
-                    spamcheck.scheduled_at = timezone.now() + timedelta(days=spamcheck.recurring_days)
                 await asyncio.to_thread(spamcheck.save)
                 return True
             else:

@@ -362,8 +362,6 @@ class Command(BaseCommand):
 
             # Only update to in_progress if all accounts were processed successfully
             spamcheck.status = 'in_progress'
-            if spamcheck.recurring_days:
-                spamcheck.scheduled_at = timezone.now() + timedelta(days=spamcheck.recurring_days)
             await asyncio.to_thread(spamcheck.save)
 
             return True
