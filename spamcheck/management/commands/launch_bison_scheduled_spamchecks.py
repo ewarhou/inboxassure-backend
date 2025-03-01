@@ -255,6 +255,9 @@ class Command(BaseCommand):
             
             # Reset server error counter for this spamcheck
             self.server_error_count = 0
+            # Track failed domains and accounts for potential removal
+            failed_domains = set()
+            failed_accounts = set()
             
             # Get required settings and tokens
             user_settings = await asyncio.to_thread(
@@ -314,101 +317,138 @@ class Command(BaseCommand):
                 total_accounts = len(all_accounts)
                 
                 for domain, domain_accounts in accounts_by_domain.items():
-                    try:
-                        # Find a connected account for this domain
-                        connected_account = None
-                        for account in domain_accounts:
-                            account_info = await self.get_bison_account_id(
-                                session, account.email_account, 
-                                user_bison.bison_organization_api_key,
-                                user_settings.bison_base_url
-                            )
-                            if account_info['is_connected']:
-                                connected_account = account
-                                bison_account_id = account_info['id']
-                                break
-                        
-                        if not connected_account:
-                            self.stdout.write(f"\nSkipping domain {domain} - No connected accounts found")
-                            continue
-
-                        self.stdout.write(f"\nProcessing domain {domain} with {len(domain_accounts)} accounts")
-                        self.stdout.write(f"Representative account: {connected_account.email_account}")
-
-                        # Get one EmailGuard tag for the domain
-                        campaign_name = f"{spamcheck.name} - {domain}"
-                        tag, test_emails, filter_phrase = await self.get_emailguard_tag(
-                            session, campaign_name, user_settings.emailguard_api_key
-                        )
-                        
-                        self.stdout.write(f"Got EmailGuard tag for domain {domain}: {tag}")
-                        
-                        # Update all accounts in this domain with the same tag
-                        for account in domain_accounts:
-                            # Update tag in database
-                            await asyncio.to_thread(
-                                lambda: UserSpamcheckAccountsBison.objects.filter(id=account.id).update(
-                                    last_emailguard_tag=tag,
-                                    updated_at=timezone.now()
-                                )
-                            )
+                    domain_success = False
+                    domain_attempts = 0
+                    domain_max_attempts = len(domain_accounts)  # Try all accounts in domain if needed
+                    
+                    # Try accounts in this domain until one succeeds or we run out of accounts
+                    while not domain_success and domain_attempts < domain_max_attempts:
+                        domain_attempts += 1
+                        try:
+                            # Get next account to try
+                            current_account = domain_accounts[domain_attempts - 1]
+                            self.stdout.write(f"\nAttempt {domain_attempts}/{domain_max_attempts} for domain {domain}")
+                            self.stdout.write(f"Trying account: {current_account.email_account}")
                             
-                            # Get Bison account ID and check status for each account
+                            # Get Bison account ID and check status
                             account_info = await self.get_bison_account_id(
-                                session, account.email_account,
+                                session, current_account.email_account, 
                                 user_bison.bison_organization_api_key,
                                 user_settings.bison_base_url
                             )
                             
-                            if account_info['is_connected']:
-                                # Send email only for connected accounts
-                                await self.send_bison_email(
-                                    session, spamcheck, account, test_emails,
-                                    user_bison.bison_organization_api_key,
-                                    account_info['id'], filter_phrase,
-                                    user_settings.bison_base_url
+                            if not account_info['is_connected']:
+                                self.stdout.write(f"Skipping disconnected account: {current_account.email_account}")
+                                continue
+
+                            # Get EmailGuard tag for the domain
+                            campaign_name = f"{spamcheck.name} - {domain}"
+                            tag, test_emails, filter_phrase = await self.get_emailguard_tag(
+                                session, campaign_name, user_settings.emailguard_api_key
+                            )
+                            
+                            self.stdout.write(f"Got EmailGuard tag for domain {domain}: {tag}")
+                            
+                            # Update all accounts in this domain with the same tag
+                            for account in domain_accounts:
+                                # Update tag in database
+                                await asyncio.to_thread(
+                                    lambda: UserSpamcheckAccountsBison.objects.filter(id=account.id).update(
+                                        last_emailguard_tag=tag,
+                                        updated_at=timezone.now()
+                                    )
                                 )
+                            
+                            # Send email using the current account
+                            email_sent = await self.send_bison_email(
+                                session, spamcheck, current_account, test_emails,
+                                user_bison.bison_organization_api_key,
+                                account_info['id'], filter_phrase,
+                                user_settings.bison_base_url
+                            )
+                            
+                            if email_sent:
+                                domain_success = True
                                 successful_accounts += 1
+                                self.stdout.write(f"✅ Successfully sent email for domain {domain} using account {current_account.email_account}")
                             else:
-                                self.stdout.write(f"Skipping disconnected account: {account.email_account}")
+                                # If send_bison_email returned False (server error), try next account
+                                self.stdout.write(f"❌ Failed to send email for account {current_account.email_account}, trying next account in domain")
+                                failed_accounts.add(current_account.email_account)
+                                
+                        except Exception as e:
+                            error_message = str(e)
+                            self.stdout.write(self.style.ERROR(f"Error processing account {current_account.email_account}: {error_message}"))
+                            failed_accounts.add(current_account.email_account)
                             
-                    except Exception as e:
-                        error_message = str(e)
-                        self.stdout.write(self.style.ERROR(f"Error processing domain {domain}: {error_message}"))
+                            # Check if this is a server error that we're already tracking
+                            if "Failed to send email: 500 - " in error_message and "Server Error" in error_message:
+                                # Try next account in domain
+                                self.stdout.write(self.style.WARNING(f"Server Error for account {current_account.email_account}, trying next account in domain"))
+                                continue
+                            
+                            # Log the error
+                            try:
+                                await asyncio.to_thread(
+                                    SpamcheckErrorLog.objects.create,
+                                    user=spamcheck.user,
+                                    bison_spamcheck=spamcheck,
+                                    error_type='processing_error',
+                                    provider='bison',
+                                    error_message=f"Error processing account {current_account.email_account}: {error_message}",
+                                    error_details={'full_error': error_message, 'traceback': traceback.format_exc()},
+                                    account_email=current_account.email_account,
+                                    step='process_account'
+                                )
+                            except Exception as log_error:
+                                self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
+                    
+                    # If all accounts in this domain failed, mark domain as failed
+                    if not domain_success:
+                        failed_domains.add(domain)
+                        self.stdout.write(self.style.ERROR(f"❌ All accounts in domain {domain} failed. Marking domain as failed."))
                         
-                        # Check if this is a server error that we're already tracking
-                        if "Failed to send email: 500 - " in error_message and "Server Error" in error_message:
-                            # Skip this domain but continue processing others
-                            self.stdout.write(self.style.WARNING(f"Skipping domain {domain} due to Bison Server Error"))
-                            continue
-                        
-                        # Log the error
+                        # Log the domain failure
                         try:
                             await asyncio.to_thread(
                                 SpamcheckErrorLog.objects.create,
                                 user=spamcheck.user,
                                 bison_spamcheck=spamcheck,
-                                error_type='processing_error',
+                                error_type='domain_failure',
                                 provider='bison',
-                                error_message=f"Error processing domain {domain}: {error_message}",
-                                error_details={'full_error': error_message, 'traceback': traceback.format_exc()},
+                                error_message=f"All accounts in domain {domain} failed after {domain_attempts} attempts",
                                 step='process_domain'
                             )
                         except Exception as log_error:
                             self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
-                        
-                        # Only fail the spamcheck if we have 5 or more server errors
-                        if self.server_error_count >= 5:
-                            self.stdout.write(self.style.ERROR(f"Too many Bison Server Errors ({self.server_error_count}). Marking spamcheck as failed."))
-                            spamcheck.status = 'failed'
-                            await asyncio.to_thread(spamcheck.save)
-                            return False
-                        
-                        # For non-server errors, fail the spamcheck as before
-                        if "Server Error" not in error_message:
-                            spamcheck.status = 'failed'
-                            await asyncio.to_thread(spamcheck.save)
-                            return False
+                
+                # Remove failed accounts from the spamcheck
+                if failed_accounts:
+                    self.stdout.write(f"Removing {len(failed_accounts)} failed accounts from spamcheck")
+                    for account_email in failed_accounts:
+                        try:
+                            await asyncio.to_thread(
+                                lambda: UserSpamcheckAccountsBison.objects.filter(
+                                    bison_spamcheck=spamcheck,
+                                    email_account=account_email
+                                ).delete()
+                            )
+                            self.stdout.write(f"Removed account {account_email} from spamcheck")
+                        except Exception as e:
+                            self.stdout.write(self.style.ERROR(f"Error removing account {account_email}: {str(e)}"))
+                
+                # Only fail the spamcheck if we have 5 or more server errors or all domains failed
+                if self.server_error_count >= 5:
+                    self.stdout.write(self.style.ERROR(f"Too many Bison Server Errors ({self.server_error_count}). Marking spamcheck as failed."))
+                    spamcheck.status = 'failed'
+                    await asyncio.to_thread(spamcheck.save)
+                    return False
+                
+                if len(failed_domains) == len(accounts_by_domain):
+                    self.stdout.write(self.style.ERROR(f"All domains failed. Marking spamcheck as failed."))
+                    spamcheck.status = 'failed'
+                    await asyncio.to_thread(spamcheck.save)
+                    return False
                         
             else:
                 # Non-domain based processing - one tag per account
@@ -443,18 +483,23 @@ class Command(BaseCommand):
                         )
 
                         # Send email
-                        await self.send_bison_email(
+                        email_sent = await self.send_bison_email(
                             session, spamcheck, account, test_emails,
                             user_bison.bison_organization_api_key,
                             account_info['id'], filter_phrase,
                             user_settings.bison_base_url
                         )
 
-                        successful_accounts += 1
+                        if email_sent:
+                            successful_accounts += 1
+                        else:
+                            # If send_bison_email returned False (server error), add to failed accounts
+                            failed_accounts.add(account.email_account)
 
                     except Exception as e:
                         error_message = str(e)
                         self.stdout.write(self.style.ERROR(f"Error processing account {account.email_account}: {error_message}"))
+                        failed_accounts.add(account.email_account)
                         
                         # Check if this is a server error that we're already tracking
                         if "Failed to send email: 500 - " in error_message and "Server Error" in error_message:
@@ -477,19 +522,34 @@ class Command(BaseCommand):
                             )
                         except Exception as log_error:
                             self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
+                
+                # Remove failed accounts from the spamcheck
+                if failed_accounts:
+                    self.stdout.write(f"Removing {len(failed_accounts)} failed accounts from spamcheck")
+                    for account_email in failed_accounts:
+                        try:
+                            await asyncio.to_thread(
+                                lambda: UserSpamcheckAccountsBison.objects.filter(
+                                    bison_spamcheck=spamcheck,
+                                    email_account=account_email
+                                ).delete()
+                            )
+                            self.stdout.write(f"Removed account {account_email} from spamcheck")
+                        except Exception as e:
+                            self.stdout.write(self.style.ERROR(f"Error removing account {account_email}: {str(e)}"))
                         
-                        # Only fail the spamcheck if we have 5 or more server errors
-                        if self.server_error_count >= 5:
-                            self.stdout.write(self.style.ERROR(f"Too many Bison Server Errors ({self.server_error_count}). Marking spamcheck as failed."))
-                            spamcheck.status = 'failed'
-                            await asyncio.to_thread(spamcheck.save)
-                            return False
-                        
-                        # For non-server errors, fail the spamcheck as before
-                        if "Server Error" not in error_message:
-                            spamcheck.status = 'failed'
-                            await asyncio.to_thread(spamcheck.save)
-                            return False
+                # Only fail the spamcheck if we have 5 or more server errors or all accounts failed
+                if self.server_error_count >= 5:
+                    self.stdout.write(self.style.ERROR(f"Too many Bison Server Errors ({self.server_error_count}). Marking spamcheck as failed."))
+                    spamcheck.status = 'failed'
+                    await asyncio.to_thread(spamcheck.save)
+                    return False
+                
+                if len(failed_accounts) == total_accounts:
+                    self.stdout.write(self.style.ERROR(f"All accounts failed. Marking spamcheck as failed."))
+                    spamcheck.status = 'failed'
+                    await asyncio.to_thread(spamcheck.save)
+                    return False
 
             # Only update to in_progress if at least one account was successful
             if successful_accounts > 0:
