@@ -296,6 +296,14 @@ class Command(BaseCommand):
                 id=spamcheck.user_organization_id
             )
 
+            # Use user_bison.base_url instead of user_settings.bison_base_url for consistency
+            bison_base_url = user_bison.base_url
+            
+            # Debug log for Bison base URL and API key
+            self.stdout.write(f"Bison Base URL: {bison_base_url}")
+            self.stdout.write(f"Bison API Key exists: {bool(user_bison.bison_organization_api_key)}")
+            self.stdout.write(f"Bison Organization Status: {user_bison.bison_organization_status}")
+            
             # Get accounts to check
             all_accounts = await asyncio.to_thread(
                 lambda: list(spamcheck.accounts.all())
@@ -334,7 +342,7 @@ class Command(BaseCommand):
                             account_info = await self.get_bison_account_id(
                                 session, current_account.email_account, 
                                 user_bison.bison_organization_api_key,
-                                user_settings.bison_base_url
+                                bison_base_url
                             )
                             
                             if not account_info['is_connected']:
@@ -364,7 +372,7 @@ class Command(BaseCommand):
                                 session, spamcheck, current_account, test_emails,
                                 user_bison.bison_organization_api_key,
                                 account_info['id'], filter_phrase,
-                                user_settings.bison_base_url
+                                bison_base_url
                             )
                             
                             if email_sent:
@@ -461,7 +469,7 @@ class Command(BaseCommand):
                         account_info = await self.get_bison_account_id(
                             session, account.email_account,
                             user_bison.bison_organization_api_key,
-                            user_settings.bison_base_url
+                            bison_base_url
                         )
 
                         if not account_info['is_connected']:
@@ -487,7 +495,7 @@ class Command(BaseCommand):
                             session, spamcheck, account, test_emails,
                             user_bison.bison_organization_api_key,
                             account_info['id'], filter_phrase,
-                            user_settings.bison_base_url
+                            bison_base_url
                         )
 
                         if email_sent:
