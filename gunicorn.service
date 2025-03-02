@@ -1,0 +1,20 @@
+[Unit]
+Description=gunicorn daemon
+After=network.target
+
+[Service]
+User=root
+Group=www-data
+WorkingDirectory=/var/www/inboxassure-backend
+ExecStart=/var/www/inboxassure-backend/venv/bin/gunicorn \
+          --access-logfile /var/www/inboxassure-backend/gunicorn.log \
+          --error-logfile /var/www/inboxassure-backend/gunicorn.log \
+          --capture-output \
+          --log-level debug \
+          --workers 4 \
+          --timeout 300 \
+          --bind unix:/run/gunicorn.sock \
+          inboxassure.wsgi:application
+
+[Install]
+WantedBy=multi-user.target 

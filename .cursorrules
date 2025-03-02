@@ -22,6 +22,8 @@ ssh -i ~/.ssh/inboxassure root@68.183.98.54 "your_command_here"
 
 To deploy use this : 
 ssh -i ~/.ssh/inboxassure root@68.183.98.54 "cd /var/www/inboxassure-backend && git pull origin main && ./deploy.sh"
+ssh -i ~/.ssh/inboxassure root@68.183.98.54 "cd /var/www/inboxassure-backend && git stash && git pull origin main && chmod +x deploy.sh && ./deploy.sh"
+
 
 We're connecting to Mysql database with the following credentials : 
     - host : 64.227.20.217
@@ -63,3 +65,4 @@ from settings.api import log_to_terminal
 log_to_terminal("Profile", "Upload", f"User {request.auth.username} started profile picture upload")
 
 
+NEVER Exit in terminal using "^C"
