@@ -5,10 +5,10 @@ After=network.target
 [Service]
 User=root
 Group=www-data
-WorkingDirectory=/var/www/inboxassure-backend
-ExecStart=/var/www/inboxassure-backend/venv/bin/gunicorn \
-          --access-logfile /var/www/inboxassure-backend/gunicorn.log \
-          --error-logfile /var/www/inboxassure-backend/gunicorn.log \
+WorkingDirectory=/var/www/inboxassure-production
+ExecStart=/var/www/inboxassure-production/venv/bin/gunicorn \
+          --access-logfile /var/www/inboxassure-production/gunicorn.log \
+          --error-logfile /var/www/inboxassure-production/gunicorn.log \
           --capture-output \
           --log-level debug \
           --workers 4 \
