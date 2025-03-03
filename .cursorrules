@@ -14,16 +14,42 @@ And here is the droplet credentials :
     - password : wArhou19981@a
     - ip : 68.183.98.54
 
+# Production server information
+Production server:
+    - username : root
+    - ip : 157.230.233.108
+    - ssh key : ~/.ssh/inboxassure_prod
+    - app path : /var/www/inboxassure-production
+    - nginx config : /etc/nginx/sites-available/backend.inboxassure.app
+    - domain : backend.inboxassure.app
+
+Quick commands:
+# Deploy to production
+ssh -i ~/.ssh/inboxassure_prod root@157.230.233.108 'cd /var/www/inboxassure-production && git pull origin main && ./deploy.sh'
+
+# Update nginx and restart services
+ssh -i ~/.ssh/inboxassure_prod root@157.230.233.108 'cd /var/www/inboxassure-production && cp nginx.prod.conf /etc/nginx/sites-available/backend.inboxassure.app && nginx -t && systemctl restart nginx && systemctl restart gunicorn'
+
+# View logs
+ssh -i ~/.ssh/inboxassure_prod root@157.230.233.108 'tail -f /var/log/nginx/error.log /var/log/nginx/access.log /var/www/inboxassure-production/gunicorn.log'
+
 You need to deploy to github and to the server (via SSH) after each change.
 
-to run command on the server, you need to use the following command : 
+# Development server commands
+to run command on the development server, you need to use the following command : 
 ssh -i ~/.ssh/inboxassure root@68.183.98.54 "your_command_here"
 
-
-To deploy use this : 
+To deploy to development server use this : 
 ssh -i ~/.ssh/inboxassure root@68.183.98.54 "cd /var/www/inboxassure-backend && git pull origin main && ./deploy.sh"
 ssh -i ~/.ssh/inboxassure root@68.183.98.54 "cd /var/www/inboxassure-backend && git stash && git pull origin main && chmod +x deploy.sh && ./deploy.sh"
 
+# Production server commands
+to run command on the production server, you need to use the following command : 
+ssh -i ~/.ssh/inboxassure_prod root@157.230.233.108 'your_command_here'
+
+To deploy to production server use this : 
+ssh -i ~/.ssh/inboxassure_prod root@157.230.233.108 'cd /var/www/inboxassure-backend && git pull origin main && ./deploy.sh'
+ssh -i ~/.ssh/inboxassure_prod root@157.230.233.108 'cd /var/www/inboxassure-backend && git stash && git pull origin main && chmod +x deploy.sh && ./deploy.sh'
 
 We're connecting to Mysql database with the following credentials : 
     - host : 64.227.20.217
@@ -51,7 +77,9 @@ Always update dependencies if needed in requirements.txt before committing and p
         "HOME": "C:\\Users\\FatiiMa",
         "REMOTE_HOST": "68.183.98.54",
         "REMOTE_PATH": "/var/www/inboxassure-backend",
-        "SSH_KEY_PATH": "~/.ssh/inboxassure"
+        "SSH_KEY_PATH": "~/.ssh/inboxassure",
+        "PROD_REMOTE_HOST": "157.230.233.108",
+        "PROD_SSH_KEY_PATH": "~/.ssh/inboxassure_prod"
     }
 }
 
