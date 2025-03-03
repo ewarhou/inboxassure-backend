@@ -213,4 +213,10 @@ EMAIL_HOST_PASSWORD = 'odag awwd qwki ylhd'
 DEFAULT_FROM_EMAIL = 'InboxAssure <dev@vitalitymarketingfirm.com>'
 
 # Password Reset Settings
-PASSWORD_RESET_TIMEOUT = 3600  # 1 hour in seconds
+PASSWORD_RESET_TIMEOUT = 3600
+
+# Import local settings if they exist
+try:
+    from .settings_local import *
+except ImportError:
+    pass
