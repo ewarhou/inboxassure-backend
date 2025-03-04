@@ -172,19 +172,22 @@ LOGGING = {
 }
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = True  # Enable all origins temporarily for debugging
+CORS_ALLOW_ALL_ORIGINS = False  # Disable all origins
 
-# Comment out specific origins while debugging
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:8080",
-#     "http://localhost:3000",
-#     "https://inboxassure.online",
-# ]
+CORS_ALLOWED_ORIGINS = [
+    "https://app.inboxassure.app",
+    "https://inboxassure.online",
+    "http://localhost:3000",
+    "http://localhost:8080",
+]
+
+CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
     'OPTIONS',
+    'PATCH',
     'POST',
     'PUT',
 ]
@@ -200,8 +203,6 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
-
-CORS_ALLOW_CREDENTIALS = True
 
 # Email Configuration
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
