@@ -183,11 +183,21 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:8080",
 ]
 
-# Allow all headers
-CORS_ALLOW_HEADERS = ['*']
+# Specific headers instead of wildcard
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 
-# Allow credentials
-CORS_ALLOW_CREDENTIALS = True
+# Remove credentials since we're using wildcard origin
+# CORS_ALLOW_CREDENTIALS = True
 
 # Allow all methods
 CORS_ALLOW_METHODS = [
@@ -199,8 +209,11 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 
-# Expose all headers
-CORS_EXPOSE_HEADERS = ['*']
+# Expose specific headers
+CORS_EXPOSE_HEADERS = [
+    'content-length',
+    'content-range',
+]
 
 # Add CORS_PREFLIGHT_MAX_AGE
 CORS_PREFLIGHT_MAX_AGE = 1728000  # 20 days in seconds
