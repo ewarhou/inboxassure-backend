@@ -172,8 +172,10 @@ LOGGING = {
 }
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = False  # Don't allow all origins
+CORS_ORIGIN_ALLOW_ALL = True  # Allow all origins
+CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins (newer setting)
 
+# Keep specific origins for reference
 CORS_ALLOWED_ORIGINS = [
     "https://app.inboxassure.app",
     "https://inboxassure.online",
@@ -181,8 +183,13 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:8080",
 ]
 
+# Allow all headers
+CORS_ALLOW_HEADERS = ['*']
+
+# Allow credentials
 CORS_ALLOW_CREDENTIALS = True
 
+# Allow all methods
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
@@ -192,27 +199,8 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-    'cache-control',
-    'pragma',
-    'if-modified-since',
-    'range',
-]
-
-CORS_EXPOSE_HEADERS = [
-    'content-length',
-    'content-range',
-    'content-type',
-]
+# Expose all headers
+CORS_EXPOSE_HEADERS = ['*']
 
 # Add CORS_PREFLIGHT_MAX_AGE
 CORS_PREFLIGHT_MAX_AGE = 1728000  # 20 days in seconds
