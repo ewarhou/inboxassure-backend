@@ -172,15 +172,7 @@ LOGGING = {
 }
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = False  # Disable all origins
-
-CORS_ALLOWED_ORIGINS = [
-    "https://app.inboxassure.app",
-    "https://inboxassure.online",
-    "http://localhost:3000",
-    "http://localhost:8080",
-]
-
+CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_METHODS = [
@@ -202,7 +194,12 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
+    'cache-control',
+    'pragma',
 ]
+
+# Add CORS_PREFLIGHT_MAX_AGE
+CORS_PREFLIGHT_MAX_AGE = 1728000  # 20 days in seconds
 
 # Email Configuration
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
