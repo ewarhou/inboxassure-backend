@@ -27,6 +27,11 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['inboxassure-backend.imnodev.com', '68.183.98.54', 'localhost', '127.0.0.1', 'backend.inboxassure.app']
 
+# Use X-Forwarded-Host header for determining the host
+USE_X_FORWARDED_HOST = True
+
+# Trust X-Forwarded-Proto header for HTTPS detection
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Application definition
 
