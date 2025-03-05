@@ -1,3 +1,39 @@
 [2025-03-01 15:37:44] [BisonCampaigns] [Signal] Spamcheck status is in_progress, not triggering API calls
 [2025-03-01 15:38:51] [BisonCampaigns] [Signal] Spamcheck status is in_progress, not triggering API calls
 [2025-03-01 15:42:47] [BisonCampaigns] [Signal] Spamcheck status is in_progress, not triggering API calls
+[2025-03-05 03:00:12] [BisonPerformance] [Request] Request for dev@vitalitymarketingfirm.com
+[2025-03-05 03:00:12] [BisonPerformance] [DateRange] Range: 2025-02-03 to 2025-03-05
+[2025-03-05 03:00:13] [BisonPerformance] [Processing] Organization: CoachPro
+[2025-03-05 03:00:13] [BisonPerformance] [Debug] Found 1 unique providers
+[2025-03-05 03:00:13] [BisonPerformance] [Debug] Found 1 provider performance records
+[2025-03-05 03:00:13] [BisonPerformance] [Processing] Organization: Evolve Business Group
+[2025-03-05 03:00:13] [BisonPerformance] [Debug] Found 2 unique providers
+[2025-03-05 03:00:13] [BisonPerformance] [Debug] Found 2 provider performance records
+[2025-03-05 03:00:13] [BisonPerformance] [Processing] Organization: Karpos
+[2025-03-05 03:00:13] [BisonPerformance] [Debug] Found 2 unique providers
+[2025-03-05 03:00:13] [BisonPerformance] [Debug] Found 2 provider performance records
+[2025-03-05 03:00:13] [BisonPerformance] [Processing] Organization: PAWFC
+[2025-03-05 03:00:14] [BisonPerformance] [Debug] Found 0 unique providers
+[2025-03-05 03:00:14] [BisonPerformance] [Warning] No provider performance records found for PAWFC
+[2025-03-05 03:00:14] [BisonPerformance] [Processing] Organization: Sales Society
+[2025-03-05 03:00:14] [BisonPerformance] [Debug] Found 0 unique providers
+[2025-03-05 03:00:14] [BisonPerformance] [Warning] No provider performance records found for Sales Society
+[2025-03-05 03:00:14] [BisonPerformance] [Output] Returning 5 provider entries
+[2025-03-05 03:00:58] [BisonPerformance] [Request] Request for dev@vitalitymarketingfirm.com
+[2025-03-05 03:00:58] [BisonPerformance] [DateRange] Range: 2025-02-03 to 2025-03-05
+[2025-03-05 03:00:58] [BisonPerformance] [Processing] Organization: CoachPro
+[2025-03-05 03:00:58] [BisonPerformance] [Debug] Found 1 unique providers
+[2025-03-05 03:00:58] [BisonPerformance] [Debug] Found 1 provider performance records
+[2025-03-05 03:00:58] [BisonPerformance] [Processing] Organization: Evolve Business Group
+[2025-03-05 03:00:58] [BisonPerformance] [Debug] Found 2 unique providers
+[2025-03-05 03:00:58] [BisonPerformance] [Debug] Found 2 provider performance records
+[2025-03-05 03:00:58] [BisonPerformance] [Processing] Organization: Karpos
+[2025-03-05 03:00:58] [BisonPerformance] [Debug] Found 2 unique providers
+[2025-03-05 03:00:58] [BisonPerformance] [Debug] Found 2 provider performance records
+[2025-03-05 03:00:58] [BisonPerformance] [Processing] Organization: PAWFC
+[2025-03-05 03:00:59] [BisonPerformance] [Debug] Found 0 unique providers
+[2025-03-05 03:00:59] [BisonPerformance] [Warning] No provider performance records found for PAWFC
+[2025-03-05 03:00:59] [BisonPerformance] [Processing] Organization: Sales Society
+[2025-03-05 03:00:59] [BisonPerformance] [Debug] Found 0 unique providers
+[2025-03-05 03:00:59] [BisonPerformance] [Warning] No provider performance records found for Sales Society
+[2025-03-05 03:00:59] [BisonPerformance] [Output] Returning 5 provider entries

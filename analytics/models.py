@@ -133,6 +133,9 @@ class UserBisonProviderPerformance(models.Model):
     outlook_score = models.FloatField(default=0.0)
     overall_score = models.FloatField(default=0.0)
     sending_power = models.IntegerField(default=0)
+    emails_sent_count = models.IntegerField(default=0, help_text='Total number of emails sent')
+    bounced_count = models.IntegerField(default=0, help_text='Number of bounced emails')
+    unique_replied_count = models.IntegerField(default=0, help_text='Number of unique replies')
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:

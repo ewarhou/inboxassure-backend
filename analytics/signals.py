@@ -646,7 +646,10 @@ def update_bison_provider_performance(spamcheck):
                 'good_accounts': 0,
                 'google_sum': 0.0,
                 'outlook_sum': 0.0,
-                'sending_power': 0
+                'sending_power': 0,
+                'emails_sent': 0,
+                'bounced': 0,
+                'replied': 0
             }
         
         # Structure: {provider: {date: stats}}
@@ -671,6 +674,9 @@ def update_bison_provider_performance(spamcheck):
                     ubr.outlook_pro_score,
                     ubr.is_good,
                     ubr.sending_limit,
+                    ubr.emails_sent_count,
+                    ubr.bounced_count,
+                    ubr.unique_replied_count,
                     DATE(ubr.created_at) as report_date
                 FROM user_spamcheck_bison_reports ubr
                 WHERE ubr.bison_organization_id = %s
@@ -683,7 +689,7 @@ def update_bison_provider_performance(spamcheck):
                 
                 # Process each row and aggregate by day and provider
                 for row in rows:
-                    email_account, google_score, outlook_score, is_good, sending_limit, report_date = row
+                    email_account, google_score, outlook_score, is_good, sending_limit, emails_sent, bounced, replied, report_date = row
                     
                     # Skip if this account doesn't have a provider tag
                     if email_account not in provider_tags:
@@ -703,6 +709,10 @@ def update_bison_provider_performance(spamcheck):
                         if is_good:
                             stats['good_accounts'] += 1
                             stats['sending_power'] += sending_limit
+                        # Add the new metrics
+                        stats['emails_sent'] += int(emails_sent or 0)
+                        stats['bounced'] += int(bounced or 0)
+                        stats['replied'] += int(replied or 0)
         
         # Calculate period averages for each provider
         for provider_name, daily_data in daily_stats.items():
@@ -711,7 +721,10 @@ def update_bison_provider_performance(spamcheck):
             daily_scores = {  # Track daily averages
                 'google': [],
                 'outlook': [],
-                'sending_power': []
+                'sending_power': [],
+                'emails_sent': [],
+                'bounced': [],
+                'replied': []
             }
             
             # Iterate through each day in the period
@@ -731,6 +744,10 @@ def update_bison_provider_performance(spamcheck):
                         daily_scores['google'].append(min(1.0, max(0.0, google_score)))
                         daily_scores['outlook'].append(min(1.0, max(0.0, outlook_score)))
                         daily_scores['sending_power'].append(stats['sending_power'])
+                        # Add the new metrics
+                        daily_scores['emails_sent'].append(stats['emails_sent'])
+                        daily_scores['bounced'].append(stats['bounced'])
+                        daily_scores['replied'].append(stats['replied'])
                 
                 current_dt += timedelta(days=1)
             
@@ -740,6 +757,11 @@ def update_bison_provider_performance(spamcheck):
                 avg_outlook = round(sum(daily_scores['outlook']) / len(daily_scores['outlook']), 2)
                 avg_sending_power = round(sum(daily_scores['sending_power']) / len(daily_scores['sending_power']))
                 overall_score = round((avg_google + avg_outlook) / 2, 2)
+                
+                # Calculate totals for the new metrics
+                total_emails_sent = sum(daily_scores['emails_sent'])
+                total_bounced = sum(daily_scores['bounced'])
+                total_replied = sum(daily_scores['replied'])
                 
                 # Create a new provider performance record
                 UserBisonProviderPerformance.objects.create(
@@ -752,7 +774,10 @@ def update_bison_provider_performance(spamcheck):
                     google_score=avg_google,
                     outlook_score=avg_outlook,
                     overall_score=overall_score,
-                    sending_power=avg_sending_power
+                    sending_power=avg_sending_power,
+                    emails_sent_count=total_emails_sent,
+                    bounced_count=total_bounced,
+                    unique_replied_count=total_replied
                 )
                 
                 log_to_terminal("Signals", "ProviderPerformance", f"Created provider performance record for {provider_name} in {org.bison_organization_name}")
@@ -763,31 +788,79 @@ def update_bison_provider_performance(spamcheck):
 def update_bison_sending_power(spamcheck):
     """
     Creates new sending power records when a spam check is completed.
+    Uses the spamcheck completion date and calculates sending power for all accounts.
     """
     user = spamcheck.user
     org = spamcheck.user_organization
     
-    log_to_terminal("Signals", "SendingPower", f"Updating sending power for {org.bison_organization_name}")
+    # Use spamcheck completion date
+    report_date = spamcheck.updated_at.date()
+    
+    log_to_terminal("Signals", "SendingPower", f"Updating sending power for {org.bison_organization_name} on {report_date}")
     
     try:
-        # Get today's date
-        today = timezone.now().date()
+        # 1. Get ALL accounts from Bison API by paginating until we have everything
+        api_url = f"{org.base_url.rstrip('/')}/api/sender-emails"
         
-        # Check if we already have a record for today
-        existing_record = UserBisonSendingPower.objects.filter(
-            user=user,
-            bison_organization=org,
-            report_date=today
-        ).exists()
+        all_bison_accounts = []
+        current_page = 1
+        per_page = 100  # Use a larger page size for efficiency
         
-        if existing_record:
-            log_to_terminal("Signals", "SendingPower", f"Sending power record for today already exists for {org.bison_organization_name}")
+        while True:
+            response = requests.get(
+                api_url,
+                headers={
+                    "Authorization": f"Bearer {org.bison_organization_api_key}",
+                    "Content-Type": "application/json"
+                },
+                params={
+                    "page": current_page,
+                    "per_page": per_page
+                }
+            )
+            
+            if response.status_code != 200:
+                log_to_terminal("Signals", "SendingPower", f"API Error: {response.text}")
+                break
+                
+            data = response.json()
+            accounts = data.get('data', [])
+            all_bison_accounts.extend(accounts)
+            
+            # Check if we've reached the last page
+            total_pages = data.get('meta', {}).get('last_page', 1)
+            if current_page >= total_pages:
+                break
+                
+            current_page += 1
+        
+        log_to_terminal("Signals", "SendingPower", f"Found {len(all_bison_accounts)} accounts for {org.bison_organization_name}")
+        
+        # Deduplicate accounts by email to handle Bison API duplicate issue
+        unique_emails = {}
+        for account in all_bison_accounts:
+            email = account.get('email')
+            if email and email not in unique_emails:
+                unique_emails[email] = account
+        
+        bison_emails = list(unique_emails.keys())
+        
+        if not bison_emails:
+            log_to_terminal("Signals", "SendingPower", f"No valid email addresses found for {org.bison_organization_name}")
             return
         
-        # Calculate sending power using raw SQL for efficiency
+        # 2. Get latest reports for these accounts
         with connection.cursor() as cursor:
-            query = """
-                WITH daily_reports AS (
+            # Process emails in chunks to avoid too many SQL parameters
+            chunk_size = 500
+            email_chunks = [bison_emails[i:i + chunk_size] for i in range(0, len(bison_emails), chunk_size)]
+            
+            total_sending_power = 0
+            
+            for chunk in email_chunks:
+                placeholders = ','.join(['%s'] * len(chunk))
+                query = f"""
+                WITH latest_reports AS (
                     SELECT 
                         ubr.*,
                         ROW_NUMBER() OVER (
@@ -796,31 +869,32 @@ def update_bison_sending_power(spamcheck):
                         ) as rn
                     FROM user_spamcheck_bison_reports ubr
                     WHERE ubr.bison_organization_id = %s
-                    AND DATE(ubr.created_at) = %s
+                    AND ubr.email_account IN ({placeholders})
                 )
                 SELECT 
                     COUNT(CASE WHEN is_good = true THEN 1 END) * COALESCE(MAX(sending_limit), 25) as daily_power
-                FROM daily_reports
+                FROM latest_reports
                 WHERE rn = 1
-            """
-            
-            cursor.execute(query, [org.id, today.isoformat()])
-            result = cursor.fetchone()
-            
-            if result:
-                sending_power = result[0] or 0
+                """
                 
-                # Create a new sending power record
-                UserBisonSendingPower.objects.create(
-                    user=user,
-                    bison_organization=org,
-                    report_date=today,
-                    sending_power=sending_power
-                )
+                cursor.execute(query, [org.id] + chunk)
+                result = cursor.fetchone()
                 
-                log_to_terminal("Signals", "SendingPower", f"Created sending power record for {org.bison_organization_name}: {sending_power}")
-            else:
-                log_to_terminal("Signals", "SendingPower", f"No data found for calculating sending power for {org.bison_organization_name}")
+                if result:
+                    chunk_power = result[0] or 0
+                    total_sending_power += chunk_power
+            
+            # Create a new sending power record
+            UserBisonSendingPower.objects.create(
+                user=user,
+                bison_organization=org,
+                report_date=report_date,
+                sending_power=total_sending_power
+            )
+            
+            log_to_terminal("Signals", "SendingPower", f"Created sending power record for {org.bison_organization_name}: {total_sending_power}")
     
     except Exception as e:
-        log_to_terminal("Signals", "SendingPower", f"Error updating sending power: {str(e)}") 
+        log_to_terminal("Signals", "SendingPower", f"Error updating sending power: {str(e)}")
+        import traceback
+        log_to_terminal("Signals", "SendingPower", f"Traceback: {traceback.format_exc()}") 
