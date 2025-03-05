@@ -788,31 +788,79 @@ def update_bison_provider_performance(spamcheck):
 def update_bison_sending_power(spamcheck):
     """
     Creates new sending power records when a spam check is completed.
+    Uses the spamcheck completion date and calculates sending power for all accounts.
     """
     user = spamcheck.user
     org = spamcheck.user_organization
     
-    log_to_terminal("Signals", "SendingPower", f"Updating sending power for {org.bison_organization_name}")
+    # Use spamcheck completion date
+    report_date = spamcheck.updated_at.date()
+    
+    log_to_terminal("Signals", "SendingPower", f"Updating sending power for {org.bison_organization_name} on {report_date}")
     
     try:
-        # Get today's date
-        today = timezone.now().date()
+        # 1. Get ALL accounts from Bison API by paginating until we have everything
+        api_url = f"{org.base_url.rstrip('/')}/api/sender-emails"
         
-        # Check if we already have a record for today
-        existing_record = UserBisonSendingPower.objects.filter(
-            user=user,
-            bison_organization=org,
-            report_date=today
-        ).exists()
+        all_bison_accounts = []
+        current_page = 1
+        per_page = 100  # Use a larger page size for efficiency
         
-        if existing_record:
-            log_to_terminal("Signals", "SendingPower", f"Sending power record for today already exists for {org.bison_organization_name}")
+        while True:
+            response = requests.get(
+                api_url,
+                headers={
+                    "Authorization": f"Bearer {org.bison_organization_api_key}",
+                    "Content-Type": "application/json"
+                },
+                params={
+                    "page": current_page,
+                    "per_page": per_page
+                }
+            )
+            
+            if response.status_code != 200:
+                log_to_terminal("Signals", "SendingPower", f"API Error: {response.text}")
+                break
+                
+            data = response.json()
+            accounts = data.get('data', [])
+            all_bison_accounts.extend(accounts)
+            
+            # Check if we've reached the last page
+            total_pages = data.get('meta', {}).get('last_page', 1)
+            if current_page >= total_pages:
+                break
+                
+            current_page += 1
+        
+        log_to_terminal("Signals", "SendingPower", f"Found {len(all_bison_accounts)} accounts for {org.bison_organization_name}")
+        
+        # Deduplicate accounts by email to handle Bison API duplicate issue
+        unique_emails = {}
+        for account in all_bison_accounts:
+            email = account.get('email')
+            if email and email not in unique_emails:
+                unique_emails[email] = account
+        
+        bison_emails = list(unique_emails.keys())
+        
+        if not bison_emails:
+            log_to_terminal("Signals", "SendingPower", f"No valid email addresses found for {org.bison_organization_name}")
             return
         
-        # Calculate sending power using raw SQL for efficiency
+        # 2. Get latest reports for these accounts
         with connection.cursor() as cursor:
-            query = """
-                WITH daily_reports AS (
+            # Process emails in chunks to avoid too many SQL parameters
+            chunk_size = 500
+            email_chunks = [bison_emails[i:i + chunk_size] for i in range(0, len(bison_emails), chunk_size)]
+            
+            total_sending_power = 0
+            
+            for chunk in email_chunks:
+                placeholders = ','.join(['%s'] * len(chunk))
+                query = f"""
+                WITH latest_reports AS (
                     SELECT 
                         ubr.*,
                         ROW_NUMBER() OVER (
@@ -821,31 +869,32 @@ def update_bison_sending_power(spamcheck):
                         ) as rn
                     FROM user_spamcheck_bison_reports ubr
                     WHERE ubr.bison_organization_id = %s
-                    AND DATE(ubr.created_at) = %s
+                    AND ubr.email_account IN ({placeholders})
                 )
                 SELECT 
                     COUNT(CASE WHEN is_good = true THEN 1 END) * COALESCE(MAX(sending_limit), 25) as daily_power
-                FROM daily_reports
+                FROM latest_reports
                 WHERE rn = 1
-            """
-            
-            cursor.execute(query, [org.id, today.isoformat()])
-            result = cursor.fetchone()
-            
-            if result:
-                sending_power = result[0] or 0
+                """
                 
-                # Create a new sending power record
-                UserBisonSendingPower.objects.create(
-                    user=user,
-                    bison_organization=org,
-                    report_date=today,
-                    sending_power=sending_power
-                )
+                cursor.execute(query, [org.id] + chunk)
+                result = cursor.fetchone()
                 
-                log_to_terminal("Signals", "SendingPower", f"Created sending power record for {org.bison_organization_name}: {sending_power}")
-            else:
-                log_to_terminal("Signals", "SendingPower", f"No data found for calculating sending power for {org.bison_organization_name}")
+                if result:
+                    chunk_power = result[0] or 0
+                    total_sending_power += chunk_power
+            
+            # Create a new sending power record
+            UserBisonSendingPower.objects.create(
+                user=user,
+                bison_organization=org,
+                report_date=report_date,
+                sending_power=total_sending_power
+            )
+            
+            log_to_terminal("Signals", "SendingPower", f"Created sending power record for {org.bison_organization_name}: {total_sending_power}")
     
     except Exception as e:
-        log_to_terminal("Signals", "SendingPower", f"Error updating sending power: {str(e)}") 
+        log_to_terminal("Signals", "SendingPower", f"Error updating sending power: {str(e)}")
+        import traceback
+        log_to_terminal("Signals", "SendingPower", f"Traceback: {traceback.format_exc()}") 
