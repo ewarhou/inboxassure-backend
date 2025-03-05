@@ -267,6 +267,8 @@ class UserSpamcheckBisonReport(models.Model):
     sending_limit = models.IntegerField(null=True, blank=True, help_text='Sending limit used in the campaign')
     tags_list = models.TextField(null=True, blank=True, help_text='List of tags used in the campaign')
     workspace_name = models.CharField(max_length=255, null=True, blank=True, help_text='Name of the workspace')
+    bounced_count = models.IntegerField(default=0, help_text='Number of bounced emails')
+    unique_replied_count = models.IntegerField(default=0, help_text='Number of unique replies')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

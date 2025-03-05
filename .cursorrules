@@ -23,6 +23,23 @@ Production server:
     - nginx config : /etc/nginx/sites-available/backend.inboxassure.app
     - domain : backend.inboxassure.app
 
+# Production Deployment Process
+1. First, push your changes to the production branch:
+   ```bash
+   git add .
+   git commit -m "Your commit message"
+   git push origin main
+   git checkout production
+   git merge main
+   git push origin production
+   git checkout main
+   ```
+
+2. Then deploy to production using deploy_prod.sh:
+   ```bash
+   ssh -i ~/.ssh/inboxassure_prod root@157.230.233.108 'cd /var/www/inboxassure-production && git fetch && git checkout production && git pull origin production && chmod +x deploy_prod.sh && ./deploy_prod.sh'
+   ```
+
 Quick commands:
 # Deploy to production
 ssh -i ~/.ssh/inboxassure_prod root@157.230.233.108 'cd /var/www/inboxassure-production && git pull origin main && ./deploy.sh'
