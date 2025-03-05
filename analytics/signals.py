@@ -646,7 +646,10 @@ def update_bison_provider_performance(spamcheck):
                 'good_accounts': 0,
                 'google_sum': 0.0,
                 'outlook_sum': 0.0,
-                'sending_power': 0
+                'sending_power': 0,
+                'emails_sent': 0,
+                'bounced': 0,
+                'replied': 0
             }
         
         # Structure: {provider: {date: stats}}
@@ -671,6 +674,9 @@ def update_bison_provider_performance(spamcheck):
                     ubr.outlook_pro_score,
                     ubr.is_good,
                     ubr.sending_limit,
+                    ubr.emails_sent_count,
+                    ubr.bounced_count,
+                    ubr.unique_replied_count,
                     DATE(ubr.created_at) as report_date
                 FROM user_spamcheck_bison_reports ubr
                 WHERE ubr.bison_organization_id = %s
@@ -683,7 +689,7 @@ def update_bison_provider_performance(spamcheck):
                 
                 # Process each row and aggregate by day and provider
                 for row in rows:
-                    email_account, google_score, outlook_score, is_good, sending_limit, report_date = row
+                    email_account, google_score, outlook_score, is_good, sending_limit, emails_sent, bounced, replied, report_date = row
                     
                     # Skip if this account doesn't have a provider tag
                     if email_account not in provider_tags:
@@ -703,6 +709,10 @@ def update_bison_provider_performance(spamcheck):
                         if is_good:
                             stats['good_accounts'] += 1
                             stats['sending_power'] += sending_limit
+                        # Add the new metrics
+                        stats['emails_sent'] += int(emails_sent or 0)
+                        stats['bounced'] += int(bounced or 0)
+                        stats['replied'] += int(replied or 0)
         
         # Calculate period averages for each provider
         for provider_name, daily_data in daily_stats.items():
@@ -711,7 +721,10 @@ def update_bison_provider_performance(spamcheck):
             daily_scores = {  # Track daily averages
                 'google': [],
                 'outlook': [],
-                'sending_power': []
+                'sending_power': [],
+                'emails_sent': [],
+                'bounced': [],
+                'replied': []
             }
             
             # Iterate through each day in the period
@@ -731,6 +744,10 @@ def update_bison_provider_performance(spamcheck):
                         daily_scores['google'].append(min(1.0, max(0.0, google_score)))
                         daily_scores['outlook'].append(min(1.0, max(0.0, outlook_score)))
                         daily_scores['sending_power'].append(stats['sending_power'])
+                        # Add the new metrics
+                        daily_scores['emails_sent'].append(stats['emails_sent'])
+                        daily_scores['bounced'].append(stats['bounced'])
+                        daily_scores['replied'].append(stats['replied'])
                 
                 current_dt += timedelta(days=1)
             
@@ -740,6 +757,11 @@ def update_bison_provider_performance(spamcheck):
                 avg_outlook = round(sum(daily_scores['outlook']) / len(daily_scores['outlook']), 2)
                 avg_sending_power = round(sum(daily_scores['sending_power']) / len(daily_scores['sending_power']))
                 overall_score = round((avg_google + avg_outlook) / 2, 2)
+                
+                # Calculate totals for the new metrics
+                total_emails_sent = sum(daily_scores['emails_sent'])
+                total_bounced = sum(daily_scores['bounced'])
+                total_replied = sum(daily_scores['replied'])
                 
                 # Create a new provider performance record
                 UserBisonProviderPerformance.objects.create(
@@ -752,7 +774,10 @@ def update_bison_provider_performance(spamcheck):
                     google_score=avg_google,
                     outlook_score=avg_outlook,
                     overall_score=overall_score,
-                    sending_power=avg_sending_power
+                    sending_power=avg_sending_power,
+                    emails_sent_count=total_emails_sent,
+                    bounced_count=total_bounced,
+                    unique_replied_count=total_replied
                 )
                 
                 log_to_terminal("Signals", "ProviderPerformance", f"Created provider performance record for {provider_name} in {org.bison_organization_name}")

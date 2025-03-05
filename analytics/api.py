@@ -409,12 +409,13 @@ class BisonProviderPerformanceData(Schema):
     start_date: str
     end_date: str
     total_accounts: int
-    reply_rate: Optional[float] = None
-    bounce_rate: Optional[float] = None
     google_score: float
     outlook_score: float
     overall_score: float
     sending_power: int
+    emails_sent_count: int
+    bounced_count: int
+    unique_replied_count: int
 
     class Config:
         schema_extra = {
@@ -425,12 +426,13 @@ class BisonProviderPerformanceData(Schema):
                 "start_date": "2024-02-01",
                 "end_date": "2024-02-18",
                 "total_accounts": 125,
-                "reply_rate": None,
-                "bounce_rate": None,
                 "google_score": 0.92,
                 "outlook_score": 0.88,
                 "overall_score": 0.90,
-                "sending_power": 3125
+                "sending_power": 3125,
+                "emails_sent_count": 15000,
+                "bounced_count": 150,
+                "unique_replied_count": 750
             }
         }
 
