@@ -269,6 +269,7 @@ class UserSpamcheckBisonReport(models.Model):
     workspace_name = models.CharField(max_length=255, null=True, blank=True, help_text='Name of the workspace')
     bounced_count = models.IntegerField(default=0, help_text='Number of bounced emails')
     unique_replied_count = models.IntegerField(default=0, help_text='Number of unique replies')
+    emails_sent_count = models.IntegerField(default=0, help_text='Total number of emails sent')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

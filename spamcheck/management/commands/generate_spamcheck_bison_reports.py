@@ -235,15 +235,16 @@ class Command(BaseCommand):
                         tag_names = [tag['name'] for tag in data['data']['tags']]
                         tags_str = ','.join(tag_names)
                     
-                    # Get bounced and unique reply counts
+                    # Get bounced, unique reply, and emails sent counts
                     bounced_count = data['data'].get('bounced_count', 0)
                     unique_replied_count = data['data'].get('unique_replied_count', 0)
+                    emails_sent_count = data['data'].get('emails_sent_count', 0)
                     
-                    return tags_str, bounced_count, unique_replied_count
-                return None, 0, 0
+                    return tags_str, bounced_count, unique_replied_count, emails_sent_count
+                return None, 0, 0, 0
                 
         except Exception:
-            return None, 0, 0
+            return None, 0, 0, 0
 
     @sync_to_async
     def get_user_settings(self, user):
@@ -331,7 +332,7 @@ class Command(BaseCommand):
 
                     # Get account tags from Bison API
                     self.stdout.write(f"   🏷️ Getting tags for {account.email_account}")
-                    tags_str, bounced_count, unique_replied_count = await self.get_account_tags(account.organization, account.email_account)
+                    tags_str, bounced_count, unique_replied_count, emails_sent_count = await self.get_account_tags(account.organization, account.email_account)
 
                     # Process domain-based accounts if enabled
                     if account.bison_spamcheck.is_domain_based:
@@ -346,7 +347,7 @@ class Command(BaseCommand):
                                 continue
                             processed_emails.add(domain_account.email_account)
                             
-                            domain_tags_str, domain_bounced_count, domain_unique_replied_count = await self.get_account_tags(domain_account.organization, domain_account.email_account)
+                            domain_tags_str, domain_bounced_count, domain_unique_replied_count, domain_emails_sent_count = await self.get_account_tags(domain_account.organization, domain_account.email_account)
                             
                             # Create/update report
                             self.stdout.write(f"   📝 Creating report for domain account {domain_account.email_account}")
@@ -366,7 +367,8 @@ class Command(BaseCommand):
                                         'tags_list': domain_tags_str,
                                         'workspace_name': domain_account.organization.bison_organization_name,
                                         'bounced_count': domain_bounced_count,
-                                        'unique_replied_count': domain_unique_replied_count
+                                        'unique_replied_count': domain_unique_replied_count,
+                                        'emails_sent_count': domain_emails_sent_count
                                     }
                                 )
                             )
@@ -393,7 +395,7 @@ class Command(BaseCommand):
                     else:
                         # Single account processing
                         self.stdout.write(f"   📝 Creating report for {account.email_account}")
-                        tags_str, bounced_count, unique_replied_count = await self.get_account_tags(account.organization, account.email_account)
+                        tags_str, bounced_count, unique_replied_count, emails_sent_count = await self.get_account_tags(account.organization, account.email_account)
                         
                         report, created = await asyncio.to_thread(
                             lambda: UserSpamcheckBisonReport.objects.update_or_create(
@@ -411,7 +413,8 @@ class Command(BaseCommand):
                                     'tags_list': tags_str,
                                     'workspace_name': account.organization.bison_organization_name,
                                     'bounced_count': bounced_count,
-                                    'unique_replied_count': unique_replied_count
+                                    'unique_replied_count': unique_replied_count,
+                                    'emails_sent_count': emails_sent_count
                                 }
                             )
                         )
@@ -635,7 +638,7 @@ class Command(BaseCommand):
 
                     try:
                         scores = domain_scores[domain]
-                        tags_str, bounced_count, unique_replied_count = await self.get_account_tags(account.organization, account.email_account)
+                        tags_str, bounced_count, unique_replied_count, emails_sent_count = await self.get_account_tags(account.organization, account.email_account)
 
                         # Create/update report for each account
                         report, created = await asyncio.to_thread(
@@ -654,7 +657,8 @@ class Command(BaseCommand):
                                     'tags_list': tags_str,
                                     'workspace_name': account.organization.bison_organization_name,
                                     'bounced_count': bounced_count,
-                                    'unique_replied_count': unique_replied_count
+                                    'unique_replied_count': unique_replied_count,
+                                    'emails_sent_count': emails_sent_count
                                 }
                             )
                         )
