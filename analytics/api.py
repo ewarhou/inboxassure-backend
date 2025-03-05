@@ -706,12 +706,13 @@ def get_bison_provider_performance(
                     "start_date": record.start_date.isoformat(),
                     "end_date": record.end_date.isoformat(),
                     "total_accounts": record.total_accounts,
-                    "reply_rate": None,
-                    "bounce_rate": None,
                     "google_score": record.google_score,
                     "outlook_score": record.outlook_score,
                     "overall_score": record.overall_score,
-                    "sending_power": record.sending_power
+                    "sending_power": record.sending_power,
+                    "emails_sent_count": record.emails_sent_count,
+                    "bounced_count": record.bounced_count,
+                    "unique_replied_count": record.unique_replied_count
                 })
                 
         except Exception as e:

@@ -60,12 +60,13 @@
 - `start_date`: Start date of the data period
 - `end_date`: End date of the data period
 - `total_accounts`: Total number of accounts for this provider
-- `reply_rate`: Reply rate (if available)
-- `bounce_rate`: Bounce rate (if available)
 - `google_score`: Google deliverability score (0-1)
 - `outlook_score`: Outlook deliverability score (0-1)
 - `overall_score`: Average of Google and Outlook scores
 - `sending_power`: Total sending power (good accounts × sending limit)
+- `emails_sent_count`: Total number of emails sent by accounts in this provider
+- `bounced_count`: Total number of bounced emails
+- `unique_replied_count`: Total number of unique replies received
 
 **Example Response:**
 ```json
@@ -77,12 +78,13 @@
       "start_date": "2024-06-15",
       "end_date": "2024-07-15",
       "total_accounts": 125,
-      "reply_rate": null,
-      "bounce_rate": null,
       "google_score": 0.92,
       "outlook_score": 0.88,
       "overall_score": 0.90,
-      "sending_power": 3125
+      "sending_power": 3125,
+      "emails_sent_count": 25000,
+      "bounced_count": 150,
+      "unique_replied_count": 1250
     }
   ]
 }
