@@ -57,6 +57,9 @@ class AccountData(Schema):
     last_check: LastCheckData
     reports_link: str  # Added reports link field
     history: AccountHistoryData  # Added history field
+    bounce_count: Optional[int] = None  # Added bounce count field
+    reply_count: Optional[int] = None  # Added reply count field
+    emails_sent: Optional[int] = None  # Added total emails sent field
 
 class PaginationMeta(Schema):
     """Schema for pagination metadata"""
@@ -1356,8 +1359,38 @@ def get_accounts(
             id as check_id,
             created_at as check_date,
             report_link as reports_link,
+            (
+                SELECT COUNT(*) 
+                FROM user_spamcheck_reports 
+                WHERE email_account = lc.email_account
+            ) as total_checks,
+            (
+                SELECT COUNT(*) 
+                FROM user_spamcheck_reports 
+                WHERE email_account = lc.email_account AND is_good = TRUE
+            ) as good_checks,
+            (
+                SELECT COUNT(*) 
+                FROM user_spamcheck_reports 
+                WHERE email_account = lc.email_account AND is_good = FALSE
+            ) as bad_checks,
+            (
+                SELECT COALESCE(MAX(bounced_count), 0)
+                FROM user_spamcheck_bison_reports
+                WHERE email_account = lc.email_account
+            ) as bounce_count,
+            (
+                SELECT COALESCE(MAX(unique_replied_count), 0)
+                FROM user_spamcheck_bison_reports
+                WHERE email_account = lc.email_account
+            ) as reply_count,
+            (
+                SELECT COALESCE(MAX(emails_sent_count), 0)
+                FROM user_spamcheck_bison_reports
+                WHERE email_account = lc.email_account
+            ) as emails_sent,
             COUNT(*) OVER() as total_count
-        FROM latest_checks
+        FROM latest_checks lc
         WHERE rn = 1
     """
     
@@ -1401,7 +1434,9 @@ def get_accounts(
         data = []
         for row in rows:
             (email, domain, sends_per_day, google_score, outlook_score, 
-             status, workspace_name, check_id, check_date, reports_link, _) = row
+             status, workspace_name, check_id, check_date, reports_link, 
+             total_checks, good_checks, bad_checks, bounce_count, reply_count, 
+             emails_sent, _) = row
             
             data.append({
                 "email": email,
@@ -1415,7 +1450,15 @@ def get_accounts(
                     "id": str(check_id),
                     "date": check_date.isoformat() if check_date else None
                 },
-                "reports_link": reports_link
+                "reports_link": reports_link,
+                "history": {
+                    "total_checks": total_checks,
+                    "good_checks": good_checks,
+                    "bad_checks": bad_checks
+                },
+                "bounce_count": bounce_count,
+                "reply_count": reply_count,
+                "emails_sent": emails_sent
             })
         
         return {
@@ -1533,6 +1576,9 @@ def get_bison_accounts(
             COALESCE(ast.total_checks, 0) as total_checks,
             COALESCE(ast.good_checks, 0) as good_checks,
             COALESCE(ast.bad_checks, 0) as bad_checks,
+            COALESCE(lc.bounced_count, 0) as bounce_count,
+            COALESCE(lc.unique_replied_count, 0) as reply_count,
+            COALESCE(lc.emails_sent_count, 0) as emails_sent,
             COUNT(*) OVER() as total_count
         FROM latest_checks lc
         LEFT JOIN account_stats ast ON lc.email_account = ast.email_account
@@ -1580,7 +1626,8 @@ def get_bison_accounts(
         for row in rows:
             (email, domain, sends_per_day, google_score, outlook_score, 
              status, workspace_name, check_id, check_date, reports_link, 
-             total_checks, good_checks, bad_checks, _) = row
+             total_checks, good_checks, bad_checks, bounce_count, reply_count, 
+             emails_sent, _) = row
             
             data.append({
                 "email": email,
@@ -1599,7 +1646,10 @@ def get_bison_accounts(
                     "total_checks": total_checks,
                     "good_checks": good_checks,
                     "bad_checks": bad_checks
-                }
+                },
+                "bounce_count": bounce_count,
+                "reply_count": reply_count,
+                "emails_sent": emails_sent
             })
         
         return {

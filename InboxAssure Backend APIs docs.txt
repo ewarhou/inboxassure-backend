@@ -200,6 +200,10 @@
     - `total_checks`: Total number of checks performed
     - `good_checks`: Number of successful checks
     - `bad_checks`: Number of failed checks
+  - `bounce_count`: Number of bounced emails
+  - `reply_count`: Number of unique replies received
+  - `emails_sent`: Total number of emails sent
+
 - `meta`: Pagination metadata with:
   - `total`: Total number of accounts
   - `page`: Current page number
@@ -227,7 +231,10 @@
         "total_checks": 10,
         "good_checks": 8,
         "bad_checks": 2
-      }
+      },
+      "bounce_count": 3,
+      "reply_count": 12,
+      "emails_sent": 250
     }
   ],
   "meta": {

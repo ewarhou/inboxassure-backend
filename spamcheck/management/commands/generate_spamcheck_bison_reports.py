@@ -349,27 +349,25 @@ class Command(BaseCommand):
                             
                             domain_tags_str, domain_bounced_count, domain_unique_replied_count, domain_emails_sent_count = await self.get_account_tags(domain_account.organization, domain_account.email_account)
                             
-                            # Create/update report
+                            # Create report (always create a new one instead of updating)
                             self.stdout.write(f"   📝 Creating report for domain account {domain_account.email_account}")
-                            report, created = await asyncio.to_thread(
-                                lambda: UserSpamcheckBisonReport.objects.update_or_create(
+                            report = await asyncio.to_thread(
+                                lambda: UserSpamcheckBisonReport.objects.create(
                                     spamcheck_bison=account.bison_spamcheck,
                                     email_account=domain_account.email_account,
-                                    defaults={
-                                        'bison_organization': domain_account.organization,
-                                        'google_pro_score': google_score,
-                                        'outlook_pro_score': outlook_score,
-                                        'report_link': f"https://app.emailguard.io/inbox-placement-tests/{account.last_emailguard_tag}",
-                                        'is_good': is_good,
-                                        'used_subject': account.bison_spamcheck.subject,
-                                        'used_body': account.bison_spamcheck.body,
-                                        'sending_limit': sending_limit,
-                                        'tags_list': domain_tags_str,
-                                        'workspace_name': domain_account.organization.bison_organization_name,
-                                        'bounced_count': domain_bounced_count,
-                                        'unique_replied_count': domain_unique_replied_count,
-                                        'emails_sent_count': domain_emails_sent_count
-                                    }
+                                    bison_organization=domain_account.organization,
+                                    google_pro_score=google_score,
+                                    outlook_pro_score=outlook_score,
+                                    report_link=f"https://app.emailguard.io/inbox-placement-tests/{account.last_emailguard_tag}",
+                                    is_good=is_good,
+                                    used_subject=account.bison_spamcheck.subject,
+                                    used_body=account.bison_spamcheck.body,
+                                    sending_limit=sending_limit,
+                                    tags_list=domain_tags_str,
+                                    workspace_name=domain_account.organization.bison_organization_name,
+                                    bounced_count=domain_bounced_count,
+                                    unique_replied_count=domain_unique_replied_count,
+                                    emails_sent_count=domain_emails_sent_count
                                 )
                             )
                             
@@ -397,25 +395,23 @@ class Command(BaseCommand):
                         self.stdout.write(f"   📝 Creating report for {account.email_account}")
                         tags_str, bounced_count, unique_replied_count, emails_sent_count = await self.get_account_tags(account.organization, account.email_account)
                         
-                        report, created = await asyncio.to_thread(
-                            lambda: UserSpamcheckBisonReport.objects.update_or_create(
+                        report = await asyncio.to_thread(
+                            lambda: UserSpamcheckBisonReport.objects.create(
                                 spamcheck_bison=account.bison_spamcheck,
                                 email_account=account.email_account,
-                                defaults={
-                                    'bison_organization': account.organization,
-                                    'google_pro_score': google_score,
-                                    'outlook_pro_score': outlook_score,
-                                    'report_link': f"https://app.emailguard.io/inbox-placement-tests/{account.last_emailguard_tag}",
-                                    'is_good': is_good,
-                                    'used_subject': account.bison_spamcheck.subject,
-                                    'used_body': account.bison_spamcheck.body,
-                                    'sending_limit': sending_limit,
-                                    'tags_list': tags_str,
-                                    'workspace_name': account.organization.bison_organization_name,
-                                    'bounced_count': bounced_count,
-                                    'unique_replied_count': unique_replied_count,
-                                    'emails_sent_count': emails_sent_count
-                                }
+                                bison_organization=account.organization,
+                                google_pro_score=google_score,
+                                outlook_pro_score=outlook_score,
+                                report_link=f"https://app.emailguard.io/inbox-placement-tests/{account.last_emailguard_tag}",
+                                is_good=is_good,
+                                used_subject=account.bison_spamcheck.subject,
+                                used_body=account.bison_spamcheck.body,
+                                sending_limit=sending_limit,
+                                tags_list=tags_str,
+                                workspace_name=account.organization.bison_organization_name,
+                                bounced_count=bounced_count,
+                                unique_replied_count=unique_replied_count,
+                                emails_sent_count=emails_sent_count
                             )
                         )
                         
@@ -641,25 +637,23 @@ class Command(BaseCommand):
                         tags_str, bounced_count, unique_replied_count, emails_sent_count = await self.get_account_tags(account.organization, account.email_account)
 
                         # Create/update report for each account
-                        report, created = await asyncio.to_thread(
-                            lambda: UserSpamcheckBisonReport.objects.update_or_create(
+                        report = await asyncio.to_thread(
+                            lambda: UserSpamcheckBisonReport.objects.create(
                                 spamcheck_bison=spamcheck,
                                 email_account=account.email_account,
-                                defaults={
-                                    'bison_organization': account.organization,
-                                    'google_pro_score': scores['google_score'],
-                                    'outlook_pro_score': scores['outlook_score'],
-                                    'report_link': scores['report_link'],
-                                    'is_good': scores['is_good'],
-                                    'used_subject': spamcheck.subject,
-                                    'used_body': spamcheck.body,
-                                    'sending_limit': scores['sending_limit'],
-                                    'tags_list': tags_str,
-                                    'workspace_name': account.organization.bison_organization_name,
-                                    'bounced_count': bounced_count,
-                                    'unique_replied_count': unique_replied_count,
-                                    'emails_sent_count': emails_sent_count
-                                }
+                                bison_organization=account.organization,
+                                google_pro_score=scores['google_score'],
+                                outlook_pro_score=scores['outlook_score'],
+                                report_link=scores['report_link'],
+                                is_good=scores['is_good'],
+                                used_subject=spamcheck.subject,
+                                used_body=spamcheck.body,
+                                sending_limit=scores['sending_limit'],
+                                tags_list=tags_str,
+                                workspace_name=account.organization.bison_organization_name,
+                                bounced_count=bounced_count,
+                                unique_replied_count=unique_replied_count,
+                                emails_sent_count=emails_sent_count
                             )
                         )
 
