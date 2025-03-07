@@ -489,3 +489,47 @@
   }
 }
 ```
+
+### List Organization Accounts
+**Endpoint:** `POST /api/spamcheck/list-accounts`  
+Lists all email accounts from a specific Instantly organization with filtering options.
+
+**URL Parameters:**
+- `organization_id`: ID of the organization to get accounts from
+
+**Request Body:**
+```json
+{
+    "search": "string?",         // Optional: Filter accounts by content
+    "ignore_tags": ["string?"],  // Optional: Don't include accounts with any of these tag titles (OR logic)
+    "only_tags": ["string?"],    // Optional: Only include accounts with at least one of these tag titles (OR logic)
+    "is_active": "boolean?",     // Optional: Include ONLY active accounts (status = 1)
+    "limit": "number?"           // Optional: Number of accounts to return (default: 10)
+}
+```
+
+**Response:**
+```json
+{
+    "success": "boolean",
+    "message": "string",
+    "data": {
+        "organization_id": "number",
+        "organization_name": "string",
+        "total_accounts": "number",
+        "accounts": ["string"]  // List of email addresses
+    }
+}
+```
+
+**Example Request:**
+```json
+POST /api/spamcheck/list-accounts?organization_id=123
+{
+    "search": "gmail",                // Will filter accounts containing "gmail"
+    "ignore_tags": ["blocked", "bad"], // Will exclude accounts tagged as "blocked" OR "bad"
+    "only_tags": ["warm", "ready"],   // Will only include accounts tagged as "warm" OR "ready"
+    "is_active": true,                // Will only return active accounts
+    "limit": 20                       // Will return up to 20 accounts
+}
+```
