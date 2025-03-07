@@ -975,7 +975,8 @@ def list_accounts(
     print(f"- organization_id: {organization_id}")
     print(f"- platform: {payload.platform}")
     print(f"- search: {payload.search}")
-    print(f"- ignore_tag: {payload.ignore_tag}")
+    print(f"- ignore_tags: {payload.ignore_tags}")
+    print(f"- only_tags: {payload.only_tags}")
     print(f"- is_active: {payload.is_active}")
     print(f"- limit: {payload.limit}")
 
@@ -1043,6 +1044,7 @@ def list_accounts(
             response_data = response.json()
             accounts = response_data.get("accounts", [])
             
+            # For Instantly platform
             # Extract just the emails and apply filters
             email_list = []
             for account in accounts:
@@ -1053,14 +1055,30 @@ def list_accounts(
                 # Skip if account is not active (status != 1)
                 if payload.is_active and account.get("status") != 1:
                     continue
-                    
-                # Skip if has ignored tag
-                if payload.ignore_tag:
-                    account_tags = [tag.get("label", "").lower() for tag in account.get("tags", [])] if account.get("tags") else []
-                    # Keep the account if it has no tags or doesn't have the ignored tag
-                    if account_tags and payload.ignore_tag.lower() in account_tags:
+                
+                # Get account tags
+                account_tags = [tag.get("label", "").lower() for tag in account.get("tags", [])] if account.get("tags") else []
+                
+                # Skip if has any ignored tag
+                if payload.ignore_tags and account_tags:
+                    should_skip = False
+                    for ignore_tag in payload.ignore_tags:
+                        if ignore_tag.lower() in account_tags:
+                            should_skip = True
+                            break
+                    if should_skip:
                         continue
-                        
+                
+                # Skip if doesn't have any of the required tags
+                if payload.only_tags and account_tags:
+                    has_required_tag = False
+                    for only_tag in payload.only_tags:
+                        if only_tag.lower() in account_tags:
+                            has_required_tag = True
+                            break
+                    if not has_required_tag:
+                        continue
+                    
                 email_list.append(email)
 
         else:  # Bison platform
@@ -1132,6 +1150,7 @@ def list_accounts(
             
             print(f"Total accounts fetched: {len(all_accounts)}")
             
+            # For Bison platform
             # Extract just the emails and apply filters
             email_list = []
             for account in all_accounts:
@@ -1143,13 +1162,29 @@ def list_accounts(
                 if payload.is_active and account.get("status") != "Connected":
                     continue
                 
-                # Skip if has ignored tag
-                if payload.ignore_tag:
-                    account_tags = [tag.get("name", "").lower() for tag in account.get("tags", [])] if account.get("tags") else []
-                    # Keep the account if it has no tags or doesn't have the ignored tag
-                    if account_tags and payload.ignore_tag.lower() in account_tags:
+                # Get account tags
+                account_tags = [tag.get("name", "").lower() for tag in account.get("tags", [])] if account.get("tags") else []
+                
+                # Skip if has any ignored tag
+                if payload.ignore_tags and account_tags:
+                    should_skip = False
+                    for ignore_tag in payload.ignore_tags:
+                        if ignore_tag.lower() in account_tags:
+                            should_skip = True
+                            break
+                    if should_skip:
                         continue
                 
+                # Skip if doesn't have any of the required tags
+                if payload.only_tags and account_tags:
+                    has_required_tag = False
+                    for only_tag in payload.only_tags:
+                        if only_tag.lower() in account_tags:
+                            has_required_tag = True
+                            break
+                    if not has_required_tag:
+                        continue
+                    
                 email_list.append(email)
             
             # Apply limit after filtering all accounts
