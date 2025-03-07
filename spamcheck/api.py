@@ -1063,7 +1063,8 @@ def list_accounts(
                 if payload.ignore_tags and account_tags:
                     should_skip = False
                     for ignore_tag in payload.ignore_tags:
-                        if ignore_tag.lower() in account_tags:
+                        ignore_tag_lower = ignore_tag.lower()
+                        if any(ignore_tag_lower == tag for tag in account_tags):
                             should_skip = True
                             break
                     if should_skip:
@@ -1073,7 +1074,8 @@ def list_accounts(
                 if payload.only_tags and account_tags:
                     has_required_tag = False
                     for only_tag in payload.only_tags:
-                        if only_tag.lower() in account_tags:
+                        only_tag_lower = only_tag.lower()
+                        if any(only_tag_lower == tag for tag in account_tags):
                             has_required_tag = True
                             break
                     if not has_required_tag:
@@ -1169,7 +1171,8 @@ def list_accounts(
                 if payload.ignore_tags and account_tags:
                     should_skip = False
                     for ignore_tag in payload.ignore_tags:
-                        if ignore_tag.lower() in account_tags:
+                        ignore_tag_lower = ignore_tag.lower()
+                        if any(ignore_tag_lower == tag for tag in account_tags):
                             should_skip = True
                             break
                     if should_skip:
@@ -1179,7 +1182,8 @@ def list_accounts(
                 if payload.only_tags and account_tags:
                     has_required_tag = False
                     for only_tag in payload.only_tags:
-                        if only_tag.lower() in account_tags:
+                        only_tag_lower = only_tag.lower()
+                        if any(only_tag_lower == tag for tag in account_tags):
                             has_required_tag = True
                             break
                     if not has_required_tag:
