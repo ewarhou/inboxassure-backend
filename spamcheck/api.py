@@ -1060,7 +1060,7 @@ def list_accounts(
                     continue
                     
                 # Get account tags
-                    account_tags = [tag.get("label", "").lower() for tag in account.get("tags", [])] if account.get("tags") else []
+                account_tags = [tag.get("label", "").lower() for tag in account.get("tags", [])] if account.get("tags") else []
                 
                 # Skip if has any ignored tag
                 if payload.ignore_tags and account_tags:
@@ -1168,7 +1168,7 @@ def list_accounts(
                     continue
                 
                 # Get account tags
-                    account_tags = [tag.get("name", "").lower() for tag in account.get("tags", [])] if account.get("tags") else []
+                account_tags = [tag.get("name", "").lower() for tag in account.get("tags", [])] if account.get("tags") else []
                 
                 # Skip if has any ignored tag
                 if payload.ignore_tags and account_tags:
