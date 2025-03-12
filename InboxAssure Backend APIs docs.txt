@@ -246,7 +246,142 @@
 }
 ```
 
-### 2. Bison Spamcheck Details
+### 2. Bison Account Details
+
+**Endpoint:** `GET /api/spamcheck/account-bison-details`
+
+**Authentication:** Bearer Token
+
+**Description:** Get detailed information for a specific Bison email account, including historical performance data and information about other accounts in the same domain.
+
+**Parameters:**
+- `email`: The email address to get details for
+
+**Response:** Detailed account information with the following fields:
+- `success`: Boolean indicating if the request was successful
+- `message`: Status message
+- `data`: Account details object with:
+  - `email`: Email address
+  - `domain`: Domain name extracted from email
+  - `sends_per_day`: Daily sending limit
+  - `google_score`: Google deliverability score (0-1)
+  - `outlook_score`: Outlook deliverability score (0-1)
+  - `status`: Account status (Inboxing or Resting)
+  - `workspace`: Bison workspace name
+  - `last_check`: Object with check ID and date
+  - `reports_link`: Link to detailed reports
+  - `history`: Account history statistics with:
+    - `total_checks`: Total number of checks performed
+    - `good_checks`: Number of successful checks
+    - `bad_checks`: Number of failed checks
+  - `bounce_count`: Number of bounced emails
+  - `reply_count`: Number of unique replies received
+  - `emails_sent`: Total number of emails sent
+  - `score_history`: Array of historical check data with:
+    - `date`: Check date in ISO format
+    - `google_score`: Google score at that time
+    - `outlook_score`: Outlook score at that time
+    - `status`: Status at that time (Inboxing or Resting)
+    - `report_link`: Link to the detailed report for that check
+  - `domain_accounts`: Array of other accounts in the same domain with:
+    - `email`: Email address
+    - `google_score`: Google deliverability score
+    - `outlook_score`: Outlook deliverability score
+    - `status`: Account status
+    - `workspace`: Workspace name
+    - `last_check_date`: Date of the last check in ISO format
+    - `bounce_count`: Number of bounced emails
+    - `reply_count`: Number of unique replies received
+    - `emails_sent`: Total number of emails sent
+    - `history`: Account history statistics with:
+      - `total_checks`: Total number of checks performed
+      - `good_checks`: Number of successful checks
+      - `bad_checks`: Number of failed checks
+  - `domain_summary`: Domain-level statistics with:
+    - `total_accounts`: Total number of accounts in this domain
+    - `avg_google_score`: Average Google score across all accounts
+    - `avg_outlook_score`: Average Outlook score across all accounts
+    - `inboxing_accounts`: Number of accounts currently inboxing
+    - `resting_accounts`: Number of accounts currently resting
+    - `total_checks`: Total number of checks across all accounts in the domain
+    - `good_checks`: Total number of good checks across all accounts
+    - `bad_checks`: Total number of bad checks across all accounts
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Account details retrieved successfully",
+  "data": {
+    "email": "test@example.com",
+    "domain": "example.com",
+    "sends_per_day": 25,
+    "google_score": 0.75,
+    "outlook_score": 1.0,
+    "status": "Inboxing",
+    "workspace": "Karpos",
+    "last_check": {
+      "id": "123",
+      "date": "2024-07-15T14:30:45.123456Z"
+    },
+    "reports_link": "https://app.emailguard.io/reports/123",
+    "history": {
+      "total_checks": 10,
+      "good_checks": 8,
+      "bad_checks": 2
+    },
+    "bounce_count": 3,
+    "reply_count": 12,
+    "emails_sent": 250,
+    "score_history": [
+      {
+        "date": "2024-07-15T14:30:45.123456Z",
+        "google_score": 0.75,
+        "outlook_score": 1.0,
+        "status": "Inboxing",
+        "report_link": "https://app.emailguard.io/reports/123"
+      },
+      {
+        "date": "2024-07-10T09:15:30.123456Z",
+        "google_score": 0.5,
+        "outlook_score": 0.75,
+        "status": "Inboxing",
+        "report_link": "https://app.emailguard.io/reports/122"
+      }
+    ],
+    "domain_accounts": [
+      {
+        "email": "other@example.com",
+        "google_score": 0.5,
+        "outlook_score": 0.75,
+        "status": "Inboxing",
+        "workspace": "Karpos",
+        "last_check_date": "2024-07-14T10:20:30.123456Z",
+        "bounce_count": 5,
+        "reply_count": 8,
+        "emails_sent": 200,
+        "history": {
+          "total_checks": 8,
+          "good_checks": 6,
+          "bad_checks": 2
+        }
+      }
+    ],
+    "domain_summary": {
+      "total_accounts": 5,
+      "avg_google_score": 0.65,
+      "avg_outlook_score": 0.85,
+      "inboxing_accounts": 4,
+      "resting_accounts": 1,
+      "total_checks": 42,
+      "good_checks": 35,
+      "bad_checks": 7
+    }
+  }
+}
+```
+
+### 3. Bison Spamcheck Details
 
 **Endpoint:** `GET /api/spamcheck/get-spamcheck/{spamcheck_id}`
 
@@ -317,7 +452,7 @@
 }
 ```
 
-### 3. Update Bison Spamcheck
+### 4. Update Bison Spamcheck
 
 **Endpoint:** `PUT /api/spamcheck/update-spamcheck-bison/{spamcheck_id}`
 
@@ -378,7 +513,7 @@
 }
 ```
 
-### 4. Update Spamcheck Title, Subject and Body
+### 5. Update Spamcheck Title, Subject and Body
 
 **Endpoint:** `PUT /api/spamcheck/update-spamcheck-sql/{spamcheck_id}`
 
@@ -426,7 +561,7 @@
 }
 ```
 
-### 5. Fetch Campaign Email Copy
+### 6. Fetch Campaign Email Copy
 
 **Endpoint:** `GET /api/spamcheck/fetch-campaign-copy-bison/{campaign_id}`
 
@@ -458,7 +593,7 @@
 }
 ```
 
-### 6. Toggle Pause Bison Spamcheck
+### 7. Toggle Pause Bison Spamcheck
 
 **Endpoint:** `POST /api/spamcheck/toggle-pause-bison/{spamcheck_id}`
 
@@ -490,7 +625,7 @@
 }
 ```
 
-### List Organization Accounts
+### 8. List Organization Accounts
 **Endpoint:** `POST /api/spamcheck/list-accounts`  
 Lists all email accounts from a specific Instantly organization with filtering options.
 
@@ -533,3 +668,54 @@ POST /api/spamcheck/list-accounts?organization_id=123
     "limit": 20                       // Will return up to 20 accounts
 }
 ```
+
+### 9. Check Content for Spam
+
+**Endpoint:** `POST /api/spamcheck/content-spam-check`
+
+**Authentication:** Bearer Token
+
+**Description:** Submits content to check for spam using the EmailGuard API. This endpoint analyzes text content to determine if it contains spam indicators and provides a detailed report.
+
+**Request Body:** JSON object with the following field:
+- `content`: The text content to check for spam
+
+**Response:** Spam check result with the following fields:
+- `success`: Boolean indicating if the request was successful
+- `message`: Status message
+- `data`: Spam check data with:
+  - `message`: Spam check result with:
+    - `is_spam`: Boolean indicating if the content is considered spam
+    - `spam_score`: Numerical score indicating spam likelihood
+    - `number_of_spam_words`: Count of spam words found in the content
+    - `spam_words`: Array of spam words found in the content
+    - `comma_separated_spam_words`: Comma-separated string of spam words
+
+**Example Request:**
+```json
+{
+  "content": "This is a spammy message with a free offer!"
+}
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Content spam check completed successfully",
+  "data": {
+    "message": {
+      "is_spam": true,
+      "spam_score": 5.6,
+      "number_of_spam_words": 3,
+      "spam_words": ["spam", "offer", "free"],
+      "comma_separated_spam_words": "spammy, free, offer"
+    }
+  }
+}
+```
+
+**Notes:**
+- This endpoint uses the EmailGuard API key for authentication, not the Bison API key
+- The spam score threshold for determining if content is spam may vary based on EmailGuard's configuration
+- The list of spam words is regularly updated by EmailGuard

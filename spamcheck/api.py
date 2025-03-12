@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 from ninja import Router, Schema
 from ninja.pagination import paginate
 from django.shortcuts import get_object_or_404
@@ -15,6 +15,9 @@ from django.utils import timezone
 import pytz
 from ninja.errors import HttpError
 from settings.api import log_to_terminal
+import re
+from html import unescape
+from ninja import Field
 
 router = Router(tags=["spamcheck"])
 
@@ -2661,140 +2664,299 @@ def get_bison_account_details(
 )
 def fetch_campaign_copy(request, campaign_id: str):
     """
-    Fetch email copy (subject and body) from a campaign
-    
-    Parameters:
-        - campaign_id: ID of the campaign to fetch copy from
+    Fetch email subject and body from a Bison campaign's first sequence step
     """
-    user = request.auth
-    log_to_terminal("Spamcheck", "FetchCopy", f"Fetching copy for campaign ID {campaign_id}")
-    
     try:
-        # Get the user's Bison organization - handle multiple organizations
-        user_bison_orgs = UserBison.objects.filter(
-            user=user,
-            bison_organization_status=True  # Make sure organization is active
-        )
+        user = request.auth
         
-        if not user_bison_orgs.exists():
-            log_to_terminal("Spamcheck", "FetchCopy", f"User {user.email} has no active Bison organization")
+        # Get user's Bison organization
+        try:
+            user_bison = UserBison.objects.filter(
+                user_id=user.id,
+                bison_organization_status=True  # Make sure organization is active
+            ).first()
+            
+            if not user_bison:
+                return {
+                    "success": False,
+                    "message": "No active Bison organization found for this user",
+                    "data": None
+                }
+        except Exception as e:
             return {
                 "success": False,
-                "message": "You don't have an active Bison organization configured",
-                "data": {
-                    "subject": "",
-                    "body": "",
-                    "campaign_id": campaign_id
-                }
+                "message": f"Error fetching Bison organization: {str(e)}",
+                "data": None
             }
         
-        # Use the first active organization
-        user_bison = user_bison_orgs.first()
-        log_to_terminal("Spamcheck", "FetchCopy", f"Using Bison organization: {user_bison.bison_organization_name}")
-        
-        # Make API request to fetch campaign sequence steps
-        api_url = f"{user_bison.base_url.rstrip('/')}/api/campaigns/{campaign_id}/sequence-steps"
-        log_to_terminal("Spamcheck", "FetchCopy", f"Making API request to: {api_url}")
+        # Call Bison API to get campaign details
+        api_url = f"{user_bison.base_url.rstrip('/')}/api/campaigns/{campaign_id}"
         
         response = requests.get(
             api_url,
             headers={
                 "Authorization": f"Bearer {user_bison.bison_organization_api_key}",
                 "Content-Type": "application/json"
-            }
+            },
+            timeout=30
         )
         
         if response.status_code != 200:
-            log_to_terminal("Spamcheck", "FetchCopy", f"API Error: {response.status_code} - {response.text}")
             return {
                 "success": False,
-                "message": f"Error fetching campaign copy: {response.text}",
-                "data": {
-                    "subject": "",
-                    "body": "",
-                    "campaign_id": campaign_id
-                }
+                "message": f"Failed to fetch campaign from Bison API: {response.text}",
+                "data": None
             }
         
-        # Parse response
-        data = response.json()
-        steps = data.get('data', [])
+        campaign_data = response.json()
         
-        if not steps:
-            log_to_terminal("Spamcheck", "FetchCopy", f"No sequence steps found for campaign {campaign_id}")
+        # Get the first sequence step
+        if not campaign_data.get('sequence') or not campaign_data['sequence'].get('steps') or len(campaign_data['sequence']['steps']) == 0:
             return {
                 "success": False,
-                "message": "No sequence steps found for this campaign",
-                "data": {
-                    "subject": "",
-                    "body": "",
-                    "campaign_id": campaign_id
-                }
+                "message": "Campaign has no sequence steps",
+                "data": None
             }
         
-        # Get the first step (step 1)
-        first_step = steps[0]
-        subject = first_step.get('email_subject', '')
-        html_body = first_step.get('email_body', '')
+        first_step = campaign_data['sequence']['steps'][0]
         
-        # Convert HTML to plain text while preserving formatting
-        try:
-            import re
-            from html import unescape
-            
-            # Function to convert HTML to formatted plain text
-            def html_to_text(html):
-                if not html:
-                    return ""
-                
-                # Unescape HTML entities
-                html = unescape(html)
-                
-                # Replace common block elements with newlines
-                html = re.sub(r'</(div|p|h\d|ul|ol|li|blockquote|pre|table|tr)>', '\n', html)
-                
-                # Replace <br> tags with newlines
-                html = re.sub(r'<br[^>]*>', '\n', html)
-                
-                # Replace multiple consecutive newlines with just two
-                html = re.sub(r'\n{3,}', '\n\n', html)
-                
-                # Remove all remaining HTML tags
-                html = re.sub(r'<[^>]*>', '', html)
-                
-                # Trim leading/trailing whitespace
-                html = html.strip()
-                
-                return html
-            
-            # Convert the HTML body to plain text
-            plain_body = html_to_text(html_body)
-            log_to_terminal("Spamcheck", "FetchCopy", f"Successfully converted HTML to plain text")
-            
-        except Exception as e:
-            log_to_terminal("Spamcheck", "FetchCopy", f"Error converting HTML to text: {str(e)}")
-            plain_body = html_body  # Fallback to original HTML if conversion fails
+        # Extract subject and body
+        subject = first_step.get('subject', '')
+        body_html = first_step.get('body', '')
         
-        log_to_terminal("Spamcheck", "FetchCopy", f"Successfully fetched copy for campaign {campaign_id}")
+        # Convert HTML to text
+        body_text = html_to_text(body_html)
         
         return {
             "success": True,
             "message": "Campaign copy fetched successfully",
             "data": {
                 "subject": subject,
-                "body": plain_body,
+                "body": body_text,
                 "campaign_id": campaign_id
             }
         }
         
     except Exception as e:
-        log_to_terminal("Spamcheck", "FetchCopy", f"Error fetching campaign copy: {str(e)}")
+        log_to_terminal("SpamCheck", "Error", f"Error fetching campaign copy: {str(e)}")
         return {
             "success": False,
             "message": f"Error fetching campaign copy: {str(e)}",
-            "data": {
-                "subject": "",
-                "body": "",
-                "campaign_id": campaign_id
+            "data": None
+        }
+
+class ContentSpamCheckSchema(Schema):
+    """Schema for content spam check request"""
+    content: str = Field(..., description="The content to check for spam")
+
+class SpamCheckResultSchema(Schema):
+    """Schema for spam check result"""
+    is_spam: bool
+    spam_score: float
+    number_of_spam_words: int
+    spam_words: List[str]
+    comma_separated_spam_words: str
+
+class SpamCheckResponseSchema(Schema):
+    """Schema for spam check response"""
+    success: bool
+    message: str
+    data: Dict[str, SpamCheckResultSchema]
+
+@router.post(
+    "/content-spam-check",
+    auth=AuthBearer(),
+    response=SpamCheckResponseSchema,
+    summary="Check Content for Spam",
+    description="Submits content to check for spam using the EmailGuard API"
+)
+def check_content_for_spam(request, payload: ContentSpamCheckSchema):
+    """
+    Check if content contains spam using EmailGuard API
+    """
+    try:
+        user = request.auth
+        
+        # Get user's EmailGuard settings
+        try:
+            user_settings = UserSettings.objects.get(user=user)
+            if not user_settings.emailguard_api_key:
+                return {
+                    "success": False,
+                    "message": "EmailGuard API key not configured for this user",
+                    "data": {
+                        "message": {
+                            "is_spam": False,
+                            "spam_score": 0.0,
+                            "number_of_spam_words": 0,
+                            "spam_words": [],
+                            "comma_separated_spam_words": ""
+                        }
+                    }
+                }
+            emailguard_api_key = user_settings.emailguard_api_key
+        except UserSettings.DoesNotExist:
+            return {
+                "success": False,
+                "message": "User settings not found",
+                "data": {
+                    "message": {
+                        "is_spam": False,
+                        "spam_score": 0.0,
+                        "number_of_spam_words": 0,
+                        "spam_words": [],
+                        "comma_separated_spam_words": ""
+                    }
+                }
             }
-        } 
+        
+        # Call EmailGuard API to check content
+        api_url = "https://app.emailguard.io/api/v1/content-spam-check"
+        
+        response = requests.post(
+            api_url,
+            headers={
+                "Authorization": f"Bearer {emailguard_api_key}",
+                "Content-Type": "application/json"
+            },
+            json={"content": payload.content},
+            timeout=30
+        )
+        
+        # Print raw response for debugging
+        print(f"EmailGuard API raw response: {response.text}")
+        log_to_terminal("SpamCheck", "Debug", f"EmailGuard API raw response: {response.text}")
+        
+        if response.status_code != 200:
+            return {
+                "success": False,
+                "message": f"Failed to check content with EmailGuard API: {response.text}",
+                "data": {
+                    "message": {
+                        "is_spam": False,
+                        "spam_score": 0.0,
+                        "number_of_spam_words": 0,
+                        "spam_words": [],
+                        "comma_separated_spam_words": ""
+                    }
+                }
+            }
+        
+        result = response.json()
+        
+        # Log the exact response for debugging
+        print(f"EmailGuard API parsed response: {result}")
+        log_to_terminal("SpamCheck", "Debug", f"EmailGuard API parsed response: {result}")
+        
+        # Handle the correct nested structure from EmailGuard API
+        if "data" in result and "message" in result["data"]:
+            message_data = result["data"]["message"]
+            # Ensure all required fields are present with default values if missing
+            formatted_message = {
+                "is_spam": message_data.get("is_spam", False),
+                "spam_score": message_data.get("spam_score", 0.0),
+                "number_of_spam_words": message_data.get("number_of_spam_words", 0),
+                "spam_words": message_data.get("spam_words", []),
+                "comma_separated_spam_words": message_data.get("comma_separated_spam_words", "")
+            }
+            
+            return {
+                "success": True,
+                "message": "Content spam check completed successfully",
+                "data": {"message": formatted_message}
+            }
+        # Try other possible structures
+        elif "message" in result:
+            message_data = result["message"]
+            # Ensure all required fields are present with default values if missing
+            formatted_message = {
+                "is_spam": message_data.get("is_spam", False),
+                "spam_score": message_data.get("spam_score", 0.0),
+                "number_of_spam_words": message_data.get("number_of_spam_words", 0),
+                "spam_words": message_data.get("spam_words", []),
+                "comma_separated_spam_words": message_data.get("comma_separated_spam_words", "")
+            }
+            
+            return {
+                "success": True,
+                "message": "Content spam check completed successfully",
+                "data": {"message": formatted_message}
+            }
+        # Try alternative response format
+        elif "is_spam" in result:
+            # The API might be returning the spam check result directly at the root level
+            formatted_message = {
+                "is_spam": result.get("is_spam", False),
+                "spam_score": result.get("spam_score", 0.0),
+                "number_of_spam_words": result.get("number_of_spam_words", 0),
+                "spam_words": result.get("spam_words", []),
+                "comma_separated_spam_words": result.get("comma_separated_spam_words", "")
+            }
+            
+            return {
+                "success": True,
+                "message": "Content spam check completed successfully",
+                "data": {"message": formatted_message}
+            }
+        else:
+            # If the response doesn't have the expected structure, create a default response
+            log_to_terminal("SpamCheck", "Warning", f"Unexpected response format from EmailGuard API: {result}")
+            return {
+                "success": True,
+                "message": "Content spam check completed with unexpected response format",
+                "data": {
+                    "message": {
+                        "is_spam": False,
+                        "spam_score": 0.0,
+                        "number_of_spam_words": 0,
+                        "spam_words": [],
+                        "comma_separated_spam_words": ""
+                    }
+                }
+            }
+        
+    except Exception as e:
+        log_to_terminal("SpamCheck", "Error", f"Error checking content for spam: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Error checking content for spam: {str(e)}",
+            "data": {
+                "message": {
+                    "is_spam": False,
+                    "spam_score": 0.0,
+                    "number_of_spam_words": 0,
+                    "spam_words": [],
+                    "comma_separated_spam_words": ""
+                }
+            }
+        }
+
+def html_to_text(html):
+    """Convert HTML to plain text while preserving some formatting"""
+    # Remove style and script tags
+    html = re.sub(r'<style.*?>.*?</style>', '', html, flags=re.DOTALL)
+    html = re.sub(r'<script.*?>.*?</script>', '', html, flags=re.DOTALL)
+    
+    # Replace common tags with text equivalents
+    html = html.replace('<br>', '\n').replace('<br/>', '\n').replace('<br />', '\n')
+    html = html.replace('</p>', '\n\n').replace('</div>', '\n')
+    html = html.replace('</h1>', '\n\n').replace('</h2>', '\n\n').replace('</h3>', '\n\n')
+    html = html.replace('</h4>', '\n\n').replace('</h5>', '\n\n').replace('</h6>', '\n\n')
+    html = html.replace('<li>', '- ').replace('</li>', '\n')
+    
+    # Remove all remaining HTML tags
+    html = re.sub(r'<.*?>', '', html)
+    
+    # Fix spacing
+    html = re.sub(r' +', ' ', html)
+    html = re.sub(r'\n+', '\n\n', html)
+    
+    # Decode HTML entities
+    html = html.replace('&nbsp;', ' ')
+    html = html.replace('&amp;', '&')
+    html = html.replace('&lt;', '<')
+    html = html.replace('&gt;', '>')
+    html = html.replace('&quot;', '"')
+    html = html.replace('&#39;', "'")
+    
+    return html.strip() 

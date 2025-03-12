@@ -37,3 +37,13 @@
 [2025-03-05 03:00:59] [BisonPerformance] [Debug] Found 0 unique providers
 [2025-03-05 03:00:59] [BisonPerformance] [Warning] No provider performance records found for Sales Society
 [2025-03-05 03:00:59] [BisonPerformance] [Output] Returning 5 provider entries
+[2025-03-12 14:34:54] [SpamCheck] [Warning] Unexpected response format from EmailGuard API: {'data': {'message': {'is_spam': False, 'spam_score': 5, 'number_of_spam_words': 0, 'spam_words': [], 'comma_separated_spam_words': ''}}}
+[2025-03-12 14:36:24] [SpamCheck] [Debug] EmailGuard API response: {'data': {'message': {'is_spam': False, 'spam_score': 5, 'number_of_spam_words': 0, 'spam_words': [], 'comma_separated_spam_words': ''}}}
+[2025-03-12 14:36:24] [SpamCheck] [Warning] Unexpected response format from EmailGuard API: {'data': {'message': {'is_spam': False, 'spam_score': 5, 'number_of_spam_words': 0, 'spam_words': [], 'comma_separated_spam_words': ''}}}
+[2025-03-12 14:36:38] [SpamCheck] [Debug] EmailGuard API response: {'data': {'message': {'is_spam': False, 'spam_score': 5, 'number_of_spam_words': 0, 'spam_words': [], 'comma_separated_spam_words': ''}}}
+[2025-03-12 14:36:38] [SpamCheck] [Warning] Unexpected response format from EmailGuard API: {'data': {'message': {'is_spam': False, 'spam_score': 5, 'number_of_spam_words': 0, 'spam_words': [], 'comma_separated_spam_words': ''}}}
+[2025-03-12 14:37:39] [SpamCheck] [Debug] EmailGuard API raw response: {"data":{"message":{"is_spam":false,"spam_score":5,"number_of_spam_words":0,"spam_words":[],"comma_separated_spam_words":""}}}
+[2025-03-12 14:37:39] [SpamCheck] [Debug] EmailGuard API parsed response: {'data': {'message': {'is_spam': False, 'spam_score': 5, 'number_of_spam_words': 0, 'spam_words': [], 'comma_separated_spam_words': ''}}}
+[2025-03-12 14:37:39] [SpamCheck] [Warning] Unexpected response format from EmailGuard API: {'data': {'message': {'is_spam': False, 'spam_score': 5, 'number_of_spam_words': 0, 'spam_words': [], 'comma_separated_spam_words': ''}}}
+[2025-03-12 14:39:12] [SpamCheck] [Debug] EmailGuard API raw response: {"data":{"message":{"is_spam":false,"spam_score":1,"number_of_spam_words":4,"spam_words":["check","spam","check","spam"],"comma_separated_spam_words":"check, spam"}}}
+[2025-03-12 14:39:12] [SpamCheck] [Debug] EmailGuard API parsed response: {'data': {'message': {'is_spam': False, 'spam_score': 1, 'number_of_spam_words': 4, 'spam_words': ['check', 'spam', 'check', 'spam'], 'comma_separated_spam_words': 'check, spam'}}}
