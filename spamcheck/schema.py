@@ -244,6 +244,80 @@ class BisonAccountsReportsResponseSchema(Schema):
     message: str
     data: List[BisonAccountReportSchema]
 
+class BisonAccountHistorySchema(Schema):
+    """Schema for Bison account history data"""
+    total_checks: int
+    good_checks: int
+    bad_checks: int
+    
+class BisonAccountLastCheckSchema(Schema):
+    """Schema for Bison account last check data"""
+    id: str
+    date: str
+    
+class BisonAccountScoreHistorySchema(Schema):
+    """Schema for Bison account score history data"""
+    date: str
+    google_score: float
+    outlook_score: float
+    status: str
+    report_link: str
+
+class BisonDomainAccountHistorySchema(Schema):
+    """Schema for Bison domain account history data"""
+    total_checks: int
+    good_checks: int
+    bad_checks: int
+
+class BisonDomainAccountSchema(Schema):
+    """Schema for Bison domain account data"""
+    email: str
+    google_score: float
+    outlook_score: float
+    status: str
+    workspace: str
+    last_check_date: str
+    bounce_count: Optional[int] = None
+    reply_count: Optional[int] = None
+    emails_sent: Optional[int] = None
+    history: BisonDomainAccountHistorySchema
+
+class BisonDomainSummarySchema(Schema):
+    """Schema for Bison domain summary data"""
+    total_accounts: int
+    avg_google_score: float
+    avg_outlook_score: float
+    inboxing_accounts: int
+    resting_accounts: int
+    total_checks: int
+    good_checks: int
+    bad_checks: int
+    
+class BisonAccountDetailsSchema(Schema):
+    """Schema for Bison account details"""
+    email: str
+    domain: str
+    sends_per_day: int
+    google_score: float
+    outlook_score: float
+    status: str
+    workspace: str
+    last_check: BisonAccountLastCheckSchema
+    reports_link: str
+    history: BisonAccountHistorySchema
+    bounce_count: Optional[int] = None
+    reply_count: Optional[int] = None
+    emails_sent: Optional[int] = None
+    score_history: List[BisonAccountScoreHistorySchema] = []
+    domain_accounts: List[BisonDomainAccountSchema] = []
+    domain_summary: BisonDomainSummarySchema
+    
+class BisonAccountDetailsResponseSchema(Schema):
+    """Response schema for get Bison account details endpoint"""
+    success: bool
+    message: str
+    data: BisonAccountDetailsSchema
+
 class CampaignCopyData(Schema):
     """Schema for campaign copy data"""
     subject: str = Field(..., description="Email subject from the campaign")

@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.db import transaction, IntegrityError, connection
 from django.core.exceptions import ObjectDoesNotExist
 from authentication.authorization import AuthBearer
-from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema, ListAccountsRequestSchema, ListAccountsResponseSchema, ListSpamchecksResponseSchema, CreateSpamcheckBisonSchema, UpdateSpamcheckBisonSchema, SpamcheckBisonDetailsResponseSchema, BisonAccountsReportsResponseSchema, CampaignCopyResponse
+from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema, ListAccountsRequestSchema, ListAccountsResponseSchema, ListSpamchecksResponseSchema, CreateSpamcheckBisonSchema, UpdateSpamcheckBisonSchema, SpamcheckBisonDetailsResponseSchema, BisonAccountsReportsResponseSchema, CampaignCopyResponse, BisonAccountDetailsResponseSchema
 from .models import UserSpamcheck, UserSpamcheckAccounts, UserSpamcheckCampaignOptions, UserSpamcheckCampaigns, UserSpamcheckReport, UserSpamcheckBison, UserSpamcheckAccountsBison, UserSpamcheckBisonReport, SpamcheckErrorLog
 from settings.models import UserInstantly, UserSettings, UserBison
 import requests
@@ -1055,9 +1055,9 @@ def list_accounts(
                 # Skip if account is not active (status != 1)
                 if payload.is_active and account.get("status") != 1:
                     continue
-                
+                    
                 # Get account tags
-                account_tags = [tag.get("label", "").lower() for tag in account.get("tags", [])] if account.get("tags") else []
+                    account_tags = [tag.get("label", "").lower() for tag in account.get("tags", [])] if account.get("tags") else []
                 
                 # Skip if has any ignored tag
                 if payload.ignore_tags and account_tags:
@@ -1080,7 +1080,7 @@ def list_accounts(
                             break
                     if not has_required_tag:
                         continue
-                    
+                        
                 email_list.append(email)
 
         else:  # Bison platform
@@ -1165,7 +1165,7 @@ def list_accounts(
                     continue
                 
                 # Get account tags
-                account_tags = [tag.get("name", "").lower() for tag in account.get("tags", [])] if account.get("tags") else []
+                    account_tags = [tag.get("name", "").lower() for tag in account.get("tags", [])] if account.get("tags") else []
                 
                 # Skip if has any ignored tag
                 if payload.ignore_tags and account_tags:
@@ -1188,7 +1188,7 @@ def list_accounts(
                             break
                     if not has_required_tag:
                         continue
-                    
+                
                 email_list.append(email)
             
             # Apply limit after filtering all accounts
@@ -2340,7 +2340,317 @@ def get_bison_spamcheck_reports(request, spamcheck_id: int):
             "success": False,
             "message": f"Error retrieving spam check reports: {str(e)}",
             "data": []
-        } 
+        }
+
+@router.get(
+    "/account-bison-details",
+    response=BisonAccountDetailsResponseSchema,
+    auth=AuthBearer(),
+    summary="Get Bison Account Details",
+    description="Get detailed information for a specific Bison email account"
+)
+def get_bison_account_details(
+    request,
+    email: str
+):
+    """
+    Get detailed information for a specific Bison email account.
+    
+    Args:
+        email: The email address to get details for
+    """
+    try:
+        user = request.auth
+        
+        # Get the latest check for this account
+        query = """
+            WITH latest_check AS (
+                SELECT 
+                    usbr.*,
+                    ub.bison_organization_name,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY usbr.email_account 
+                        ORDER BY usbr.created_at DESC
+                    ) as rn
+                FROM user_spamcheck_bison_reports usbr
+                JOIN user_bison ub ON usbr.bison_organization_id = ub.id
+                WHERE ub.user_id = %s AND usbr.email_account = %s
+            ),
+            account_stats AS (
+                SELECT 
+                    email_account,
+                    COUNT(*) as total_checks,
+                    SUM(CASE WHEN is_good = TRUE THEN 1 ELSE 0 END) as good_checks,
+                    SUM(CASE WHEN is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
+                FROM user_spamcheck_bison_reports
+                WHERE bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
+                AND email_account = %s
+                GROUP BY email_account
+            )
+            SELECT 
+                lc.email_account,
+                SUBSTRING_INDEX(lc.email_account, '@', -1) as domain,
+                COALESCE(lc.sending_limit, 25) as sends_per_day,
+                lc.google_pro_score as google_score,
+                lc.outlook_pro_score as outlook_score,
+                CASE 
+                    WHEN lc.is_good THEN 'Inboxing'
+                    ELSE 'Resting'
+                END as status,
+                lc.bison_organization_name as workspace,
+                lc.id as check_id,
+                lc.created_at as check_date,
+                lc.report_link as reports_link,
+                COALESCE(ast.total_checks, 0) as total_checks,
+                COALESCE(ast.good_checks, 0) as good_checks,
+                COALESCE(ast.bad_checks, 0) as bad_checks,
+                COALESCE(lc.bounced_count, 0) as bounce_count,
+                COALESCE(lc.unique_replied_count, 0) as reply_count,
+                COALESCE(lc.emails_sent_count, 0) as emails_sent
+            FROM latest_check lc
+            LEFT JOIN account_stats ast ON lc.email_account = ast.email_account
+            WHERE lc.rn = 1
+        """
+        
+        with connection.cursor() as cursor:
+            cursor.execute(query, [user.id, email, user.id, email])
+            columns = [col[0] for col in cursor.description]
+            row = cursor.fetchone()
+            
+            if not row:
+                return {
+                    "success": False,
+                    "message": f"No data found for email: {email}",
+                    "data": None
+                }
+            
+            # Get the account details
+            account_data = dict(zip(columns, row))
+            
+            # Get historical score data for charts
+            history_query = """
+                SELECT 
+                    id,
+                    created_at as date,
+                    google_pro_score as google_score,
+                    outlook_pro_score as outlook_score,
+                    CASE 
+                        WHEN is_good THEN 'Inboxing'
+                        ELSE 'Resting'
+                    END as status,
+                    report_link
+                FROM user_spamcheck_bison_reports
+                WHERE bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
+                AND email_account = %s
+                ORDER BY created_at DESC
+                LIMIT 10
+            """
+            
+            cursor.execute(history_query, [user.id, email])
+            history_columns = [col[0] for col in cursor.description]
+            history_rows = cursor.fetchall()
+            
+            score_history = []
+            for history_row in history_rows:
+                history_data = dict(zip(history_columns, history_row))
+                score_history.append({
+                    "date": history_data['date'].isoformat() if history_data['date'] else None,
+                    "google_score": round_to_quarter(history_data['google_score']),
+                    "outlook_score": round_to_quarter(history_data['outlook_score']),
+                    "status": history_data['status'],
+                    "report_link": history_data['report_link']
+                })
+            
+            # Get other accounts with the same domain
+            domain = account_data['domain']
+            domain_accounts_query = """
+                WITH latest_domain_checks AS (
+                    SELECT 
+                        usbr.*,
+                        ub.bison_organization_name,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY usbr.email_account 
+                            ORDER BY usbr.created_at DESC
+                        ) as rn
+                    FROM user_spamcheck_bison_reports usbr
+                    JOIN user_bison ub ON usbr.bison_organization_id = ub.id
+                    WHERE ub.user_id = %s 
+                    AND SUBSTRING_INDEX(usbr.email_account, '@', -1) = %s
+                    AND usbr.email_account != %s
+                ),
+                account_stats AS (
+                    SELECT 
+                        email_account,
+                        COUNT(*) as total_checks,
+                        SUM(CASE WHEN is_good = TRUE THEN 1 ELSE 0 END) as good_checks,
+                        SUM(CASE WHEN is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
+                    FROM user_spamcheck_bison_reports
+                    WHERE bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
+                    AND SUBSTRING_INDEX(email_account, '@', -1) = %s
+                    AND email_account != %s
+                    GROUP BY email_account
+                )
+                SELECT 
+                    ldc.email_account,
+                    ldc.google_pro_score as google_score,
+                    ldc.outlook_pro_score as outlook_score,
+                    CASE 
+                        WHEN ldc.is_good THEN 'Inboxing'
+                        ELSE 'Resting'
+                    END as status,
+                    ldc.bison_organization_name as workspace,
+                    ldc.created_at as last_check_date,
+                    COALESCE(ldc.bounced_count, 0) as bounce_count,
+                    COALESCE(ldc.unique_replied_count, 0) as reply_count,
+                    COALESCE(ldc.emails_sent_count, 0) as emails_sent,
+                    COALESCE(ast.total_checks, 0) as total_checks,
+                    COALESCE(ast.good_checks, 0) as good_checks,
+                    COALESCE(ast.bad_checks, 0) as bad_checks
+                FROM latest_domain_checks ldc
+                LEFT JOIN account_stats ast ON ldc.email_account = ast.email_account
+                WHERE ldc.rn = 1
+                ORDER BY ldc.created_at DESC
+                LIMIT 10
+            """
+            
+            cursor.execute(domain_accounts_query, [user.id, domain, email, user.id, domain, email])
+            domain_columns = [col[0] for col in cursor.description]
+            domain_rows = cursor.fetchall()
+            
+            domain_accounts = []
+            for domain_row in domain_rows:
+                domain_data = dict(zip(domain_columns, domain_row))
+                domain_accounts.append({
+                    "email": domain_data['email_account'],
+                    "google_score": round_to_quarter(domain_data['google_score']),
+                    "outlook_score": round_to_quarter(domain_data['outlook_score']),
+                    "status": domain_data['status'],
+                    "workspace": domain_data['workspace'],
+                    "last_check_date": domain_data['last_check_date'].isoformat() if domain_data['last_check_date'] else None,
+                    "bounce_count": domain_data['bounce_count'],
+                    "reply_count": domain_data['reply_count'],
+                    "emails_sent": domain_data['emails_sent'],
+                    "history": {
+                        "total_checks": domain_data['total_checks'],
+                        "good_checks": domain_data['good_checks'],
+                        "bad_checks": domain_data['bad_checks']
+                    }
+                })
+            
+            # Get domain performance summary
+            domain_summary_query = """
+                WITH domain_checks AS (
+                    SELECT 
+                        SUBSTRING_INDEX(email_account, '@', -1) as domain,
+                        COUNT(DISTINCT email_account) as total_accounts,
+                        AVG(google_pro_score) as avg_google_score,
+                        AVG(outlook_pro_score) as avg_outlook_score,
+                        SUM(CASE WHEN is_good = TRUE THEN 1 ELSE 0 END) as inboxing_accounts,
+                        SUM(CASE WHEN is_good = FALSE THEN 1 ELSE 0 END) as resting_accounts,
+                        COUNT(*) as total_checks,
+                        SUM(CASE WHEN is_good = TRUE THEN 1 ELSE 0 END) as good_checks,
+                        SUM(CASE WHEN is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
+                    FROM (
+                        SELECT 
+                            usbr.email_account,
+                            usbr.google_pro_score,
+                            usbr.outlook_pro_score,
+                            usbr.is_good,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY usbr.email_account 
+                                ORDER BY usbr.created_at DESC
+                            ) as rn
+                        FROM user_spamcheck_bison_reports usbr
+                        JOIN user_bison ub ON usbr.bison_organization_id = ub.id
+                        WHERE ub.user_id = %s
+                        AND SUBSTRING_INDEX(usbr.email_account, '@', -1) = %s
+                    ) latest_checks
+                    WHERE rn = 1
+                    GROUP BY domain
+                ),
+                domain_check_stats AS (
+                    SELECT 
+                        SUBSTRING_INDEX(email_account, '@', -1) as domain,
+                        COUNT(*) as total_domain_checks,
+                        SUM(CASE WHEN is_good = TRUE THEN 1 ELSE 0 END) as good_domain_checks,
+                        SUM(CASE WHEN is_good = FALSE THEN 1 ELSE 0 END) as bad_domain_checks
+                    FROM user_spamcheck_bison_reports
+                    WHERE bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
+                    AND SUBSTRING_INDEX(email_account, '@', -1) = %s
+                    GROUP BY domain
+                )
+                SELECT 
+                    dc.domain,
+                    dc.total_accounts,
+                    dc.avg_google_score,
+                    dc.avg_outlook_score,
+                    dc.inboxing_accounts,
+                    dc.resting_accounts,
+                    dc.total_checks,
+                    dc.good_checks,
+                    dc.bad_checks,
+                    dcs.total_domain_checks,
+                    dcs.good_domain_checks,
+                    dcs.bad_domain_checks
+                FROM domain_checks dc
+                LEFT JOIN domain_check_stats dcs ON dc.domain = dcs.domain
+            """
+            
+            cursor.execute(domain_summary_query, [user.id, domain, user.id, domain])
+            summary_columns = [col[0] for col in cursor.description]
+            summary_row = cursor.fetchone()
+            
+            domain_summary = {}
+            if summary_row:
+                domain_summary = dict(zip(summary_columns, summary_row))
+        
+        # Format the response
+        return {
+            "success": True,
+            "message": "Account details retrieved successfully",
+            "data": {
+                "email": account_data['email_account'],
+                "domain": account_data['domain'],
+                "sends_per_day": account_data['sends_per_day'],
+                "google_score": round_to_quarter(account_data['google_score']),
+                "outlook_score": round_to_quarter(account_data['outlook_score']),
+                "status": account_data['status'],
+                "workspace": account_data['workspace'],
+                "last_check": {
+                    "id": str(account_data['check_id']),
+                    "date": account_data['check_date'].isoformat() if account_data['check_date'] else None
+                },
+                "reports_link": account_data['reports_link'],
+                "history": {
+                    "total_checks": account_data['total_checks'],
+                    "good_checks": account_data['good_checks'],
+                    "bad_checks": account_data['bad_checks']
+                },
+                "bounce_count": account_data['bounce_count'],
+                "reply_count": account_data['reply_count'],
+                "emails_sent": account_data['emails_sent'],
+                "score_history": score_history,
+                "domain_accounts": domain_accounts,
+                "domain_summary": {
+                    "total_accounts": domain_summary.get('total_accounts', 0),
+                    "avg_google_score": round_to_quarter(domain_summary.get('avg_google_score', 0)),
+                    "avg_outlook_score": round_to_quarter(domain_summary.get('avg_outlook_score', 0)),
+                    "inboxing_accounts": domain_summary.get('inboxing_accounts', 0),
+                    "resting_accounts": domain_summary.get('resting_accounts', 0),
+                    "total_checks": domain_summary.get('total_domain_checks', 0),
+                    "good_checks": domain_summary.get('good_domain_checks', 0),
+                    "bad_checks": domain_summary.get('bad_domain_checks', 0)
+                }
+            }
+        }
+        
+    except Exception as e:
+        log_to_terminal("SpamCheck", "Error", f"Error getting account details: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Error retrieving account details: {str(e)}",
+            "data": None
+        }
 
 @router.get(
     "/fetch-campaign-copy-bison/{campaign_id}", 
