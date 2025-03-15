@@ -3,7 +3,7 @@ from typing import List, Optional, Dict, Any
 from ninja import Router, Schema, Query
 from ninja.pagination import paginate
 from ninja.security import HttpBearer
-from django.db.models import Avg, Max
+from django.db.models import Avg, Max, Count, Sum, F, Q
 from django.utils import timezone
 from django.db import connection
 from authentication.authorization import AuthBearer
@@ -17,6 +17,7 @@ import json
 import time
 import re
 from django.conf import settings
+from .models import UserCampaignsBison, UserBisonDashboardSummary, UserBisonProviderPerformance, UserBisonSendingPower
 
 router = Router(tags=["Analytics"])
 
@@ -857,7 +858,7 @@ def get_bison_campaigns(request, page: int = 1, per_page: int = 10, search: str 
         end_idx = start_idx + per_page
         
         # Get campaigns for this page
-        campaigns = campaigns_query.order_by('-updated_at')[start_idx:end_idx]
+        campaigns = campaigns_query.order_by('-created_at')[start_idx:end_idx]
         
         # Skip to next organization if we've gone past the available campaigns
         if not campaigns:
@@ -878,7 +879,7 @@ def get_bison_campaigns(request, page: int = 1, per_page: int = 10, search: str 
         
         # Add organization with its campaigns to response
         response_data.append({
-            "organization_id": org.bison_organization_id,
+            "organization_id": str(org.id),
             "organization_name": org.bison_organization_name,
             "campaigns": formatted_campaigns
         })
