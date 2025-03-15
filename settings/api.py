@@ -671,7 +671,8 @@ def check_bison_organization_status(request: HttpRequest, org_id: int):
                     if (isinstance(response_data, dict) 
                         and 'data' in response_data 
                         and isinstance(response_data['data'], dict)
-                        and all(key in response_data['data'] for key in ['name', 'email', 'team'])):
+                        and all(key in response_data['data'] for key in ['name', 'email', 'team'])
+                        and isinstance(response_data['data']['team'], dict)):
                         status = True
                         message = "Bison organization is active"
                     else:
