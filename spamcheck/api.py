@@ -1611,14 +1611,12 @@ def get_bison_accounts(
             SELECT 
                 usbr.*,
                 ub.bison_organization_name,
-                usb.update_sending_limit,
                 ROW_NUMBER() OVER (
                     PARTITION BY usbr.email_account 
                     ORDER BY usbr.created_at DESC
                 ) as rn
             FROM user_spamcheck_bison_reports usbr
             JOIN user_bison ub ON usbr.bison_organization_id = ub.id
-            JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
             WHERE ub.user_id = %s
     """
     params = [user.id]
@@ -1627,9 +1625,6 @@ def get_bison_accounts(
     if spamcheck_id:
         query += " AND usbr.spamcheck_bison_id = %s"
         params.append(spamcheck_id)
-    else:
-        # Only apply update_sending_limit filter when no specific spamcheck_id is provided
-        query += " AND usb.update_sending_limit = TRUE"
     
     # Add search condition if provided
     if search:
@@ -1646,16 +1641,25 @@ def get_bison_accounts(
         ),
         account_stats AS (
             SELECT 
-                usbr.email_account,
+                email_account,
                 COUNT(*) as total_checks,
-                SUM(CASE WHEN usbr.is_good = TRUE THEN 1 ELSE 0 END) as good_checks,
-                SUM(CASE WHEN usbr.is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
-            FROM user_spamcheck_bison_reports usbr
-            JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
-            WHERE usbr.bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
-            AND usbr.email_account = %s
-            AND usb.update_sending_limit = TRUE
-            GROUP BY usbr.email_account
+                SUM(CASE WHEN is_good = TRUE THEN 1 ELSE 0 END) as good_checks,
+                SUM(CASE WHEN is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
+            FROM user_spamcheck_bison_reports
+            WHERE 1=1
+    """
+    
+    # Add user filter to account_stats using the correct column name
+    query += " AND bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)"
+    params.append(user.id)
+    
+    # Add spamcheck filter to account_stats if provided
+    if spamcheck_id:
+        query += " AND spamcheck_bison_id = %s"
+        params.append(spamcheck_id)
+    
+    query += """
+        GROUP BY email_account
         )
         SELECT 
             lc.email_account,
@@ -1774,11 +1778,9 @@ def create_spamcheck_bison(request, payload: CreateSpamcheckBisonSchema):
         - body: Email body template
         - scheduled_at: When to run the spamcheck
         - recurring_days: Optional, number of days for recurring checks
-        - weekdays: Optional, list of weekdays (0=Monday, 6=Sunday) when this spamcheck should run
         - is_domain_based: Whether to filter accounts by domain
         - conditions: Optional, conditions for sending
         - reports_waiting_time: Optional, reports waiting time
-        - update_sending_limit: Whether to update sending limits in Bison API based on scores
     """
     user = request.auth
     
@@ -1831,11 +1833,9 @@ def create_spamcheck_bison(request, payload: CreateSpamcheckBisonSchema):
                 status='queued',  # Explicitly set status to queued
                 scheduled_at=payload.scheduled_at,
                 recurring_days=payload.recurring_days,
-                weekdays=','.join(map(str, payload.weekdays)) if payload.weekdays else None,
                 is_domain_based=payload.is_domain_based,
                 conditions=payload.conditions,
                 reports_waiting_time=payload.reports_waiting_time,
-                update_sending_limit=payload.update_sending_limit,
                 plain_text=payload.text_only,
                 subject=payload.subject,
                 body=payload.body
@@ -1884,11 +1884,9 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
         - body: Optional, new email body template
         - scheduled_at: Optional, new scheduled time
         - recurring_days: Optional, new recurring days setting
-        - weekdays: Optional, list of weekdays (0=Monday, 6=Sunday) when this spamcheck should run
         - is_domain_based: Optional, whether to filter accounts by domain
         - conditions: Optional, conditions for sending
         - reports_waiting_time: Optional, reports waiting time
-        - update_sending_limit: Optional, whether to update sending limits in Bison API based on scores
     """
     user = request.auth
     log_to_terminal("Spamcheck", "Update Bison", f"Starting update for spamcheck ID {spamcheck_id}")
@@ -1919,11 +1917,9 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
                    payload.name is None and \
                    payload.scheduled_at is None and \
                    payload.recurring_days is None and \
-                   payload.weekdays is None and \
                    payload.is_domain_based is None and \
                    payload.conditions is None and \
                    payload.reports_waiting_time is None and \
-                   payload.update_sending_limit is None and \
                    payload.accounts is None:
                     
                     log_to_terminal("Spamcheck", "Update Bison", "Performing simple update with direct SQL")
@@ -1984,10 +1980,6 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
                     log_to_terminal("Spamcheck", "Update Bison", f"Updating recurring_days to '{payload.recurring_days}'")
                     spamcheck.recurring_days = payload.recurring_days
                     update_fields.append('recurring_days')
-                if payload.weekdays is not None:
-                    log_to_terminal("Spamcheck", "Update Bison", f"Updating weekdays to '{payload.weekdays}'")
-                    spamcheck.weekdays = ','.join(map(str, payload.weekdays)) if payload.weekdays else None
-                    update_fields.append('weekdays')
                 if payload.is_domain_based is not None:
                     log_to_terminal("Spamcheck", "Update Bison", f"Updating is_domain_based to '{payload.is_domain_based}'")
                     spamcheck.is_domain_based = payload.is_domain_based
@@ -2000,10 +1992,6 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
                     log_to_terminal("Spamcheck", "Update Bison", f"Updating reports_waiting_time to '{payload.reports_waiting_time}'")
                     spamcheck.reports_waiting_time = payload.reports_waiting_time
                     update_fields.append('reports_waiting_time')
-                if payload.update_sending_limit is not None:
-                    log_to_terminal("Spamcheck", "Update Bison", f"Updating update_sending_limit to '{payload.update_sending_limit}'")
-                    spamcheck.update_sending_limit = payload.update_sending_limit
-                    update_fields.append('update_sending_limit')
                 if payload.text_only is not None:
                     log_to_terminal("Spamcheck", "Update Bison", f"Updating plain_text to '{payload.text_only}'")
                     spamcheck.plain_text = payload.text_only
@@ -2450,22 +2438,18 @@ def get_bison_account_details(
                     ) as rn
                 FROM user_spamcheck_bison_reports usbr
                 JOIN user_bison ub ON usbr.bison_organization_id = ub.id
-                JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
                 WHERE ub.user_id = %s AND usbr.email_account = %s
-                AND usb.update_sending_limit = TRUE
             ),
             account_stats AS (
                 SELECT 
-                    usbr.email_account,
+                    email_account,
                     COUNT(*) as total_checks,
-                    SUM(CASE WHEN usbr.is_good = TRUE THEN 1 ELSE 0 END) as good_checks,
-                    SUM(CASE WHEN usbr.is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
-                FROM user_spamcheck_bison_reports usbr
-                JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
-                WHERE usbr.bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
-                AND usbr.email_account = %s
-                AND usb.update_sending_limit = TRUE
-                GROUP BY usbr.email_account
+                    SUM(CASE WHEN is_good = TRUE THEN 1 ELSE 0 END) as good_checks,
+                    SUM(CASE WHEN is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
+                FROM user_spamcheck_bison_reports
+                WHERE bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
+                AND email_account = %s
+                GROUP BY email_account
             )
             SELECT 
                 lc.email_account,
@@ -2510,21 +2494,19 @@ def get_bison_account_details(
             # Get historical score data for charts
             history_query = """
                 SELECT 
-                    usbr.id,
-                    usbr.created_at as date,
-                    usbr.google_pro_score as google_score,
-                    usbr.outlook_pro_score as outlook_score,
+                    id,
+                    created_at as date,
+                    google_pro_score as google_score,
+                    outlook_pro_score as outlook_score,
                     CASE 
-                        WHEN usbr.is_good THEN 'Inboxing'
+                        WHEN is_good THEN 'Inboxing'
                         ELSE 'Resting'
                     END as status,
-                    usbr.report_link
-                FROM user_spamcheck_bison_reports usbr
-                JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
-                WHERE usbr.bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
-                AND usbr.email_account = %s
-                AND usb.update_sending_limit = TRUE
-                ORDER BY usbr.created_at DESC
+                    report_link
+                FROM user_spamcheck_bison_reports
+                WHERE bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
+                AND email_account = %s
+                ORDER BY created_at DESC
                 LIMIT 10
             """
             
