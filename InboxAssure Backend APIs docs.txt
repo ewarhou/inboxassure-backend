@@ -133,37 +133,55 @@
 
 **Description:** Get all campaigns from Bison with connected emails and deliverability scores, grouped by organization. Uses cached data from the UserCampaignsBison table for improved performance.
 
-**Response:** List of organizations with their campaigns:
-- `organization_id`: Bison organization ID
-- `organization_name`: Bison workspace name
-- `campaigns`: List of campaigns with the following fields:
-  - `id`: Campaign ID
-  - `name`: Campaign name
-  - `connectedEmails`: Count of emails connected to this campaign
-  - `sendsPerAccount`: Number of sends per account
-  - `googleScore`: Google deliverability score (0-100)
-  - `outlookScore`: Outlook deliverability score (0-100)
-  - `maxDailySends`: Maximum daily sends
+**Parameters:**
+- `page` (optional): Page number (default: 1)
+- `per_page` (optional): Number of campaigns per page (default: 10)
+
+**Response:** Paginated list of organizations with their campaigns:
+- `data`: Array of organizations with:
+  - `organization_id`: Bison organization ID
+  - `organization_name`: Bison workspace name
+  - `campaigns`: List of campaigns with the following fields:
+    - `id`: Campaign ID
+    - `name`: Campaign name
+    - `connectedEmails`: Count of emails connected to this campaign
+    - `sendsPerAccount`: Number of sends per account
+    - `googleScore`: Google deliverability score (0-100)
+    - `outlookScore`: Outlook deliverability score (0-100)
+    - `maxDailySends`: Maximum daily sends
+- `meta`: Pagination metadata with:
+  - `current_page`: Current page number
+  - `per_page`: Items per page
+  - `total`: Total number of campaigns
+  - `total_pages`: Total number of pages
 
 **Example Response:**
 ```json
-[
-  {
-    "organization_id": "123",
-    "organization_name": "Karpos",
-    "campaigns": [
-      {
-        "id": 456,
-        "name": "Summer Promotion",
-        "connectedEmails": 50,
-        "sendsPerAccount": 25,
-        "googleScore": 92.5,
-        "outlookScore": 88.7,
-        "maxDailySends": 1250
-      }
-    ]
+{
+  "data": [
+    {
+      "organization_id": "123",
+      "organization_name": "Karpos",
+      "campaigns": [
+        {
+          "id": 456,
+          "name": "Summer Promotion",
+          "connectedEmails": 50,
+          "sendsPerAccount": 25,
+          "googleScore": 92.5,
+          "outlookScore": 88.7,
+          "maxDailySends": 1250
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "current_page": 1,
+    "per_page": 10,
+    "total": 45,
+    "total_pages": 5
   }
-]
+}
 ```
 
 ## Spamcheck Endpoints for Bison

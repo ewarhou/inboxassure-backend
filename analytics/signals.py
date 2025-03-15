@@ -176,32 +176,50 @@ def update_bison_campaigns_table(spamcheck):
         # 3. Get all campaigns to get additional details
         details_start_time = time.time()
         
-        api_url = f"{org.base_url.rstrip('/')}/api/campaigns"
-        log_to_terminal("BisonCampaigns", "Debug", f"Fetching all campaigns from: {api_url}")
+        all_campaigns_data = []
+        current_page = 1
+        per_page = 100  # Use a larger page size for efficiency
         
-        # Use GET request instead of POST to avoid the "name field is required" error
-        response = requests.get(
-            api_url,
-            headers={
-                "Authorization": f"Bearer {org.bison_organization_api_key}",
-                "Content-Type": "application/json"
-            }
-        )
-        
-        if response.status_code != 200:
-            log_to_terminal("BisonCampaigns", "Error", f"Error fetching all campaigns: {response.text}")
-            # Continue with the campaigns we already have from step 2
-            campaigns_details = {}
-        else:
-            all_campaigns_data = response.json().get('data', [])
-            log_to_terminal("BisonCampaigns", "Debug", f"API returned {len(all_campaigns_data)} campaigns")
+        while True:
+            api_url = f"{org.base_url.rstrip('/')}/api/campaigns"
+            log_to_terminal("BisonCampaigns", "Debug", f"Fetching campaigns from: {api_url}, page: {current_page}")
+            
+            response = requests.get(
+                api_url,
+                headers={
+                    "Authorization": f"Bearer {org.bison_organization_api_key}",
+                    "Content-Type": "application/json"
+                },
+                params={
+                    "page": current_page,
+                    "per_page": per_page
+                }
+            )
+            
+            if response.status_code != 200:
+                log_to_terminal("BisonCampaigns", "Error", f"Error fetching campaigns: {response.text}")
+                break
+                
+            data = response.json()
+            campaigns = data.get('data', [])
+            log_to_terminal("BisonCampaigns", "Debug", f"Page {current_page}: Found {len(campaigns)} campaigns")
             
             # Debug: Print first campaign details
-            if all_campaigns_data:
-                first_campaign = all_campaigns_data[0]
+            if campaigns and current_page == 1:
+                first_campaign = campaigns[0]
                 log_to_terminal("BisonCampaigns", "Debug", f"Sample campaign details: {json.dumps(first_campaign)}")
             
-            campaigns_details = {campaign.get('id'): campaign for campaign in all_campaigns_data}
+            all_campaigns_data.extend(campaigns)
+            
+            # Check if we've reached the last page
+            total_pages = data.get('meta', {}).get('last_page', 1)
+            if current_page >= total_pages:
+                break
+                
+            current_page += 1
+        
+        log_to_terminal("BisonCampaigns", "Debug", f"API returned {len(all_campaigns_data)} campaigns in total")
+        campaigns_details = {campaign.get('id'): campaign for campaign in all_campaigns_data}
         
         details_time = time.time() - details_start_time
         log_to_terminal("BisonCampaigns", "Details", f"Fetched details for {len(campaigns_details)} campaigns (took {details_time:.2f}s)")

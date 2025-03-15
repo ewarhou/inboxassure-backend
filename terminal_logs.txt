@@ -47,3 +47,100 @@
 [2025-03-12 14:37:39] [SpamCheck] [Warning] Unexpected response format from EmailGuard API: {'data': {'message': {'is_spam': False, 'spam_score': 5, 'number_of_spam_words': 0, 'spam_words': [], 'comma_separated_spam_words': ''}}}
 [2025-03-12 14:39:12] [SpamCheck] [Debug] EmailGuard API raw response: {"data":{"message":{"is_spam":false,"spam_score":1,"number_of_spam_words":4,"spam_words":["check","spam","check","spam"],"comma_separated_spam_words":"check, spam"}}}
 [2025-03-12 14:39:12] [SpamCheck] [Debug] EmailGuard API parsed response: {'data': {'message': {'is_spam': False, 'spam_score': 1, 'number_of_spam_words': 4, 'spam_words': ['check', 'spam', 'check', 'spam'], 'comma_separated_spam_words': 'check, spam'}}}
+[2025-03-13 14:19:12] [Bison] [Campaigns] User dev@vitalitymarketingfirm.com requested Bison campaigns
+[2025-03-13 14:19:12] [Bison] [Campaigns] Retrieved 15 cached campaigns for CoachPro
+[2025-03-13 14:19:12] [Bison] [Campaigns] No cached campaigns found for organization DealFlow Group
+[2025-03-13 14:19:12] [Bison] [Campaigns] Retrieved 18 cached campaigns for Evolve Business Group
+[2025-03-13 14:19:13] [Bison] [Campaigns] Retrieved 9 cached campaigns for Karpos
+[2025-03-13 14:19:13] [Bison] [Campaigns] No cached campaigns found for organization PAWFC
+[2025-03-13 14:19:13] [Bison] [Campaigns] Returning campaigns for 3 organizations (took 0.99s)
+[2025-03-15 14:46:00] [Bison] [Workspaces] User dev@vitalitymarketingfirm.com started retrieving Bison workspaces
+[2025-03-15 14:46:02] [Bison] [Workspaces] Workspaces API response: 200
+[2025-03-15 14:46:02] [Bison] [Workspaces] Found 5 workspaces
+[2025-03-15 14:46:02] [Bison] [Workspaces] Processing workspace: CoachPro (ID: 2)
+[2025-03-15 14:46:03] [Bison] [Workspaces] No API token returned for workspace CoachPro
+[2025-03-15 14:46:03] [Bison] [Workspaces] Processing workspace: Evolve Business Group (ID: 6)
+[2025-03-15 14:46:04] [Bison] [Workspaces] No API token returned for workspace Evolve Business Group
+[2025-03-15 14:46:04] [Bison] [Workspaces] Processing workspace: Karpos (ID: 3)
+[2025-03-15 14:46:06] [Bison] [Workspaces] No API token returned for workspace Karpos
+[2025-03-15 14:46:06] [Bison] [Workspaces] Processing workspace: Rail & Rye (ID: 12)
+[2025-03-15 14:46:07] [Bison] [Workspaces] No API token returned for workspace Rail & Rye
+[2025-03-15 14:46:07] [Bison] [Workspaces] Processing workspace: Testing Only (ID: 10)
+[2025-03-15 14:46:08] [Bison] [Workspaces] No API token returned for workspace Testing Only
+[2025-03-15 14:47:50] [Bison] [Workspaces] User dev@vitalitymarketingfirm.com started retrieving Bison workspaces
+[2025-03-15 14:47:52] [Bison] [Workspaces] Workspaces API response: 200
+[2025-03-15 14:47:52] [Bison] [Workspaces] Found 5 workspaces
+[2025-03-15 14:47:52] [Bison] [Workspaces] Processing workspace: CoachPro (ID: 2)
+[2025-03-15 14:47:52] [Bison] [Workspaces] Error processing workspace CoachPro: Invalid format specifier ' 'CoachPro'' for object of type 'str'
+[2025-03-15 14:47:52] [Bison] [Workspaces] Processing workspace: Evolve Business Group (ID: 6)
+[2025-03-15 14:47:52] [Bison] [Workspaces] Error processing workspace Evolve Business Group: Invalid format specifier ' 'Evolve Business Group'' for object of type 'str'
+[2025-03-15 14:47:52] [Bison] [Workspaces] Processing workspace: Karpos (ID: 3)
+[2025-03-15 14:47:52] [Bison] [Workspaces] Error processing workspace Karpos: Invalid format specifier ' 'Karpos'' for object of type 'str'
+[2025-03-15 14:47:52] [Bison] [Workspaces] Processing workspace: Rail & Rye (ID: 12)
+[2025-03-15 14:47:52] [Bison] [Workspaces] Error processing workspace Rail & Rye: Invalid format specifier ' 'Rail & Rye'' for object of type 'str'
+[2025-03-15 14:47:52] [Bison] [Workspaces] Processing workspace: Testing Only (ID: 10)
+[2025-03-15 14:47:52] [Bison] [Workspaces] Error processing workspace Testing Only: Invalid format specifier ' 'Testing Only'' for object of type 'str'
+[2025-03-15 14:50:11] [Bison] [Workspaces] User dev@vitalitymarketingfirm.com started retrieving Bison workspaces
+[2025-03-15 14:50:13] [Bison] [Workspaces] Workspaces API response: 200
+[2025-03-15 14:50:13] [Bison] [Workspaces] Found 5 workspaces
+[2025-03-15 14:50:13] [Bison] [Workspaces] Processing workspace: CoachPro (ID: 2)
+[2025-03-15 14:50:13] [Bison] [Workspaces] Error processing workspace CoachPro: Invalid format specifier ' 'CoachPro'' for object of type 'str'
+[2025-03-15 14:50:13] [Bison] [Workspaces] Processing workspace: Evolve Business Group (ID: 6)
+[2025-03-15 14:50:13] [Bison] [Workspaces] Error processing workspace Evolve Business Group: Invalid format specifier ' 'Evolve Business Group'' for object of type 'str'
+[2025-03-15 14:50:13] [Bison] [Workspaces] Processing workspace: Karpos (ID: 3)
+[2025-03-15 14:50:13] [Bison] [Workspaces] Error processing workspace Karpos: Invalid format specifier ' 'Karpos'' for object of type 'str'
+[2025-03-15 14:50:13] [Bison] [Workspaces] Processing workspace: Rail & Rye (ID: 12)
+[2025-03-15 14:50:13] [Bison] [Workspaces] Error processing workspace Rail & Rye: Invalid format specifier ' 'Rail & Rye'' for object of type 'str'
+[2025-03-15 14:50:13] [Bison] [Workspaces] Processing workspace: Testing Only (ID: 10)
+[2025-03-15 14:50:13] [Bison] [Workspaces] Error processing workspace Testing Only: Invalid format specifier ' 'Testing Only'' for object of type 'str'
+[2025-03-15 14:51:06] [Bison] [Workspaces] User dev@vitalitymarketingfirm.com started retrieving Bison workspaces
+[2025-03-15 14:51:08] [Bison] [Workspaces] Workspaces API response: 200
+[2025-03-15 14:51:08] [Bison] [Workspaces] Found 5 workspaces
+[2025-03-15 14:51:08] [Bison] [Workspaces] Processing workspace: CoachPro (ID: 2)
+[2025-03-15 14:51:09] [Bison] [Workspaces] Created API token for workspace CoachPro
+[2025-03-15 14:51:09] [Bison] [Workspaces] Failed to add workspace CoachPro to database: {'detail': "An organization with the name 'CoachPro' already exists for your account. Please use a different name."}
+[2025-03-15 14:51:09] [Bison] [Workspaces] Processing workspace: Evolve Business Group (ID: 6)
+[2025-03-15 14:51:11] [Bison] [Workspaces] Created API token for workspace Evolve Business Group
+[2025-03-15 14:51:11] [Bison] [Workspaces] Failed to add workspace Evolve Business Group to database: {'detail': "An organization with the name 'Evolve Business Group' already exists for your account. Please use a different name."}
+[2025-03-15 14:51:11] [Bison] [Workspaces] Processing workspace: Karpos (ID: 3)
+[2025-03-15 14:51:12] [Bison] [Workspaces] Created API token for workspace Karpos
+[2025-03-15 14:51:12] [Bison] [Workspaces] Failed to add workspace Karpos to database: {'detail': "An organization with the name 'Karpos' already exists for your account. Please use a different name."}
+[2025-03-15 14:51:12] [Bison] [Workspaces] Processing workspace: Rail & Rye (ID: 12)
+[2025-03-15 14:51:14] [Bison] [Workspaces] Created API token for workspace Rail & Rye
+[2025-03-15 14:51:14] [Bison] [Workspaces] Added workspace Rail & Rye to database with ID 30
+[2025-03-15 14:51:16] [Bison] [Workspaces] Workspace Rail & Rye connection status: True
+[2025-03-15 14:51:16] [Bison] [Workspaces] Processing workspace: Testing Only (ID: 10)
+[2025-03-15 14:51:17] [Bison] [Workspaces] Created API token for workspace Testing Only
+[2025-03-15 14:51:17] [Bison] [Workspaces] Added workspace Testing Only to database with ID 31
+[2025-03-15 14:51:19] [Bison] [Workspaces] Workspace Testing Only connection status: True
+[2025-03-15 15:46:39] [SpamCheck] [Campaign] User dev@vitalitymarketingfirm.com requested campaign copy for campaign ID 14
+[2025-03-15 15:46:39] [SpamCheck] [Debug] Using Bison organization: Karpos with API key: 30|UQ...
+[2025-03-15 15:46:39] [SpamCheck] [Debug] Fetching campaign from: https://app.orbitmailboost.com/api/campaigns/14
+[2025-03-15 15:46:41] [SpamCheck] [Error] Failed to fetch campaign from Bison API: {
+    "message": "This action is unauthorized."
+}
+[2025-03-15 15:46:41] [SpamCheck] [Error] Authorization error with API key: 30|UQ...
+[2025-03-15 15:50:51] [SpamCheck] [Campaign] User dev@vitalitymarketingfirm.com requested campaign copy for campaign ID 14
+[2025-03-15 15:50:52] [SpamCheck] [Debug] Using Bison organization: Karpos with API key: 30|UQ...
+[2025-03-15 15:50:52] [SpamCheck] [Debug] Fetching campaign from: https://app.orbitmailboost.com/api/campaigns/14
+[2025-03-15 15:50:56] [SpamCheck] [Error] Failed to fetch campaign from Bison API: {
+    "message": "This action is unauthorized."
+}
+[2025-03-15 15:50:56] [SpamCheck] [Error] Authorization error with API key: 30|UQ...
+[2025-03-15 15:52:18] [SpamCheck] [Campaign] User dev@vitalitymarketingfirm.com requested campaign copy for campaign ID 25
+[2025-03-15 15:52:19] [SpamCheck] [Debug] Using Bison organization: Karpos with API key: 30|UQ...
+[2025-03-15 15:52:19] [SpamCheck] [Debug] Fetching campaign from: https://app.orbitmailboost.com/api/campaigns/25
+[2025-03-15 15:52:24] [SpamCheck] [Error] Failed to fetch campaign from Bison API: {
+    "message": "This action is unauthorized."
+}
+[2025-03-15 15:52:24] [SpamCheck] [Error] Authorization error with API key: 30|UQ...
+[2025-03-15 15:58:06] [Spamcheck] [FetchCopy] Fetching copy for campaign ID 25
+[2025-03-15 15:58:06] [Spamcheck] [FetchCopy] Using Bison organization: Karpos
+[2025-03-15 15:58:06] [Spamcheck] [FetchCopy] Making API request to: https://app.orbitmailboost.com/api/campaigns/25/sequence-steps
+[2025-03-15 15:58:08] [Spamcheck] [FetchCopy] Successfully converted HTML to plain text
+[2025-03-15 15:58:08] [Spamcheck] [FetchCopy] Successfully fetched copy for campaign 25
+[2025-03-15 15:58:32] [Spamcheck] [FetchCopy] Fetching copy for campaign ID 14
+[2025-03-15 15:58:32] [Spamcheck] [FetchCopy] Using Bison organization: Karpos
+[2025-03-15 15:58:32] [Spamcheck] [FetchCopy] Making API request to: https://app.orbitmailboost.com/api/campaigns/14/sequence-steps
+[2025-03-15 15:58:33] [Spamcheck] [FetchCopy] Successfully converted HTML to plain text
+[2025-03-15 15:58:33] [Spamcheck] [FetchCopy] Successfully fetched copy for campaign 14

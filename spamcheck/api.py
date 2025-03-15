@@ -18,6 +18,7 @@ from settings.api import log_to_terminal
 import re
 from html import unescape
 from ninja import Field
+import json
 
 router = Router(tags=["spamcheck"])
 
@@ -2664,85 +2665,142 @@ def get_bison_account_details(
 )
 def fetch_campaign_copy(request, campaign_id: str):
     """
-    Fetch email subject and body from a Bison campaign's first sequence step
+    Fetch email copy (subject and body) from a campaign
+    
+    Parameters:
+        - campaign_id: ID of the campaign to fetch copy from
     """
+    user = request.auth
+    log_to_terminal("Spamcheck", "FetchCopy", f"Fetching copy for campaign ID {campaign_id}")
+    
     try:
-        user = request.auth
+        # Get the user's Bison organization - handle multiple organizations
+        user_bison_orgs = UserBison.objects.filter(
+            user=user,
+            bison_organization_status=True  # Make sure organization is active
+        )
         
-        # Get user's Bison organization
-        try:
-            user_bison = UserBison.objects.filter(
-                user_id=user.id,
-                bison_organization_status=True  # Make sure organization is active
-            ).first()
-            
-            if not user_bison:
-                return {
-                    "success": False,
-                    "message": "No active Bison organization found for this user",
-                    "data": None
-                }
-        except Exception as e:
+        if not user_bison_orgs.exists():
+            log_to_terminal("Spamcheck", "FetchCopy", f"User {user.email} has no active Bison organization")
             return {
                 "success": False,
-                "message": f"Error fetching Bison organization: {str(e)}",
-                "data": None
+                "message": "You don't have an active Bison organization configured",
+                "data": {
+                    "subject": "",
+                    "body": "",
+                    "campaign_id": campaign_id
+                }
             }
         
-        # Call Bison API to get campaign details
-        api_url = f"{user_bison.base_url.rstrip('/')}/api/campaigns/{campaign_id}"
+        # Use the first active organization
+        user_bison = user_bison_orgs.first()
+        log_to_terminal("Spamcheck", "FetchCopy", f"Using Bison organization: {user_bison.bison_organization_name}")
+        
+        # Make API request to fetch campaign sequence steps
+        api_url = f"{user_bison.base_url.rstrip('/')}/api/campaigns/{campaign_id}/sequence-steps"
+        log_to_terminal("Spamcheck", "FetchCopy", f"Making API request to: {api_url}")
         
         response = requests.get(
             api_url,
             headers={
                 "Authorization": f"Bearer {user_bison.bison_organization_api_key}",
                 "Content-Type": "application/json"
-            },
-            timeout=30
+            }
         )
         
         if response.status_code != 200:
+            log_to_terminal("Spamcheck", "FetchCopy", f"API Error: {response.status_code} - {response.text}")
             return {
                 "success": False,
-                "message": f"Failed to fetch campaign from Bison API: {response.text}",
-                "data": None
+                "message": f"Error fetching campaign copy: {response.text}",
+                "data": {
+                    "subject": "",
+                    "body": "",
+                    "campaign_id": campaign_id
+                }
             }
         
-        campaign_data = response.json()
+        # Parse response
+        data = response.json()
+        steps = data.get('data', [])
         
-        # Get the first sequence step
-        if not campaign_data.get('sequence') or not campaign_data['sequence'].get('steps') or len(campaign_data['sequence']['steps']) == 0:
+        if not steps:
+            log_to_terminal("Spamcheck", "FetchCopy", f"No sequence steps found for campaign {campaign_id}")
             return {
                 "success": False,
-                "message": "Campaign has no sequence steps",
-                "data": None
+                "message": "No sequence steps found for this campaign",
+                "data": {
+                    "subject": "",
+                    "body": "",
+                    "campaign_id": campaign_id
+                }
             }
         
-        first_step = campaign_data['sequence']['steps'][0]
+        # Get the first step (step 1)
+        first_step = steps[0]
+        subject = first_step.get('email_subject', '')
+        html_body = first_step.get('email_body', '')
         
-        # Extract subject and body
-        subject = first_step.get('subject', '')
-        body_html = first_step.get('body', '')
+        # Convert HTML to plain text while preserving formatting
+        try:
+            import re
+            from html import unescape
+            
+            # Function to convert HTML to formatted plain text
+            def html_to_text(html):
+                if not html:
+                    return ""
+                
+                # Unescape HTML entities
+                html = unescape(html)
+                
+                # Replace common block elements with newlines
+                html = re.sub(r'</(div|p|h\d|ul|ol|li|blockquote|pre|table|tr)>', '\n', html)
+                
+                # Replace <br> tags with newlines
+                html = re.sub(r'<br[^>]*>', '\n', html)
+                
+                # Replace multiple consecutive newlines with just two
+                html = re.sub(r'\n{3,}', '\n\n', html)
+                
+                # Remove all remaining HTML tags
+                html = re.sub(r'<[^>]*>', '', html)
+                
+                # Trim leading/trailing whitespace
+                html = html.strip()
+                
+                return html
+            
+            # Convert the HTML body to plain text
+            plain_body = html_to_text(html_body)
+            log_to_terminal("Spamcheck", "FetchCopy", f"Successfully converted HTML to plain text")
+            
+        except Exception as e:
+            log_to_terminal("Spamcheck", "FetchCopy", f"Error converting HTML to text: {str(e)}")
+            plain_body = html_body  # Fallback to original HTML if conversion fails
         
-        # Convert HTML to text
-        body_text = html_to_text(body_html)
+        log_to_terminal("Spamcheck", "FetchCopy", f"Successfully fetched copy for campaign {campaign_id}")
         
         return {
             "success": True,
             "message": "Campaign copy fetched successfully",
             "data": {
                 "subject": subject,
-                "body": body_text,
+                "body": plain_body,
                 "campaign_id": campaign_id
             }
         }
         
     except Exception as e:
-        log_to_terminal("SpamCheck", "Error", f"Error fetching campaign copy: {str(e)}")
+        log_to_terminal("Spamcheck", "FetchCopy", f"Error fetching campaign copy: {str(e)}")
         return {
             "success": False,
             "message": f"Error fetching campaign copy: {str(e)}",
-            "data": None
+            "data": {
+                "subject": "",
+                "body": "",
+                "campaign_id": campaign_id
+            }
         }
 
 class ContentSpamCheckSchema(Schema):

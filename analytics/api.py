@@ -803,23 +803,31 @@ class BisonOrganizationCampaignsResponse(BaseModel):
     organization_name: str
     campaigns: List[BisonCampaignResponse]
 
+class PaginatedBisonCampaignsResponse(BaseModel):
+    data: List[BisonOrganizationCampaignsResponse]
+    meta: dict
+
 @router.get(
     "/bison/campaigns",
-    response=List[BisonOrganizationCampaignsResponse],
+    response=PaginatedBisonCampaignsResponse,
     auth=AuthBearer(),
     summary="Get Bison Campaigns",
     description="Get all campaigns from Bison with connected emails and deliverability scores, grouped by organization"
 )
-def get_bison_campaigns(request):
+def get_bison_campaigns(request, page: int = 1, per_page: int = 10):
     """
     Get all campaigns from Bison with connected emails and deliverability scores, grouped by organization.
     This endpoint now uses cached data from the UserCampaignsBison table for improved performance.
+    
+    Args:
+        page: Page number (default: 1)
+        per_page: Number of campaigns per page (default: 10)
     """
     import time
     start_time = time.time()
     
     user = request.auth
-    log_to_terminal("Bison", "Campaigns", f"User {user.email} requested Bison campaigns")
+    log_to_terminal("Bison", "Campaigns", f"User {user.email} requested Bison campaigns (page {page}, per_page {per_page})")
     
     # Get all active Bison organizations for the user
     bison_orgs = UserBison.objects.filter(
@@ -829,9 +837,10 @@ def get_bison_campaigns(request):
     
     if not bison_orgs:
         log_to_terminal("Bison", "Campaigns", f"No active Bison organizations found for user {user.email}")
-        return []
+        return {"data": [], "meta": {"current_page": page, "per_page": per_page, "total": 0, "total_pages": 0}}
     
     organizations_campaigns = []
+    all_campaigns = []
     
     # Import the UserCampaignsBison model
     from analytics.models import UserCampaignsBison
@@ -869,6 +878,7 @@ def get_bison_campaigns(request):
                     "organization_name": org.bison_organization_name,
                     "campaigns": org_campaigns
                 })
+                all_campaigns.extend(org_campaigns)
                 
             log_to_terminal("Bison", "Campaigns", f"Retrieved {len(org_campaigns)} cached campaigns for {org.bison_organization_name}")
                 
@@ -876,9 +886,50 @@ def get_bison_campaigns(request):
             log_to_terminal("Bison", "Campaigns", f"Error retrieving cached campaigns for organization {org.bison_organization_name}: {str(e)}")
             continue
     
+    # Calculate pagination
+    total_campaigns = len(all_campaigns)
+    total_pages = (total_campaigns + per_page - 1) // per_page  # Ceiling division
+    
+    # Apply pagination to organizations_campaigns
+    paginated_organizations = []
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    
+    # Create a copy of organizations_campaigns with paginated campaigns
+    for org_data in organizations_campaigns:
+        # Create a new organization with paginated campaigns
+        paginated_org = {
+            "organization_id": org_data["organization_id"],
+            "organization_name": org_data["organization_name"],
+            "campaigns": []
+        }
+        
+        # Add campaigns that fall within the current page
+        for campaign in org_data["campaigns"]:
+            if start_idx <= 0:
+                if len(paginated_org["campaigns"]) < per_page:
+                    paginated_org["campaigns"].append(campaign)
+                else:
+                    break
+            else:
+                start_idx -= 1
+        
+        # Only add organizations that have campaigns after pagination
+        if paginated_org["campaigns"]:
+            paginated_organizations.append(paginated_org)
+    
     total_time = time.time() - start_time
-    log_to_terminal("Bison", "Campaigns", f"Returning campaigns for {len(organizations_campaigns)} organizations (took {total_time:.2f}s)")
-    return organizations_campaigns
+    log_to_terminal("Bison", "Campaigns", f"Returning campaigns for page {page}/{total_pages} (took {total_time:.2f}s)")
+    
+    return {
+        "data": paginated_organizations,
+        "meta": {
+            "current_page": page,
+            "per_page": per_page,
+            "total": total_campaigns,
+            "total_pages": total_pages
+        }
+    }
 
 # Analytics schemas
 class InstantlyAccountsResponse(Schema):

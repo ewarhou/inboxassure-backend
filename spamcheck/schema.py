@@ -328,4 +328,4 @@ class CampaignCopyResponse(Schema):
     """Schema for campaign copy response"""
     success: bool
     message: str
-    data: CampaignCopyData 
+    data: Optional[CampaignCopyData] = None 
