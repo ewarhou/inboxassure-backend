@@ -166,6 +166,7 @@ class UserSpamcheckReport(models.Model):
 
 class UserSpamcheckBison(models.Model):
     STATUS_CHOICES = [
+        ('queued', 'Queued'),
         ('pending', 'Pending'),
         ('in_progress', 'In Progress'),
         ('generating_reports', 'Generating Reports'),
@@ -178,7 +179,7 @@ class UserSpamcheckBison(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bison_spamchecks')
     user_organization = models.ForeignKey('settings.UserBison', on_delete=models.CASCADE, related_name='bison_spamchecks', null=True)
     name = models.CharField(max_length=255)
-    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='queued')
     is_domain_based = models.BooleanField(default=False)
     scheduled_at = models.DateTimeField(null=True, blank=True)
     recurring_days = models.IntegerField(null=True, blank=True)

@@ -1771,6 +1771,7 @@ def create_spamcheck_bison(request, payload: CreateSpamcheckBisonSchema):
                 user=user,
                 user_organization=user_organization,
                 name=payload.name,
+                status='queued',  # Explicitly set status to queued
                 scheduled_at=payload.scheduled_at,
                 recurring_days=payload.recurring_days,
                 is_domain_based=payload.is_domain_based,
@@ -1841,11 +1842,11 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
         log_to_terminal("Spamcheck", "Update Bison", f"Found spamcheck: {spamcheck.name} with status {spamcheck.status}")
         
         # Check if status allows updates
-        if spamcheck.status not in ['pending', 'failed', 'completed', 'paused']:
+        if spamcheck.status not in ['queued', 'pending', 'failed', 'completed', 'paused']:
             log_to_terminal("Spamcheck", "Update Bison", f"Cannot update spamcheck with status '{spamcheck.status}'")
             return {
                 "success": False,
-                "message": f"Cannot update spamcheck with status '{spamcheck.status}'. Only pending, failed, completed, or paused spamchecks can be updated."
+                "message": f"Cannot update spamcheck with status '{spamcheck.status}'. Only queued, pending, failed, completed, or paused spamchecks can be updated."
             }
         
         try:
@@ -2058,8 +2059,8 @@ def delete_spamcheck_bison(request, spamcheck_id: int):
 @router.post("/toggle-pause-bison/{spamcheck_id}", auth=AuthBearer())
 def toggle_pause_spamcheck_bison(request, spamcheck_id: int):
     """
-    Toggle Bison spamcheck between paused and pending status.
-    Only works if current status is paused, pending, or completed.
+    Toggle Bison spamcheck between paused and queued status.
+    Only works if current status is paused, queued, pending, or completed.
     """
     user = request.auth
     log_to_terminal("Spamcheck", "TogglePause", f"User {user.email} toggling pause for Bison spamcheck ID {spamcheck_id}")
@@ -2069,15 +2070,15 @@ def toggle_pause_spamcheck_bison(request, spamcheck_id: int):
         spamcheck = get_object_or_404(UserSpamcheckBison, id=spamcheck_id, user=user)
         
         # Check if status allows toggling
-        if spamcheck.status not in ['pending', 'paused', 'completed']:
+        if spamcheck.status not in ['queued', 'pending', 'paused', 'completed']:
             log_to_terminal("Spamcheck", "TogglePause", f"Cannot toggle pause for spamcheck with status '{spamcheck.status}'")
             return {
                 "success": False,
-                "message": f"Cannot toggle pause for spamcheck with status '{spamcheck.status}'. Only pending, paused, or completed spamchecks can be toggled."
+                "message": f"Cannot toggle pause for spamcheck with status '{spamcheck.status}'. Only queued, pending, paused, or completed spamchecks can be toggled."
             }
         
         # Toggle status
-        new_status = 'paused' if spamcheck.status in ['pending', 'completed'] else 'pending'
+        new_status = 'paused' if spamcheck.status in ['queued', 'pending', 'completed'] else 'queued'
         spamcheck.status = new_status
         spamcheck.save()
         

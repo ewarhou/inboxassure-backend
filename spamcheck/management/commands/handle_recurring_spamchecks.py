@@ -145,7 +145,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"- Next schedule: {next_schedule}")
 
                 # Update spamcheck
-                spamcheck.status = 'pending'
+                spamcheck.status = 'queued'
                 spamcheck.scheduled_at = next_schedule
                 spamcheck.save()
 

@@ -782,3 +782,4 @@
 [2025-03-15 20:41:43] [Bison] [Campaigns] No cached campaigns found for organization Karpos
 [2025-03-15 20:41:43] [Bison] [Campaigns] No cached campaigns found for organization PAWFC
 [2025-03-15 20:41:43] [Bison] [Campaigns] Returning campaigns for page 1/1 (took 0.64s)
+[2025-03-15 20:45:00] [BisonCampaigns] [Signal] Spamcheck status is in_progress, not triggering API calls

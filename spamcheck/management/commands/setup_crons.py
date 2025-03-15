@@ -30,6 +30,12 @@ class Command(BaseCommand):
                 'comment': 'inboxassure_recurring'  # Used to identify jobs
             },
             {
+                'command': 'process_spamcheck_queue',
+                'schedule': '* * * * *',  # Every minute
+                'log': 'cron_queue.log',
+                'comment': 'inboxassure_queue'
+            },
+            {
                 'command': 'launch_instantly_scheduled_spamchecks',
                 'schedule': '*/5 * * * *',  # Every 5 minutes
                 'log': 'cron_launch.log',
