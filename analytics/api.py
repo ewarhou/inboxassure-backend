@@ -814,115 +814,81 @@ class PaginatedBisonCampaignsResponse(BaseModel):
     summary="Get Bison Campaigns",
     description="Get all campaigns from Bison with connected emails and deliverability scores, grouped by organization"
 )
-def get_bison_campaigns(request, page: int = 1, per_page: int = 10):
+def get_bison_campaigns(request, page: int = 1, per_page: int = 10, search: str = None):
     """
     Get all campaigns from Bison with connected emails and deliverability scores, grouped by organization.
-    This endpoint now uses cached data from the UserCampaignsBison table for improved performance.
+    Uses cached data from the UserCampaignsBison table for improved performance.
     
-    Args:
-        page: Page number (default: 1)
-        per_page: Number of campaigns per page (default: 10)
+    Parameters:
+    - page: Page number (default: 1)
+    - per_page: Number of campaigns per page (default: 10)
+    - search: Optional search term to filter campaigns by name
     """
-    import time
-    start_time = time.time()
-    
     user = request.auth
-    log_to_terminal("Bison", "Campaigns", f"User {user.email} requested Bison campaigns (page {page}, per_page {per_page})")
     
-    # Get all active Bison organizations for the user
-    bison_orgs = UserBison.objects.filter(
-        user=user,
-        bison_organization_status=True
-    )
+    # Get all organizations for this user
+    organizations = UserBison.objects.filter(user=user)
     
-    if not bison_orgs:
-        log_to_terminal("Bison", "Campaigns", f"No active Bison organizations found for user {user.email}")
-        return {"data": [], "meta": {"current_page": page, "per_page": per_page, "total": 0, "total_pages": 0}}
+    # Prepare response data
+    response_data = []
+    total_campaigns = 0
     
-    organizations_campaigns = []
-    all_campaigns = []
-    
-    # Import the UserCampaignsBison model
-    from analytics.models import UserCampaignsBison
-    
-    for org in bison_orgs:
-        try:
-            # Get cached campaigns for this organization
-            cached_campaigns = UserCampaignsBison.objects.filter(
-                user=user,
-                bison_organization=org
-            ).order_by('campaign_name')
+    for org in organizations:
+        # Get campaigns for this organization
+        campaigns_query = UserCampaignsBison.objects.filter(
+            user=user,
+            bison_organization=org
+        )
+        
+        # Apply search filter if provided
+        if search:
+            campaigns_query = campaigns_query.filter(campaign_name__icontains=search)
             
-            if not cached_campaigns.exists():
-                log_to_terminal("Bison", "Campaigns", f"No cached campaigns found for organization {org.bison_organization_name}")
-                # Skip this organization if no campaigns are found
-                continue
-            
-            # Format the campaigns for the response
-            org_campaigns = []
-            for campaign in cached_campaigns:
-                org_campaigns.append({
-                    "id": campaign.campaign_id,
-                    "name": campaign.campaign_name,
-                    "connectedEmails": campaign.connected_emails_count,
-                    "sendsPerAccount": campaign.sends_per_account,
-                    "googleScore": campaign.google_score,
-                    "outlookScore": campaign.outlook_score,
-                    "maxDailySends": campaign.max_daily_sends
-                })
-            
-            # Add organization with its campaigns to the response
-            if org_campaigns:
-                organizations_campaigns.append({
-                    "organization_id": str(org.id),
-                    "organization_name": org.bison_organization_name,
-                    "campaigns": org_campaigns
-                })
-                all_campaigns.extend(org_campaigns)
-                
-            log_to_terminal("Bison", "Campaigns", f"Retrieved {len(org_campaigns)} cached campaigns for {org.bison_organization_name}")
-                
-        except Exception as e:
-            log_to_terminal("Bison", "Campaigns", f"Error retrieving cached campaigns for organization {org.bison_organization_name}: {str(e)}")
+        # Count total campaigns for pagination
+        org_campaign_count = campaigns_query.count()
+        total_campaigns += org_campaign_count
+        
+        # Skip this organization if it has no campaigns matching the search
+        if org_campaign_count == 0:
             continue
-    
-    # Calculate pagination
-    total_campaigns = len(all_campaigns)
-    total_pages = (total_campaigns + per_page - 1) // per_page  # Ceiling division
-    
-    # Apply pagination to organizations_campaigns
-    paginated_organizations = []
-    start_idx = (page - 1) * per_page
-    end_idx = start_idx + per_page
-    
-    # Create a copy of organizations_campaigns with paginated campaigns
-    for org_data in organizations_campaigns:
-        # Create a new organization with paginated campaigns
-        paginated_org = {
-            "organization_id": org_data["organization_id"],
-            "organization_name": org_data["organization_name"],
-            "campaigns": []
-        }
+            
+        # Calculate pagination
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
         
-        # Add campaigns that fall within the current page
-        for campaign in org_data["campaigns"]:
-            if start_idx <= 0:
-                if len(paginated_org["campaigns"]) < per_page:
-                    paginated_org["campaigns"].append(campaign)
-                else:
-                    break
-            else:
-                start_idx -= 1
+        # Get campaigns for this page
+        campaigns = campaigns_query.order_by('-updated_at')[start_idx:end_idx]
         
-        # Only add organizations that have campaigns after pagination
-        if paginated_org["campaigns"]:
-            paginated_organizations.append(paginated_org)
+        # Skip to next organization if we've gone past the available campaigns
+        if not campaigns:
+            continue
+        
+        # Format campaigns for response
+        formatted_campaigns = []
+        for campaign in campaigns:
+            formatted_campaigns.append({
+                "id": campaign.campaign_id,
+                "name": campaign.campaign_name,
+                "connectedEmails": campaign.connected_emails_count,
+                "sendsPerAccount": campaign.sends_per_account,
+                "googleScore": campaign.google_score,
+                "outlookScore": campaign.outlook_score,
+                "maxDailySends": campaign.max_daily_sends
+            })
+        
+        # Add organization with its campaigns to response
+        response_data.append({
+            "organization_id": org.bison_organization_id,
+            "organization_name": org.bison_organization_name,
+            "campaigns": formatted_campaigns
+        })
     
-    total_time = time.time() - start_time
-    log_to_terminal("Bison", "Campaigns", f"Returning campaigns for page {page}/{total_pages} (took {total_time:.2f}s)")
+    # Calculate pagination metadata
+    total_pages = (total_campaigns + per_page - 1) // per_page if total_campaigns > 0 else 1
     
+    # Return paginated response
     return {
-        "data": paginated_organizations,
+        "data": response_data,
         "meta": {
             "current_page": page,
             "per_page": per_page,
