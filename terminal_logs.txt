@@ -775,3 +775,10 @@
 [2025-03-15 20:02:35] [Signals] [SendingPower] Updating sending power for CoachPro on 2025-03-15
 [2025-03-15 20:02:47] [Signals] [SendingPower] Found 160 accounts for CoachPro
 [2025-03-15 20:02:47] [Signals] [SendingPower] Created sending power record for CoachPro: 3575
+[2025-03-15 20:41:43] [Bison] [Campaigns] User dev@vitalitymarketingfirm.com requested Bison campaigns (page 1, per_page 10, search: Aly - Biz Coaching (RSCP/ CoachPro))
+[2025-03-15 20:41:43] [Bison] [Campaigns] Retrieved 1 cached campaigns for CoachPro
+[2025-03-15 20:41:43] [Bison] [Campaigns] No cached campaigns found for organization DealFlow Group
+[2025-03-15 20:41:43] [Bison] [Campaigns] No cached campaigns found for organization Evolve Business Group
+[2025-03-15 20:41:43] [Bison] [Campaigns] No cached campaigns found for organization Karpos
+[2025-03-15 20:41:43] [Bison] [Campaigns] No cached campaigns found for organization PAWFC
+[2025-03-15 20:41:43] [Bison] [Campaigns] Returning campaigns for page 1/1 (took 0.64s)

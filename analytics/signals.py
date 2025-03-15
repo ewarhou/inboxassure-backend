@@ -135,30 +135,55 @@ def update_bison_campaigns_table(spamcheck):
             log_to_terminal("BisonCampaigns", "Debug", f"Processing batch {batch_idx+1}/{len(account_batches)}")
             for account_id in batch:
                 try:
-                    api_url = f"{org.base_url.rstrip('/')}/api/sender-emails/{account_id}/campaigns"
-                    log_to_terminal("BisonCampaigns", "Debug", f"Fetching campaigns for account {account_id} from: {api_url}")
+                    # Initialize variables for pagination
+                    account_campaigns_data = []
+                    current_page = 1
+                    per_page = 100  # Use a larger page size for efficiency
                     
-                    response = requests.get(
-                        api_url,
-                        headers={
-                            "Authorization": f"Bearer {org.bison_organization_api_key}",
-                            "Content-Type": "application/json"
-                        }
-                    )
+                    # Paginate through all campaigns for this account
+                    while True:
+                        api_url = f"{org.base_url.rstrip('/')}/api/sender-emails/{account_id}/campaigns"
+                        log_to_terminal("BisonCampaigns", "Debug", f"Fetching campaigns for account {account_id} from: {api_url}, page: {current_page}")
+                        
+                        response = requests.get(
+                            api_url,
+                            headers={
+                                "Authorization": f"Bearer {org.bison_organization_api_key}",
+                                "Content-Type": "application/json"
+                            },
+                            params={
+                                "page": current_page,
+                                "per_page": per_page
+                            }
+                        )
+                        
+                        if response.status_code != 200:
+                            log_to_terminal("BisonCampaigns", "Error", f"Error fetching campaigns for account {account_id}: {response.text}")
+                            break
+                        
+                        data = response.json()
+                        campaigns_page = data.get('data', [])
+                        log_to_terminal("BisonCampaigns", "Debug", f"Account {account_id}, Page {current_page}: Found {len(campaigns_page)} campaigns")
+                        
+                        # Add campaigns from this page to our collection
+                        account_campaigns_data.extend(campaigns_page)
+                        
+                        # Debug: Print first campaign details if available (only on first page of first account in batch)
+                        if campaigns_page and batch_idx == 0 and account_id == batch[0] and current_page == 1:
+                            first_campaign = campaigns_page[0]
+                            log_to_terminal("BisonCampaigns", "Debug", f"Sample campaign: {json.dumps(first_campaign)}")
+                        
+                        # Check if we've reached the last page
+                        total_pages = data.get('meta', {}).get('last_page', 1)
+                        if current_page >= total_pages:
+                            break
+                            
+                        current_page += 1
                     
-                    if response.status_code != 200:
-                        log_to_terminal("BisonCampaigns", "Error", f"Error fetching campaigns for account {account_id}: {response.text}")
-                        continue
+                    # Process all campaigns for this account
+                    log_to_terminal("BisonCampaigns", "Debug", f"Account {account_id}: Processed total of {len(account_campaigns_data)} campaigns across all pages")
                     
-                    campaigns_data = response.json().get('data', [])
-                    log_to_terminal("BisonCampaigns", "Debug", f"Account {account_id}: Found {len(campaigns_data)} campaigns")
-                    
-                    # Debug: Print first campaign details if available
-                    if campaigns_data and batch_idx == 0 and account_id == batch[0]:
-                        first_campaign = campaigns_data[0]
-                        log_to_terminal("BisonCampaigns", "Debug", f"Sample campaign: {json.dumps(first_campaign)}")
-                    
-                    for campaign in campaigns_data:
+                    for campaign in account_campaigns_data:
                         campaign_id = campaign.get('id')
                         if campaign_id not in account_campaigns:
                             account_campaigns[campaign_id] = {
@@ -223,21 +248,6 @@ def update_bison_campaigns_table(spamcheck):
         
         details_time = time.time() - details_start_time
         log_to_terminal("BisonCampaigns", "Details", f"Fetched details for {len(campaigns_details)} campaigns (took {details_time:.2f}s)")
-        
-        # Debug: Check for campaigns that are in account_campaigns but not in campaigns_details
-        missing_campaigns = []
-        for campaign_id in account_campaigns:
-            if campaign_id not in campaigns_details:
-                campaign_name = account_campaigns[campaign_id]['campaign'].get('name', 'Unknown')
-                missing_campaigns.append((campaign_id, campaign_name))
-                
-        if missing_campaigns:
-            log_to_terminal("BisonCampaigns", "Warning", f"Found {len(missing_campaigns)} campaigns associated with accounts but not in global campaigns list:")
-            for campaign_id, campaign_name in missing_campaigns:
-                log_to_terminal("BisonCampaigns", "Warning", f"Missing campaign: {campaign_name} (ID: {campaign_id})")
-                # Add these missing campaigns to campaigns_details
-                campaigns_details[campaign_id] = account_campaigns[campaign_id]['campaign']
-                log_to_terminal("BisonCampaigns", "Debug", f"Added missing campaign {campaign_id} to campaigns_details")
         
         # 4. Get latest reports for these accounts to calculate scores
         scores_start_time = time.time()
@@ -311,13 +321,13 @@ def update_bison_campaigns_table(spamcheck):
         # Track which campaign IDs we've processed
         processed_campaign_ids = set()
         
-        # First, process campaigns from account_campaigns
+        # Update or create each campaign
         for campaign_id, data in account_campaigns.items():
             campaign = data['campaign']
             accounts = data['accounts']
             campaign_details = campaigns_details.get(campaign_id, {})
             
-            log_to_terminal("BisonCampaigns", "Debug", f"Processing campaign from accounts: {campaign.get('name', '')} (ID: {campaign_id})")
+            log_to_terminal("BisonCampaigns", "Debug", f"Processing campaign: {campaign.get('name', '')} (ID: {campaign_id})")
             
             # Get emails for these accounts
             campaign_account_emails = []
@@ -424,90 +434,6 @@ def update_bison_campaigns_table(spamcheck):
                 log_to_terminal("BisonCampaigns", "Create", f"Created campaign: {campaign.get('name', '')} (ID: {campaign_id})")
             
             processed_campaign_ids.add(campaign_id)
-        
-        # Now process any campaigns from campaigns_details that weren't in account_campaigns
-        for campaign_id, campaign in campaigns_details.items():
-            if campaign_id in processed_campaign_ids:
-                continue  # Skip campaigns we've already processed
-                
-            log_to_terminal("BisonCampaigns", "Debug", f"Processing campaign from global list: {campaign.get('name', '')} (ID: {campaign_id})")
-            
-            # For campaigns not in account_campaigns, we don't have account information
-            # So we'll set default values
-            
-            # Update or create the campaign record
-            if campaign_id in existing_campaign_ids:
-                # Update existing record
-                camp_obj = existing_campaign_ids[campaign_id]
-                log_to_terminal("BisonCampaigns", "Debug", f"Updating existing campaign {campaign_id} in database")
-                
-                # Only update the name and max_daily_sends, keep other values
-                camp_obj.campaign_name = campaign.get('name', '')
-                camp_obj.max_daily_sends = campaign.get('max_emails_per_day', 0)
-                camp_obj.save()
-                
-                log_to_terminal("BisonCampaigns", "Update", f"Updated campaign name: {camp_obj.campaign_name} (ID: {campaign_id})")
-            else:
-                # Create new record with default values
-                log_to_terminal("BisonCampaigns", "Debug", f"Creating new campaign {campaign_id} in database (no account data)")
-                new_campaign = UserCampaignsBison.objects.create(
-                    user=user,
-                    bison_organization=org,
-                    campaign_id=campaign_id,
-                    campaign_name=campaign.get('name', ''),
-                    connected_emails_count=0,  # No connected emails known
-                    sends_per_account=0,       # Default value
-                    google_score=0,            # Default value
-                    outlook_score=0,           # Default value
-                    max_daily_sends=campaign.get('max_emails_per_day', 0)
-                )
-                log_to_terminal("BisonCampaigns", "Create", f"Created campaign with default values: {campaign.get('name', '')} (ID: {campaign_id})")
-            
-            processed_campaign_ids.add(campaign_id)
-        
-        # Check for campaigns in reports that aren't in our processed list
-        try:
-            with connection.cursor() as cursor:
-                query = """
-                SELECT DISTINCT campaign_id, campaign_name
-                FROM user_spamcheck_bison_reports
-                WHERE bison_organization_id = %s
-                AND campaign_id IS NOT NULL
-                AND campaign_id != ''
-                """
-                cursor.execute(query, [org.id])
-                report_campaigns = cursor.fetchall()
-                
-                if report_campaigns:
-                    log_to_terminal("BisonCampaigns", "Debug", f"Found {len(report_campaigns)} campaigns in reports table")
-                    
-                    for row in report_campaigns:
-                        campaign_id, campaign_name = row
-                        
-                        # Skip if we've already processed this campaign
-                        if campaign_id in processed_campaign_ids:
-                            continue
-                        
-                        log_to_terminal("BisonCampaigns", "Warning", f"Found campaign in reports but not in API: {campaign_name} (ID: {campaign_id})")
-                        
-                        # Create a record for this campaign if it doesn't exist
-                        if campaign_id not in existing_campaign_ids:
-                            log_to_terminal("BisonCampaigns", "Debug", f"Creating campaign from reports: {campaign_name} (ID: {campaign_id})")
-                            new_campaign = UserCampaignsBison.objects.create(
-                                user=user,
-                                bison_organization=org,
-                                campaign_id=campaign_id,
-                                campaign_name=campaign_name or f"Campaign {campaign_id}",
-                                connected_emails_count=0,  # Will be updated in future runs
-                                sends_per_account=0,       # Default value
-                                google_score=0,            # Default value
-                                outlook_score=0,           # Default value
-                                max_daily_sends=0          # Default value
-                            )
-                            log_to_terminal("BisonCampaigns", "Create", f"Created campaign from reports: {campaign_name} (ID: {campaign_id})")
-                            processed_campaign_ids.add(campaign_id)
-        except Exception as e:
-            log_to_terminal("BisonCampaigns", "Error", f"Error checking reports for campaigns: {str(e)}")
         
         # Delete campaigns that no longer exist
         for camp_id, camp_obj in existing_campaign_ids.items():

@@ -136,7 +136,6 @@
 **Parameters:**
 - `page` (optional): Page number (default: 1)
 - `per_page` (optional): Number of campaigns per page (default: 10)
-- `search` (optional): Search term to filter campaigns by name
 
 **Response:** Paginated list of organizations with their campaigns:
 - `data`: Array of organizations with:
