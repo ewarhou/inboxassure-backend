@@ -1938,3 +1938,6 @@
 [2025-03-15 23:08:25] [Signals] [SendingPower] Updating sending power for CoachPro on 2025-03-15
 [2025-03-15 23:08:39] [Signals] [SendingPower] Found 160 accounts for CoachPro
 [2025-03-15 23:08:39] [Signals] [SendingPower] Created sending power record for CoachPro: 3475
+[2025-03-15 23:51:15] [SpamCheck] [Debug] Parsing conditions: google>0.5andoutlook>0.3sending=33/3
+[2025-03-15 23:51:15] [SpamCheck] [Debug] Parsed Google criteria: Above 50.0%
+[2025-03-15 23:51:15] [SpamCheck] [Debug] Parsed Outlook criteria: Above 30.0%

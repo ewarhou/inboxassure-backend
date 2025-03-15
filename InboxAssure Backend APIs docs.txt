@@ -223,6 +223,81 @@ Spamchecks now follow this status flow:
 }
 ```
 
+### Get Spamcheck Details
+
+**Endpoint:** `GET /api/spamcheck/get-spamcheck/{spamcheck_id}`
+
+**Authentication:** Bearer Token
+
+**Description:** Get detailed information about a specific Bison spamcheck by its ID.
+
+**Parameters:**
+- `spamcheck_id`: ID of the Bison spamcheck to retrieve
+
+**Response:** Spamcheck details with the following fields:
+- `success`: Boolean indicating if the request was successful
+- `message`: Status message
+- `data`: Spamcheck details with:
+  - `id`: Spamcheck ID
+  - `name`: Spamcheck name
+  - `createdAt`: Creation date and time
+  - `lastRunDate`: Last run date and time
+  - `status`: Current status
+  - `configuration`: Configuration details with:
+    - `domainBased`: Whether the spamcheck is domain-based
+    - `trackOpens`: Whether open tracking is enabled
+    - `trackClicks`: Whether link tracking is enabled
+    - `waitingTime`: Time to wait before generating reports
+    - `googleInboxCriteria`: Google inbox criteria
+    - `outlookInboxCriteria`: Outlook inbox criteria
+    - `updateSendingLimit`: Whether to update sending limits in Bison API based on scores
+    - `weekdays`: List of weekdays when the spamcheck should run
+  - `emailContent`: Email content with:
+    - `subject`: Email subject template
+    - `body`: Email body template
+  - `results`: Results summary with:
+    - `googleScore`: Average Google score
+    - `outlookScore`: Average Outlook score
+    - `totalAccounts`: Total number of accounts
+    - `inboxedAccounts`: Number of accounts in inbox
+    - `spamAccounts`: Number of accounts in spam
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Successfully retrieved spamcheck details",
+  "data": {
+    "id": "123",
+    "name": "Weekly Deliverability Test",
+    "createdAt": "2024-07-10T09:15:30Z",
+    "lastRunDate": "2024-07-15T14:30:00Z",
+    "status": "completed",
+    "configuration": {
+      "domainBased": true,
+      "trackOpens": false,
+      "trackClicks": false,
+      "waitingTime": "1.0",
+      "googleInboxCriteria": "0.5",
+      "outlookInboxCriteria": "0.5",
+      "updateSendingLimit": true,
+      "weekdays": ["0", "3"]
+    },
+    "emailContent": {
+      "subject": "Test Email Subject",
+      "body": "This is a test email body content."
+    },
+    "results": {
+      "googleScore": 0.85,
+      "outlookScore": 0.78,
+      "totalAccounts": 50,
+      "inboxedAccounts": 42,
+      "spamAccounts": 8
+    }
+  }
+}
+```
+
 ### Queue Processing
 
 The system processes spamchecks in the queue as follows:

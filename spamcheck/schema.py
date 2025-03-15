@@ -213,6 +213,8 @@ class SpamcheckBisonConfigurationSchema(Schema):
     waitingTime: str
     googleInboxCriteria: str
     outlookInboxCriteria: str
+    updateSendingLimit: bool = Field(default=True)
+    weekdays: Optional[List[str]] = None
 
 class SpamcheckBisonEmailContentSchema(Schema):
     """Schema for Bison spamcheck email content"""
