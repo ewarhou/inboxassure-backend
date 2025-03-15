@@ -1620,7 +1620,6 @@ def get_bison_accounts(
             JOIN user_bison ub ON usbr.bison_organization_id = ub.id
             JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
             WHERE ub.user_id = %s
-            AND usb.update_sending_limit = TRUE
     """
     params = [user.id]
     
@@ -1628,6 +1627,9 @@ def get_bison_accounts(
     if spamcheck_id:
         query += " AND usbr.spamcheck_bison_id = %s"
         params.append(spamcheck_id)
+    else:
+        # Only apply update_sending_limit filter when no specific spamcheck_id is provided
+        query += " AND usb.update_sending_limit = TRUE"
     
     # Add search condition if provided
     if search:
@@ -1650,7 +1652,7 @@ def get_bison_accounts(
                 SUM(CASE WHEN usbr.is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
             FROM user_spamcheck_bison_reports usbr
             JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
-            WHERE usb.update_sending_limit = TRUE
+            WHERE 1=1
     """
     
     # Add user filter to account_stats using the correct column name
@@ -1661,6 +1663,9 @@ def get_bison_accounts(
     if spamcheck_id:
         query += " AND usbr.spamcheck_bison_id = %s"
         params.append(spamcheck_id)
+    else:
+        # Only apply update_sending_limit filter when no specific spamcheck_id is provided
+        query += " AND usb.update_sending_limit = TRUE"
     
     query += """
         GROUP BY usbr.email_account
