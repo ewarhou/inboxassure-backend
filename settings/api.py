@@ -661,30 +661,9 @@ def check_bison_organization_status(request: HttpRequest, org_id: int):
                 print(f"Response Body: {response.text}")
                 print("==========================\n")
                 
-                # Update status based on response content validation
-                status = False
-                try:
-                    # First check if response is JSON
-                    response_data = response.json()
-                    
-                    # Check if it's a valid API response with user data
-                    if (isinstance(response_data, dict) 
-                        and 'data' in response_data 
-                        and isinstance(response_data['data'], dict)
-                        and all(key in response_data['data'] for key in ['name', 'email', 'team'])
-                        and isinstance(response_data['data']['team'], dict)):
-                        status = True
-                        message = "Bison organization is active"
-                    else:
-                        status = False
-                        message = "Invalid response format from API"
-                except ValueError:
-                    # If response is not JSON (like HTML), it means unauthorized/invalid token
-                    status = False
-                    if "<!DOCTYPE html>" in response.text:
-                        message = "Invalid API key or unauthorized access"
-                    else:
-                        message = "Invalid response format from API (expected JSON)"
+                # Update status based on response status code only
+                status = response.status_code == 200
+                message = "Bison organization is active" if status else "Invalid API key or unauthorized access"
                 
                 bison_org.bison_organization_status = status
                 bison_org.save()
@@ -692,8 +671,10 @@ def check_bison_organization_status(request: HttpRequest, org_id: int):
                 if not status:
                     if response.status_code == 404:
                         message = f"API endpoint not found at {bison_org.base_url}/api/users"
-                    elif not message:  # if message wasn't set above
-                        message = "Invalid response from API"
+                    elif response.status_code == 401 or response.status_code == 403:
+                        message = "Invalid API key or unauthorized access"
+                    else:
+                        message = f"API returned error status code: {response.status_code}"
                     
                 return 200, {"status": status, "message": message}
                 
