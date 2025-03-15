@@ -719,3 +719,61 @@ POST /api/spamcheck/list-accounts?organization_id=123
 - This endpoint uses the EmailGuard API key for authentication, not the Bison API key
 - The spam score threshold for determining if content is spam may vary based on EmailGuard's configuration
 - The list of spam words is regularly updated by EmailGuard
+
+### 10. Retrieve Bison Workspaces
+
+**Endpoint:** `POST /api/settings/retrieve-bison-workspaces`
+
+**Authentication:** Bearer Token
+
+**Description:** Retrieves workspaces from Bison using an admin API key, creates API keys for each workspace, adds them to the database, verifies connections, and returns only the successfully connected workspaces.
+
+**Request Body:** JSON object with the following fields:
+- `base_url`: Base URL of the Bison API (e.g., "https://app.orbitmailboost.com")
+- `admin_api_key`: Admin API key for Bison with permissions to access workspaces and create API tokens
+
+**Response:** List of connected workspaces with the following fields:
+- `workspaces`: Array of workspace objects with:
+  - `id`: Workspace ID in Bison
+  - `name`: Workspace name
+  - `organization_id`: Organization ID in our database
+  - `api_key`: API key created for the workspace
+  - `status`: Connection status (always true for returned workspaces)
+- `message`: Status message with count of connected workspaces
+
+**Example Request:**
+```json
+{
+  "base_url": "https://app.orbitmailboost.com",
+  "admin_api_key": "your_admin_api_key_here"
+}
+```
+
+**Example Response:**
+```json
+{
+  "workspaces": [
+    {
+      "id": 1,
+      "name": "Marketing Team",
+      "organization_id": 42,
+      "api_key": "1|RYHi6oE6o0fVuEPEDSUe6dN7tCFJwvJ6cAytBKxq69deeeee",
+      "status": true
+    },
+    {
+      "id": 2,
+      "name": "Sales Team",
+      "organization_id": 43,
+      "api_key": "2|KLMn9pQ8r7sVwXYZaBcDeFgHiJkLmNoPqRsTuVwXyZaBcDe",
+      "status": true
+    }
+  ],
+  "message": "Successfully retrieved and connected 2 workspaces"
+}
+```
+
+**Notes:**
+- This endpoint automatically creates API keys for each workspace in Bison
+- Only workspaces that successfully connect are returned in the response
+- Workspaces that fail to connect are automatically deleted from the database
+- The admin API key must have permissions to list workspaces and create API tokens

@@ -96,4 +96,19 @@ class UpdateTimezoneSchema(Schema):
     timezone: str
 
 class UpdateProfileSchema(Schema):
-    timezone: Optional[str] = None 
+    timezone: Optional[str] = None
+
+class BisonWorkspaceRequestSchema(Schema):
+    base_url: str
+    admin_api_key: str
+
+class BisonWorkspaceResponseSchema(Schema):
+    id: int
+    name: str
+    organization_id: int
+    api_key: str
+    status: bool
+
+class BisonWorkspacesResponseSchema(Schema):
+    workspaces: List[BisonWorkspaceResponseSchema]
+    message: str 

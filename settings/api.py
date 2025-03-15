@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404
 from django.http import HttpRequest, FileResponse
 from authentication.authorization import AuthBearer
 from .models import UserSettings, UserBison, UserInstantly, UserProfile
-from .schema import (
+from settings.schema import (
     InstantlyEditorAccountSchema,
     InstantlyApiKeySchema,
     EmailGuardApiKeySchema,
@@ -23,7 +23,10 @@ from .schema import (
     InstantlyEditorAccountResponseSchema,
     EmailGuardKeyResponseSchema,
     BisonKeyResponseSchema,
-    UpdateProfileSchema
+    UpdateProfileSchema,
+    BisonWorkspaceRequestSchema,
+    BisonWorkspaceResponseSchema,
+    BisonWorkspacesResponseSchema
 )
 import requests
 import pytz
@@ -852,4 +855,206 @@ def list_bison_workspaces(request):
             "success": False,
             "message": f"Error retrieving Bison workspaces: {str(e)}",
             "data": []
-        } 
+        }
+
+@router.post("/retrieve-bison-workspaces", auth=AuthBearer(), response={200: BisonWorkspacesResponseSchema, 400: ErrorResponseSchema})
+def retrieve_bison_workspaces(request: HttpRequest, payload: BisonWorkspaceRequestSchema):
+    """
+    Retrieve workspaces from Bison, create API keys for each, add them to our database,
+    verify connections, and return only connected workspaces.
+    """
+    try:
+        print("\n🚀 === STARTING BISON WORKSPACE RETRIEVAL ===")
+        print(f"👤 User: {request.auth.username}")
+        print(f"🌐 Base URL: {payload.base_url}")
+        print(f"🔑 Admin API Key: {payload.admin_api_key[:10]}...{payload.admin_api_key[-5:] if len(payload.admin_api_key) > 15 else ''}")
+        
+        log_to_terminal("Bison", "Workspaces", f"User {request.auth.username} started retrieving Bison workspaces")
+        base_url = payload.base_url
+        admin_api_key = payload.admin_api_key
+        
+        # Step 1: Fetch workspaces from Bison
+        headers = {
+            'Authorization': f'Bearer {admin_api_key}'
+        }
+        
+        print("\n1️⃣ FETCHING WORKSPACES FROM BISON")
+        print(f"📡 Calling: {base_url}/api/workspaces")
+        print(f"🔑 Using Admin API Key: {admin_api_key[:10]}...{admin_api_key[-5:] if len(admin_api_key) > 15 else ''}")
+        
+        try:
+            workspaces_response = requests.get(f'{base_url}/api/workspaces', headers=headers)
+            print(f"\n📥 Workspaces Response Status: {workspaces_response.status_code}")
+            print(f"📄 Workspaces Response Body: {workspaces_response.text[:1000]}...")
+            
+            log_to_terminal("Bison", "Workspaces", f"Workspaces API response: {workspaces_response.status_code}")
+            
+            if workspaces_response.status_code != 200:
+                print(f"❌ Failed to fetch workspaces: {workspaces_response.text}")
+                return 400, {"detail": f"Failed to fetch workspaces: {workspaces_response.text}"}
+            
+            workspaces_data = workspaces_response.json()
+            
+            if 'data' not in workspaces_data:
+                print("❌ Invalid response format: 'data' key not found in response")
+                return 400, {"detail": "Invalid response format from Bison API"}
+            
+            workspaces = workspaces_data['data']
+            print(f"\n✅ Found {len(workspaces)} workspaces")
+            for idx, workspace in enumerate(workspaces):
+                print(f"  {idx+1}. {workspace.get('name', 'Unknown')} (ID: {workspace.get('id', 'Unknown')})")
+            
+            log_to_terminal("Bison", "Workspaces", f"Found {len(workspaces)} workspaces")
+            
+            # Step 2: Process each workspace
+            connected_workspaces = []
+            
+            for workspace in workspaces:
+                workspace_id = workspace.get('id')
+                workspace_name = workspace.get('name')
+                
+                print(f"\n2️⃣ PROCESSING WORKSPACE: {workspace_name} (ID: {workspace_id})")
+                
+                if not workspace_id or not workspace_name:
+                    print(f"⚠️ Skipping workspace with missing ID or name")
+                    log_to_terminal("Bison", "Workspaces", f"Skipping workspace with missing ID or name")
+                    continue
+                
+                log_to_terminal("Bison", "Workspaces", f"Processing workspace: {workspace_name} (ID: {workspace_id})")
+                
+                # Step 3: Create API key for the workspace
+                try:
+                    print(f"\n3️⃣ CREATING API KEY FOR WORKSPACE: {workspace_name}")
+                    print(f"📡 Calling: {base_url}/api/workspaces/v1.1/{workspace_id}/api-tokens")
+                    print(f"📤 Request Body: {{'name': '{workspace_name}'}}")
+                    
+                    api_token_response = requests.post(
+                        f'{base_url}/api/workspaces/v1.1/{workspace_id}/api-tokens',
+                        headers={
+                            'Content-Type': 'application/json',
+                            'Authorization': f'Bearer {admin_api_key}'
+                        },
+                        json={
+                            'name': workspace_name
+                        }
+                    )
+                    
+                    print(f"\n📥 API Token Response Status: {api_token_response.status_code}")
+                    print(f"📄 API Token Response Body: {api_token_response.text}")
+                    
+                    if api_token_response.status_code != 200 and api_token_response.status_code != 201:
+                        print(f"❌ Failed to create API token: {api_token_response.text}")
+                        log_to_terminal("Bison", "Workspaces", f"Failed to create API token for workspace {workspace_name}: {api_token_response.text}")
+                        continue
+                    
+                    api_token_data = api_token_response.json()
+                    
+                    # Check if the response has data.plain_text_token structure
+                    if 'data' in api_token_data and 'plain_text_token' in api_token_data['data']:
+                        api_key = api_token_data['data']['plain_text_token']
+                        print(f"✅ Found API token in data.plain_text_token: {api_key[:10]}...{api_key[-5:] if len(api_key) > 15 else ''}")
+                    # Fallback to the old structure
+                    elif 'token' in api_token_data:
+                        api_key = api_token_data.get('token')
+                        print(f"✅ Found API token in token field: {api_key[:10]}...{api_key[-5:] if len(api_key) > 15 else ''}")
+                    else:
+                        print("❌ No API token found in response")
+                        print(f"📄 Response structure: {list(api_token_data.keys())}")
+                        if 'data' in api_token_data:
+                            print(f"📄 Data structure: {list(api_token_data['data'].keys())}")
+                        log_to_terminal("Bison", "Workspaces", f"No API token returned for workspace {workspace_name}")
+                        continue
+                    
+                    if not api_key:
+                        print("❌ API token is empty")
+                        log_to_terminal("Bison", "Workspaces", f"Empty API token returned for workspace {workspace_name}")
+                        continue
+                    
+                    print(f"✅ Created API token: {api_key[:10]}...{api_key[-5:] if len(api_key) > 15 else ''}")
+                    log_to_terminal("Bison", "Workspaces", f"Created API token for workspace {workspace_name}")
+                    
+                    # Step 4: Add workspace to our database
+                    print(f"\n4️⃣ ADDING WORKSPACE TO DATABASE: {workspace_name}")
+                    
+                    bison_org_payload = BisonOrganizationSchema(
+                        bison_organization_name=workspace_name,
+                        bison_organization_api_key=api_key,
+                        base_url=base_url
+                    )
+                    
+                    add_response = add_bison_organization(request, bison_org_payload)
+                    print(f"\n📥 Add Organization Response Status: {add_response[0]}")
+                    print(f"📄 Add Organization Response: {add_response[1]}")
+                    
+                    if add_response[0] != 200:
+                        print(f"❌ Failed to add workspace to database: {add_response[1]}")
+                        log_to_terminal("Bison", "Workspaces", f"Failed to add workspace {workspace_name} to database: {add_response[1]}")
+                        continue
+                    
+                    org_id = add_response[1]['data']['id']
+                    print(f"✅ Added workspace to database with ID: {org_id}")
+                    log_to_terminal("Bison", "Workspaces", f"Added workspace {workspace_name} to database with ID {org_id}")
+                    
+                    # Step 5: Verify connection
+                    print(f"\n5️⃣ VERIFYING CONNECTION FOR WORKSPACE: {workspace_name}")
+                    
+                    check_response = check_bison_organization_status(request, org_id)
+                    print(f"\n📥 Check Status Response Status: {check_response[0]}")
+                    print(f"📄 Check Status Response: {check_response[1]}")
+                    
+                    if check_response[0] != 200:
+                        print(f"❌ Failed to check workspace status: {check_response[1]}")
+                        log_to_terminal("Bison", "Workspaces", f"Failed to check workspace {workspace_name} status: {check_response[1]}")
+                        continue
+                    
+                    status = check_response[1]['status']
+                    print(f"🔍 Workspace connection status: {status}")
+                    log_to_terminal("Bison", "Workspaces", f"Workspace {workspace_name} connection status: {status}")
+                    
+                    if not status:
+                        print(f"❌ Workspace connection failed, deleting from database")
+                        # Delete unconnected workspace
+                        try:
+                            bison_org = UserBison.objects.get(id=org_id, user=request.auth)
+                            bison_org.delete()
+                            print(f"✅ Deleted unconnected workspace from database")
+                            log_to_terminal("Bison", "Workspaces", f"Deleted unconnected workspace {workspace_name}")
+                        except UserBison.DoesNotExist:
+                            print(f"⚠️ Workspace not found for deletion")
+                            log_to_terminal("Bison", "Workspaces", f"Workspace {workspace_name} not found for deletion")
+                        continue
+                    
+                    # Add connected workspace to result
+                    print(f"✅ Workspace successfully connected")
+                    connected_workspaces.append({
+                        "id": workspace_id,
+                        "name": workspace_name,
+                        "organization_id": org_id,
+                        "api_key": api_key,
+                        "status": status
+                    })
+                    
+                except Exception as e:
+                    print(f"❌ Error processing workspace: {str(e)}")
+                    log_to_terminal("Bison", "Workspaces", f"Error processing workspace {workspace_name}: {str(e)}")
+                    continue
+            
+            print(f"\n🏁 FINISHED PROCESSING WORKSPACES")
+            print(f"✅ Successfully connected {len(connected_workspaces)} workspaces")
+            for idx, workspace in enumerate(connected_workspaces):
+                print(f"  {idx+1}. {workspace['name']} (ID: {workspace['id']}, Org ID: {workspace['organization_id']})")
+            
+            return 200, {
+                "workspaces": connected_workspaces,
+                "message": f"Successfully retrieved and connected {len(connected_workspaces)} workspaces"
+            }
+            
+        except requests.RequestException as e:
+            print(f"❌ Request error: {str(e)}")
+            log_to_terminal("Bison", "Workspaces", f"Request error: {str(e)}")
+            return 400, {"detail": f"Failed to connect to Bison API: {str(e)}"}
+            
+    except Exception as e:
+        print(f"❌ Unexpected error: {str(e)}")
+        log_to_terminal("Bison", "Workspaces", f"Unexpected error: {str(e)}")
+        return 400, {"detail": str(e)} 
