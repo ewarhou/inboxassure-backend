@@ -21,7 +21,7 @@ Spamchecks now follow this status flow:
 
 **Authentication:** Bearer Token
 
-**Description:** Create a new spamcheck with accounts for Bison. The spamcheck will be created with 'queued' status and will be processed according to the queueing system.
+**Description:** Create aa new spamcheck with accounts for Bison. The spamcheck will be created with 'queued' status and will be processed according to the queueing system.
 
 **Request Body:** JSON object with the following fields:
 - `name`: Name of the spamcheck
