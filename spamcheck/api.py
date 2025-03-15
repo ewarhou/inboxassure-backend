@@ -1226,9 +1226,23 @@ def list_accounts(
         return empty_response
 
 @router.get("/list-spamchecks", auth=AuthBearer(), response=ListSpamchecksResponseSchema)
-def list_spamchecks(request):
+def list_spamchecks(
+    request,
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    platform: Optional[str] = None,
+    page: int = 1,
+    per_page: int = 10
+):
     """
     Get all spamchecks (both Instantly and Bison) with their details
+    
+    Parameters:
+        - search: Optional search term to filter spamchecks by name
+        - status: Optional status filter (queued, pending, in_progress, generating_reports, completed, failed, paused)
+        - platform: Optional platform filter (instantly, bison)
+        - page: Page number (default: 1)
+        - per_page: Items per page (default: 10)
     """
     user = request.auth
     
@@ -1242,12 +1256,36 @@ def list_spamchecks(request):
             'campaigns'
         ).filter(user=user)
         
+        # Apply search filter if provided
+        if search:
+            instantly_spamchecks = instantly_spamchecks.filter(name__icontains=search)
+            
+        # Apply status filter if provided
+        if status:
+            instantly_spamchecks = instantly_spamchecks.filter(status=status)
+            
+        # Apply platform filter if provided
+        if platform and platform.lower() == 'bison':
+            instantly_spamchecks = UserSpamcheck.objects.none()  # Empty queryset
+        
         # Get all Bison spamchecks for the user with related data
         bison_spamchecks = UserSpamcheckBison.objects.select_related(
             'user_organization'
         ).prefetch_related(
             'accounts'
         ).filter(user=user)
+        
+        # Apply search filter if provided
+        if search:
+            bison_spamchecks = bison_spamchecks.filter(name__icontains=search)
+            
+        # Apply status filter if provided
+        if status:
+            bison_spamchecks = bison_spamchecks.filter(status=status)
+            
+        # Apply platform filter if provided
+        if platform and platform.lower() == 'instantly':
+            bison_spamchecks = UserSpamcheckBison.objects.none()  # Empty queryset
         
         spamcheck_list = []
         
@@ -1315,10 +1353,25 @@ def list_spamchecks(request):
         # Sort combined list by creation date (newest first)
         spamcheck_list.sort(key=lambda x: x['created_at'], reverse=True)
         
+        # Calculate pagination
+        total_count = len(spamcheck_list)
+        total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
+        
+        # Apply pagination
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        paginated_list = spamcheck_list[start_idx:end_idx]
+        
         return {
             'success': True,
-            'message': f'Successfully retrieved {len(spamcheck_list)} spamchecks',
-            'data': spamcheck_list
+            'message': f'Successfully retrieved {total_count} spamchecks',
+            'data': paginated_list,
+            'meta': {
+                'total': total_count,
+                'page': page,
+                'per_page': per_page,
+                'total_pages': total_pages
+            }
         }
         
     except Exception as e:
@@ -1326,7 +1379,13 @@ def list_spamchecks(request):
         return {
             'success': False,
             'message': f'Error retrieving spamchecks: {str(e)}',
-            'data': []
+            'data': [],
+            'meta': {
+                'total': 0,
+                'page': page,
+                'per_page': per_page,
+                'total_pages': 0
+            }
         }
 
 @router.get(

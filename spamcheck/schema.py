@@ -126,10 +126,18 @@ class SpamcheckDetailsSchema(Schema):
     options: dict
     platform: str
 
+class PaginationMetaSchema(Schema):
+    """Schema for pagination metadata"""
+    total: int = Field(..., description="Total number of items")
+    page: int = Field(..., description="Current page number")
+    per_page: int = Field(..., description="Items per page")
+    total_pages: int = Field(..., description="Total number of pages")
+
 class ListSpamchecksResponseSchema(Schema):
     success: bool
     message: str
     data: List[SpamcheckDetailsSchema]
+    meta: PaginationMetaSchema
 
 class CreateSpamcheckBisonSchema(Schema):
     name: str

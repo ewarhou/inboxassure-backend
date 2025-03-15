@@ -3,12 +3,13 @@ PROCESS SPAMCHECK QUEUE SCRIPT
 ============================
 Processes queued spamchecks one by one per user:
 1. Finds all users with queued spamchecks
-2. For each user, selects their oldest queued spamcheck
+2. For each user, selects their oldest queued spamcheck that is scheduled for now or in the past
 3. Changes its status from 'queued' to 'pending'
 4. The existing launcher will then pick it up
 
 This ensures:
 - Only one spamcheck per user is processed at a time
+- Scheduled dates are respected (future spamchecks remain queued)
 - No user can monopolize system resources
 - Fair distribution of processing capacity
 
@@ -36,16 +37,26 @@ class Command(BaseCommand):
         self.stdout.write(f"Processing spamcheck queue at {now}")
         self.stdout.write(f"{'='*50}\n")
         
-        # Get all users with queued spamchecks
+        # Get all users with queued spamchecks that are scheduled for now or in the past
         users_with_queued = User.objects.filter(
-            bison_spamchecks__status='queued'
+            bison_spamchecks__status='queued',
+            bison_spamchecks__scheduled_at__lte=now
         ).distinct()
         
+        # Also include spamchecks with null scheduled_at
+        users_with_null_schedule = User.objects.filter(
+            bison_spamchecks__status='queued',
+            bison_spamchecks__scheduled_at__isnull=True
+        ).distinct()
+        
+        # Combine the querysets
+        users_with_queued = (users_with_queued | users_with_null_schedule).distinct()
+        
         if not users_with_queued:
-            self.stdout.write("No users with queued spamchecks found")
+            self.stdout.write("No users with eligible queued spamchecks found")
             return
             
-        self.stdout.write(f"Found {users_with_queued.count()} users with queued spamchecks")
+        self.stdout.write(f"Found {users_with_queued.count()} users with eligible queued spamchecks")
         
         # Track how many spamchecks were processed
         processed_count = 0
@@ -61,10 +72,13 @@ class Command(BaseCommand):
                 self.stdout.write(f"User {user.email} already has {in_progress_count} spamcheck(s) in progress. Skipping.")
                 continue
                 
-            # Get the oldest queued spamcheck for this user
+            # Get the oldest eligible queued spamcheck for this user
+            # (scheduled for now or in the past, or with null scheduled_at)
             next_spamcheck = UserSpamcheckBison.objects.filter(
                 user=user,
                 status='queued'
+            ).filter(
+                Q(scheduled_at__lte=now) | Q(scheduled_at__isnull=True)
             ).order_by('created_at').first()
             
             if next_spamcheck:
@@ -72,8 +86,11 @@ class Command(BaseCommand):
                 next_spamcheck.status = 'pending'
                 next_spamcheck.save()
                 
-                log_to_terminal("SpamcheckQueue", "Process", f"Moved spamcheck {next_spamcheck.id} ({next_spamcheck.name}) to pending for user {user.email}")
-                self.stdout.write(f"Moved spamcheck {next_spamcheck.id} ({next_spamcheck.name}) to pending for user {user.email}")
+                scheduled_info = f"scheduled for {next_spamcheck.scheduled_at}" if next_spamcheck.scheduled_at else "with no schedule date"
+                log_to_terminal("SpamcheckQueue", "Process", f"Moved spamcheck {next_spamcheck.id} ({next_spamcheck.name}) {scheduled_info} to pending for user {user.email}")
+                self.stdout.write(f"Moved spamcheck {next_spamcheck.id} ({next_spamcheck.name}) {scheduled_info} to pending for user {user.email}")
                 processed_count += 1
+            else:
+                self.stdout.write(f"No eligible queued spamchecks found for user {user.email}")
         
         self.stdout.write(f"\nQueue processing complete. Moved {processed_count} spamchecks to pending status.") 
