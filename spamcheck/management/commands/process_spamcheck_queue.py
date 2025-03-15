@@ -37,16 +37,29 @@ class Command(BaseCommand):
         self.stdout.write(f"Processing spamcheck queue at {now}")
         self.stdout.write(f"{'='*50}\n")
         
+        # Get current weekday (0=Monday, 6=Sunday)
+        current_weekday = str(now.weekday())
+        self.stdout.write(f"Current weekday: {current_weekday} ({['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][int(current_weekday)]})")
+        
         # Get all users with queued spamchecks that are scheduled for now or in the past
+        # AND match the current weekday if weekdays are specified
         users_with_queued = User.objects.filter(
             bison_spamchecks__status='queued',
             bison_spamchecks__scheduled_at__lte=now
+        ).filter(
+            # Either weekdays is NULL (run any day) OR current weekday is in the list
+            Q(bison_spamchecks__weekdays__isnull=True) | 
+            Q(bison_spamchecks__weekdays__contains=current_weekday)
         ).distinct()
         
         # Also include spamchecks with null scheduled_at
         users_with_null_schedule = User.objects.filter(
             bison_spamchecks__status='queued',
             bison_spamchecks__scheduled_at__isnull=True
+        ).filter(
+            # Either weekdays is NULL (run any day) OR current weekday is in the list
+            Q(bison_spamchecks__weekdays__isnull=True) | 
+            Q(bison_spamchecks__weekdays__contains=current_weekday)
         ).distinct()
         
         # Combine the querysets
@@ -74,11 +87,15 @@ class Command(BaseCommand):
                 
             # Get the oldest eligible queued spamcheck for this user
             # (scheduled for now or in the past, or with null scheduled_at)
+            # AND match the current weekday if weekdays are specified
             next_spamcheck = UserSpamcheckBison.objects.filter(
                 user=user,
                 status='queued'
             ).filter(
                 Q(scheduled_at__lte=now) | Q(scheduled_at__isnull=True)
+            ).filter(
+                # Either weekdays is NULL (run any day) OR current weekday is in the list
+                Q(weekdays__isnull=True) | Q(weekdays__contains=current_weekday)
             ).order_by('created_at').first()
             
             if next_spamcheck:

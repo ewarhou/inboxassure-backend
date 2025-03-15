@@ -371,25 +371,30 @@ class Command(BaseCommand):
                                 )
                             )
                             
-                            # Update sending limit
-                            self.stdout.write(f"   📤 Updating sending limit for {domain_account.email_account}")
-                            success = await self.update_sending_limit(domain_account.organization, domain_account.email_account, sending_limit)
-                            if success:
+                            # Update sending limit if enabled
+                            if account.bison_spamcheck.update_sending_limit:
+                                self.stdout.write(f"   📤 Updating sending limit for {domain_account.email_account}")
+                                success = await self.update_sending_limit(domain_account.organization, domain_account.email_account, sending_limit)
+                                if success:
+                                    self.processed_accounts.add(domain_account.email_account)
+                                    self.stdout.write(f"   ✅ Successfully processed {domain_account.email_account}")
+                                else:
+                                    self.stdout.write(f"   ❌ Failed to update sending limit for {domain_account.email_account}")
+                                    # Log the error
+                                    await asyncio.to_thread(
+                                        SpamcheckErrorLog.objects.create,
+                                        user=account.bison_spamcheck.user,
+                                        bison_spamcheck=account.bison_spamcheck,
+                                        error_type='api_error',
+                                        provider='bison',
+                                        error_message=f"Failed to update sending limit for {domain_account.email_account}",
+                                        account_email=domain_account.email_account,
+                                        step='update_sending_limit'
+                                    )
+                            else:
+                                self.stdout.write(f"   ℹ️ Skipping sending limit update for {domain_account.email_account} (update_sending_limit is disabled)")
                                 self.processed_accounts.add(domain_account.email_account)
                                 self.stdout.write(f"   ✅ Successfully processed {domain_account.email_account}")
-                            else:
-                                self.stdout.write(f"   ❌ Failed to update sending limit for {domain_account.email_account}")
-                                # Log the error
-                                await asyncio.to_thread(
-                                    SpamcheckErrorLog.objects.create,
-                                    user=account.bison_spamcheck.user,
-                                    bison_spamcheck=account.bison_spamcheck,
-                                    error_type='api_error',
-                                    provider='bison',
-                                    error_message=f"Failed to update sending limit for {domain_account.email_account}",
-                                    account_email=domain_account.email_account,
-                                    step='update_sending_limit'
-                                )
                     else:
                         # Single account processing
                         self.stdout.write(f"   📝 Creating report for {account.email_account}")
@@ -415,25 +420,30 @@ class Command(BaseCommand):
                             )
                         )
                         
-                        # Update sending limit
-                        self.stdout.write(f"   📤 Updating sending limit for {account.email_account}")
-                        success = await self.update_sending_limit(account.organization, account.email_account, sending_limit)
-                        if success:
+                        # Update sending limit if enabled
+                        if account.bison_spamcheck.update_sending_limit:
+                            self.stdout.write(f"   📤 Updating sending limit for {account.email_account}")
+                            success = await self.update_sending_limit(account.organization, account.email_account, sending_limit)
+                            if success:
+                                self.processed_accounts.add(account.email_account)
+                                self.stdout.write(f"   ✅ Successfully processed {account.email_account}")
+                            else:
+                                self.stdout.write(f"   ❌ Failed to update sending limit for {account.email_account}")
+                                # Log the error
+                                await asyncio.to_thread(
+                                    SpamcheckErrorLog.objects.create,
+                                    user=account.bison_spamcheck.user,
+                                    bison_spamcheck=account.bison_spamcheck,
+                                    error_type='api_error',
+                                    provider='bison',
+                                    error_message=f"Failed to update sending limit for {account.email_account}",
+                                    account_email=account.email_account,
+                                    step='update_sending_limit'
+                                )
+                        else:
+                            self.stdout.write(f"   ℹ️ Skipping sending limit update for {account.email_account} (update_sending_limit is disabled)")
                             self.processed_accounts.add(account.email_account)
                             self.stdout.write(f"   ✅ Successfully processed {account.email_account}")
-                        else:
-                            self.stdout.write(f"   ❌ Failed to update sending limit for {account.email_account}")
-                            # Log the error
-                            await asyncio.to_thread(
-                                SpamcheckErrorLog.objects.create,
-                                user=account.bison_spamcheck.user,
-                                bison_spamcheck=account.bison_spamcheck,
-                                error_type='api_error',
-                                provider='bison',
-                                error_message=f"Failed to update sending limit for {account.email_account}",
-                                account_email=account.email_account,
-                                step='update_sending_limit'
-                            )
 
                     return True
                 else:
@@ -657,9 +667,13 @@ class Command(BaseCommand):
                             )
                         )
 
-                        # Update sending limit
-                        success = await self.update_sending_limit(account.organization, account.email_account, scores['sending_limit'])
-                        if success:
+                        # Update sending limit if enabled
+                        if spamcheck.update_sending_limit:
+                            success = await self.update_sending_limit(account.organization, account.email_account, scores['sending_limit'])
+                            if success:
+                                self.processed_accounts.add(account.email_account)
+                        else:
+                            self.stdout.write(f"   ℹ️ Skipping sending limit update for {account.email_account} (update_sending_limit is disabled)")
                             self.processed_accounts.add(account.email_account)
                     except Exception as e:
                         self.stdout.write(self.style.ERROR(f"   ❌ Error creating report for {account.email_account}: {str(e)}"))

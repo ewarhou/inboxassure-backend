@@ -1778,9 +1778,11 @@ def create_spamcheck_bison(request, payload: CreateSpamcheckBisonSchema):
         - body: Email body template
         - scheduled_at: When to run the spamcheck
         - recurring_days: Optional, number of days for recurring checks
+        - weekdays: Optional, list of weekdays (0=Monday, 6=Sunday) when this spamcheck should run
         - is_domain_based: Whether to filter accounts by domain
         - conditions: Optional, conditions for sending
         - reports_waiting_time: Optional, reports waiting time
+        - update_sending_limit: Whether to update sending limits in Bison API based on scores
     """
     user = request.auth
     
@@ -1833,9 +1835,11 @@ def create_spamcheck_bison(request, payload: CreateSpamcheckBisonSchema):
                 status='queued',  # Explicitly set status to queued
                 scheduled_at=payload.scheduled_at,
                 recurring_days=payload.recurring_days,
+                weekdays=','.join(map(str, payload.weekdays)) if payload.weekdays else None,
                 is_domain_based=payload.is_domain_based,
                 conditions=payload.conditions,
                 reports_waiting_time=payload.reports_waiting_time,
+                update_sending_limit=payload.update_sending_limit,
                 plain_text=payload.text_only,
                 subject=payload.subject,
                 body=payload.body
@@ -1884,9 +1888,11 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
         - body: Optional, new email body template
         - scheduled_at: Optional, new scheduled time
         - recurring_days: Optional, new recurring days setting
+        - weekdays: Optional, list of weekdays (0=Monday, 6=Sunday) when this spamcheck should run
         - is_domain_based: Optional, whether to filter accounts by domain
         - conditions: Optional, conditions for sending
         - reports_waiting_time: Optional, reports waiting time
+        - update_sending_limit: Optional, whether to update sending limits in Bison API based on scores
     """
     user = request.auth
     log_to_terminal("Spamcheck", "Update Bison", f"Starting update for spamcheck ID {spamcheck_id}")
@@ -1917,9 +1923,11 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
                    payload.name is None and \
                    payload.scheduled_at is None and \
                    payload.recurring_days is None and \
+                   payload.weekdays is None and \
                    payload.is_domain_based is None and \
                    payload.conditions is None and \
                    payload.reports_waiting_time is None and \
+                   payload.update_sending_limit is None and \
                    payload.accounts is None:
                     
                     log_to_terminal("Spamcheck", "Update Bison", "Performing simple update with direct SQL")
@@ -1980,6 +1988,10 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
                     log_to_terminal("Spamcheck", "Update Bison", f"Updating recurring_days to '{payload.recurring_days}'")
                     spamcheck.recurring_days = payload.recurring_days
                     update_fields.append('recurring_days')
+                if payload.weekdays is not None:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Updating weekdays to '{payload.weekdays}'")
+                    spamcheck.weekdays = ','.join(map(str, payload.weekdays)) if payload.weekdays else None
+                    update_fields.append('weekdays')
                 if payload.is_domain_based is not None:
                     log_to_terminal("Spamcheck", "Update Bison", f"Updating is_domain_based to '{payload.is_domain_based}'")
                     spamcheck.is_domain_based = payload.is_domain_based
@@ -1992,6 +2004,10 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
                     log_to_terminal("Spamcheck", "Update Bison", f"Updating reports_waiting_time to '{payload.reports_waiting_time}'")
                     spamcheck.reports_waiting_time = payload.reports_waiting_time
                     update_fields.append('reports_waiting_time')
+                if payload.update_sending_limit is not None:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Updating update_sending_limit to '{payload.update_sending_limit}'")
+                    spamcheck.update_sending_limit = payload.update_sending_limit
+                    update_fields.append('update_sending_limit')
                 if payload.text_only is not None:
                     log_to_terminal("Spamcheck", "Update Bison", f"Updating plain_text to '{payload.text_only}'")
                     spamcheck.plain_text = payload.text_only

@@ -32,9 +32,11 @@ Spamchecks now follow this status flow:
 - `body`: Email body template
 - `scheduled_at`: When to run the spamcheck
 - `recurring_days`: Optional, number of days for recurring checks
+- `weekdays`: Optional, list of weekdays (0=Monday, 6=Sunday) when this spamcheck should run
 - `is_domain_based`: Whether to filter accounts by domain
 - `conditions`: Optional, conditions for sending
 - `reports_waiting_time`: Optional, reports waiting time
+- `update_sending_limit`: Optional, whether to update sending limits in Bison API based on scores
 
 **Response:** Creation result with the following fields:
 - `success`: Boolean indicating if the creation was successful
@@ -44,6 +46,8 @@ Spamchecks now follow this status flow:
   - `name`: Spamcheck name
   - `status`: Status (always 'queued' for new spamchecks)
   - `accounts_count`: Number of accounts added to the spamcheck
+  - `weekdays`: List of weekdays when the spamcheck should run
+  - `update_sending_limit`: Whether to update sending limits in Bison API based on scores
 
 **Example Response:**
 ```json
@@ -54,7 +58,9 @@ Spamchecks now follow this status flow:
     "id": 123,
     "name": "Weekly Deliverability Test",
     "status": "queued",
-    "accounts_count": 50
+    "accounts_count": 50,
+    "weekdays": [0, 3],
+    "update_sending_limit": true
   }
 }
 ```
@@ -83,9 +89,11 @@ Spamchecks now follow this status flow:
   - `status`: Current status
   - `scheduled_at`: Scheduled date and time
   - `recurring_days`: Number of days for recurring checks
+  - `weekdays`: List of weekdays when the spamcheck should run
   - `is_domain_based`: Whether the spamcheck is domain-based
   - `conditions`: Conditions for sending
   - `reports_waiting_time`: Time to wait before generating reports
+  - `update_sending_limit`: Whether to update sending limits in Bison API based on scores
   - `created_at`: Creation date and time
   - `updated_at`: Last update date and time
   - `user_organization_id`: Organization ID
@@ -117,9 +125,11 @@ Spamchecks now follow this status flow:
       "status": "queued",
       "scheduled_at": "2024-07-15T14:30:00Z",
       "recurring_days": 7,
+      "weekdays": [0, 3],
       "is_domain_based": true,
       "conditions": "google>=0.5andoutlook>=0.5sending=25/3",
       "reports_waiting_time": 1.0,
+      "update_sending_limit": true,
       "created_at": "2024-07-10T09:15:30Z",
       "updated_at": "2024-07-10T09:15:30Z",
       "user_organization_id": 42,
@@ -164,9 +174,11 @@ Spamchecks now follow this status flow:
 - `body`: New email body template
 - `scheduled_at`: New scheduled time (ISO format)
 - `recurring_days`: New recurring days setting
+- `weekdays`: List of weekdays (0=Monday, 6=Sunday) when this spamcheck should run
 - `is_domain_based`: Whether to filter accounts by domain
 - `conditions`: Conditions for sending (e.g., 'google>=0.5andoutlook>=0.5')
 - `reports_waiting_time`: Time in hours to wait before generating reports
+- `update_sending_limit`: Whether to update sending limits in Bison API based on scores
 
 **Response:** Update result with the following fields:
 - `success`: Boolean indicating if the update was successful
@@ -216,8 +228,24 @@ Spamchecks now follow this status flow:
 The system processes spamchecks in the queue as follows:
 1. For each user, only one spamcheck is processed at a time
 2. Only spamchecks scheduled for now or in the past are processed (schedule-aware)
-3. The oldest eligible queued spamcheck for each user is selected first
-4. When a spamcheck is completed, the next queued spamcheck for that user is processed
-5. Recurring spamchecks are automatically added back to the queue with 'queued' status
+3. Only spamchecks scheduled for the current weekday are processed (if weekdays are specified)
+4. The oldest eligible queued spamcheck for each user is selected first
+5. When a spamcheck is completed, the next queued spamcheck for that user is processed
+6. Recurring spamchecks are automatically added back to the queue with 'queued' status
 
-This ensures fair resource allocation and prevents any single user from monopolizing the system while respecting scheduled dates.
+This ensures fair resource allocation and prevents any single user from monopolizing the system while respecting scheduled dates and weekday preferences.
+
+### Weekday Scheduling
+
+The system supports scheduling spamchecks to run only on specific days of the week:
+
+- Weekdays are represented as integers from 0 to 6 (0=Monday, 6=Sunday)
+- You can specify any combination of weekdays (e.g., [0, 3] for Monday and Thursday)
+- Weekday scheduling works alongside the existing scheduling options:
+  * `scheduled_at`: When the spamcheck should first run
+  * `recurring_days`: How often to repeat the spamcheck
+  * `weekdays`: Which days of the week the spamcheck is allowed to run
+
+For example:
+- If you set `scheduled_at=2023-05-01` (a Monday), `recurring_days=7`, and `weekdays=[0]` (Monday only), the spamcheck would run every Monday.
+- If you set `scheduled_at=2023-05-01`, `recurring_days=3`, and `weekdays=[0,3]` (Monday and Thursday), the spamcheck would run every 3 days, but only if that day is a Monday or Thursday.

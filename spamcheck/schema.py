@@ -148,9 +148,11 @@ class CreateSpamcheckBisonSchema(Schema):
     body: str
     scheduled_at: datetime
     recurring_days: Optional[int] = None
+    weekdays: Optional[List[int]] = Field(None, description="List of weekdays (0=Monday, 6=Sunday) when this spamcheck should run")
     is_domain_based: bool = Field(default=False)
     conditions: Optional[str] = None
     reports_waiting_time: Optional[float] = Field(default=1.0)
+    update_sending_limit: bool = Field(default=True, description="Whether to update sending limits in Bison API based on scores")
 
     class Config:
         json_schema_extra = {
@@ -163,9 +165,11 @@ class CreateSpamcheckBisonSchema(Schema):
                 "body": "Test Body",
                 "scheduled_at": "2025-02-23T00:17:51.315Z",
                 "recurring_days": 0,
+                "weekdays": [0, 3],  # Run on Monday and Thursday
                 "is_domain_based": False,
                 "conditions": "google>=0.5andoutlook>=0.5",
-                "reports_waiting_time": 1.0
+                "reports_waiting_time": 1.0,
+                "update_sending_limit": True
             }
         }
 
@@ -177,9 +181,11 @@ class UpdateSpamcheckBisonSchema(Schema):
     body: Optional[str] = Field(None, description="Email body template")
     scheduled_at: Optional[datetime] = Field(None, description="When to run the spamcheck")
     recurring_days: Optional[int] = Field(None, description="Number of days for recurring checks")
+    weekdays: Optional[List[int]] = Field(None, description="List of weekdays (0=Monday, 6=Sunday) when this spamcheck should run")
     is_domain_based: Optional[bool] = Field(None, description="Whether to filter accounts by domain")
     conditions: Optional[str] = Field(None, description="Conditions for sending")
     reports_waiting_time: Optional[float] = Field(None, description="Time in hours to wait before generating reports")
+    update_sending_limit: Optional[bool] = Field(None, description="Whether to update sending limits in Bison API based on scores")
 
     class Config:
         json_schema_extra = {
@@ -191,9 +197,11 @@ class UpdateSpamcheckBisonSchema(Schema):
                 "body": "Updated Body",
                 "scheduled_at": "2025-02-23T00:17:51.315Z",
                 "recurring_days": 7,
+                "weekdays": [0, 3],  # Run on Monday and Thursday
                 "is_domain_based": False,
                 "conditions": "google>=0.5andoutlook>=0.5",
-                "reports_waiting_time": 1.0
+                "reports_waiting_time": 1.0,
+                "update_sending_limit": True
             }
         }
 
