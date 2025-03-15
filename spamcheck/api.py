@@ -1652,10 +1652,23 @@ def get_bison_accounts(
                 SUM(CASE WHEN usbr.is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
             FROM user_spamcheck_bison_reports usbr
             JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
-            WHERE usbr.bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
-            AND usbr.email_account = %s
-            AND usb.update_sending_limit = TRUE
-            GROUP BY usbr.email_account
+            WHERE 1=1
+    """
+    
+    # Add user filter to account_stats using the correct column name
+    query += " AND usbr.bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)"
+    params.append(user.id)
+    
+    # Add spamcheck filter to account_stats if provided
+    if spamcheck_id:
+        query += " AND usbr.spamcheck_bison_id = %s"
+        params.append(spamcheck_id)
+    else:
+        # Only apply update_sending_limit filter when no specific spamcheck_id is provided
+        query += " AND usb.update_sending_limit = TRUE"
+    
+    query += """
+        GROUP BY usbr.email_account
         )
         SELECT 
             lc.email_account,
