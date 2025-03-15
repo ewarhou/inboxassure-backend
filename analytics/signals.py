@@ -34,14 +34,18 @@ def handle_spamcheck_status_change(sender, instance, created, **kwargs):
     # Check if status is now "completed"
     if instance.status == "completed":
         log_to_terminal("BisonCampaigns", "Signal", f"Detected completed spamcheck: {instance.name} (ID: {instance.id})")
-        # Call function to update campaigns table
+        
+        # Always update these tables regardless of update_sending_limit
         update_bison_campaigns_table(instance)
-        # Call function to update dashboard summary
         update_bison_dashboard_summary(instance)
-        # Call function to update provider performance
         update_bison_provider_performance(instance)
-        # Call function to update sending power
-        update_bison_sending_power(instance)
+        
+        # Only update sending power if update_sending_limit is True
+        if instance.update_sending_limit:
+            log_to_terminal("BisonCampaigns", "Signal", f"Updating sending power for spamcheck: {instance.name} (ID: {instance.id})")
+            update_bison_sending_power(instance)
+        else:
+            log_to_terminal("BisonCampaigns", "Signal", f"Skipping sending power update for spamcheck: {instance.name} (ID: {instance.id}) - update_sending_limit is False")
     else:
         log_to_terminal("BisonCampaigns", "Signal", f"Spamcheck status is {instance.status}, not triggering API calls")
 
@@ -267,14 +271,16 @@ def update_bison_campaigns_table(spamcheck):
             query = f"""
             WITH latest_reports AS (
                 SELECT 
-                    *,
+                    usbr.*,
                     ROW_NUMBER() OVER (
-                        PARTITION BY email_account 
-                        ORDER BY created_at DESC
+                        PARTITION BY usbr.email_account 
+                        ORDER BY usbr.created_at DESC
                     ) as rn
-                FROM user_spamcheck_bison_reports
-                WHERE bison_organization_id = %s
-                AND email_account IN ({placeholders})
+                FROM user_spamcheck_bison_reports usbr
+                JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
+                WHERE usbr.bison_organization_id = %s
+                AND usbr.email_account IN ({placeholders})
+                AND usb.update_sending_limit = TRUE
             )
             SELECT 
                 email_account,
@@ -540,8 +546,10 @@ def update_bison_dashboard_summary(spamcheck):
                     ubr.is_good,
                     ubr.sending_limit
                 FROM user_spamcheck_bison_reports ubr
+                JOIN user_spamcheck_bison usb ON ubr.spamcheck_bison_id = usb.id
                 WHERE ubr.bison_organization_id = %s
                 AND ubr.email_account IN ({placeholders})
+                AND usb.update_sending_limit = TRUE
                 ORDER BY ubr.created_at DESC
                 """
                 cursor.execute(query, [org.id] + chunk)
@@ -722,9 +730,11 @@ def update_bison_provider_performance(spamcheck):
                     ubr.unique_replied_count,
                     DATE(ubr.created_at) as report_date
                 FROM user_spamcheck_bison_reports ubr
+                JOIN user_spamcheck_bison usb ON ubr.spamcheck_bison_id = usb.id
                 WHERE ubr.bison_organization_id = %s
                 AND ubr.email_account IN ({placeholders})
                 AND DATE(ubr.created_at) BETWEEN %s AND %s
+                AND usb.update_sending_limit = TRUE
                 ORDER BY ubr.created_at DESC
                 """
                 cursor.execute(query, [org.id] + chunk + [start_date.isoformat(), end_date.isoformat()])
@@ -911,8 +921,10 @@ def update_bison_sending_power(spamcheck):
                             ORDER BY ubr.created_at DESC
                         ) as rn
                     FROM user_spamcheck_bison_reports ubr
+                    JOIN user_spamcheck_bison usb ON ubr.spamcheck_bison_id = usb.id
                     WHERE ubr.bison_organization_id = %s
                     AND ubr.email_account IN ({placeholders})
+                    AND usb.update_sending_limit = TRUE
                 )
                 SELECT 
                     COUNT(CASE WHEN is_good = true THEN 1 END) * COALESCE(MAX(sending_limit), 25) as daily_power

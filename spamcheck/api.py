@@ -1611,13 +1611,16 @@ def get_bison_accounts(
             SELECT 
                 usbr.*,
                 ub.bison_organization_name,
+                usb.update_sending_limit,
                 ROW_NUMBER() OVER (
                     PARTITION BY usbr.email_account 
                     ORDER BY usbr.created_at DESC
                 ) as rn
             FROM user_spamcheck_bison_reports usbr
             JOIN user_bison ub ON usbr.bison_organization_id = ub.id
+            JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
             WHERE ub.user_id = %s
+            AND usb.update_sending_limit = TRUE
     """
     params = [user.id]
     
@@ -1641,25 +1644,26 @@ def get_bison_accounts(
         ),
         account_stats AS (
             SELECT 
-                email_account,
+                usbr.email_account,
                 COUNT(*) as total_checks,
-                SUM(CASE WHEN is_good = TRUE THEN 1 ELSE 0 END) as good_checks,
-                SUM(CASE WHEN is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
-            FROM user_spamcheck_bison_reports
-            WHERE 1=1
+                SUM(CASE WHEN usbr.is_good = TRUE THEN 1 ELSE 0 END) as good_checks,
+                SUM(CASE WHEN usbr.is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
+            FROM user_spamcheck_bison_reports usbr
+            JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
+            WHERE usb.update_sending_limit = TRUE
     """
     
     # Add user filter to account_stats using the correct column name
-    query += " AND bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)"
+    query += " AND usbr.bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)"
     params.append(user.id)
     
     # Add spamcheck filter to account_stats if provided
     if spamcheck_id:
-        query += " AND spamcheck_bison_id = %s"
+        query += " AND usbr.spamcheck_bison_id = %s"
         params.append(spamcheck_id)
     
     query += """
-        GROUP BY email_account
+        GROUP BY usbr.email_account
         )
         SELECT 
             lc.email_account,
