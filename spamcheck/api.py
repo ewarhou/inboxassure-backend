@@ -1652,23 +1652,10 @@ def get_bison_accounts(
                 SUM(CASE WHEN usbr.is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
             FROM user_spamcheck_bison_reports usbr
             JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
-            WHERE 1=1
-    """
-    
-    # Add user filter to account_stats using the correct column name
-    query += " AND usbr.bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)"
-    params.append(user.id)
-    
-    # Add spamcheck filter to account_stats if provided
-    if spamcheck_id:
-        query += " AND usbr.spamcheck_bison_id = %s"
-        params.append(spamcheck_id)
-    else:
-        # Only apply update_sending_limit filter when no specific spamcheck_id is provided
-        query += " AND usb.update_sending_limit = TRUE"
-    
-    query += """
-        GROUP BY usbr.email_account
+            WHERE usbr.bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
+            AND usbr.email_account = %s
+            AND usb.update_sending_limit = TRUE
+            GROUP BY usbr.email_account
         )
         SELECT 
             lc.email_account,
@@ -2463,18 +2450,22 @@ def get_bison_account_details(
                     ) as rn
                 FROM user_spamcheck_bison_reports usbr
                 JOIN user_bison ub ON usbr.bison_organization_id = ub.id
+                JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
                 WHERE ub.user_id = %s AND usbr.email_account = %s
+                AND usb.update_sending_limit = TRUE
             ),
             account_stats AS (
                 SELECT 
-                    email_account,
+                    usbr.email_account,
                     COUNT(*) as total_checks,
-                    SUM(CASE WHEN is_good = TRUE THEN 1 ELSE 0 END) as good_checks,
-                    SUM(CASE WHEN is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
-                FROM user_spamcheck_bison_reports
-                WHERE bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
-                AND email_account = %s
-                GROUP BY email_account
+                    SUM(CASE WHEN usbr.is_good = TRUE THEN 1 ELSE 0 END) as good_checks,
+                    SUM(CASE WHEN usbr.is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
+                FROM user_spamcheck_bison_reports usbr
+                JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
+                WHERE usbr.bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
+                AND usbr.email_account = %s
+                AND usb.update_sending_limit = TRUE
+                GROUP BY usbr.email_account
             )
             SELECT 
                 lc.email_account,
@@ -2519,19 +2510,21 @@ def get_bison_account_details(
             # Get historical score data for charts
             history_query = """
                 SELECT 
-                    id,
-                    created_at as date,
-                    google_pro_score as google_score,
-                    outlook_pro_score as outlook_score,
+                    usbr.id,
+                    usbr.created_at as date,
+                    usbr.google_pro_score as google_score,
+                    usbr.outlook_pro_score as outlook_score,
                     CASE 
-                        WHEN is_good THEN 'Inboxing'
+                        WHEN usbr.is_good THEN 'Inboxing'
                         ELSE 'Resting'
                     END as status,
-                    report_link
-                FROM user_spamcheck_bison_reports
-                WHERE bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
-                AND email_account = %s
-                ORDER BY created_at DESC
+                    usbr.report_link
+                FROM user_spamcheck_bison_reports usbr
+                JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
+                WHERE usbr.bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
+                AND usbr.email_account = %s
+                AND usb.update_sending_limit = TRUE
+                ORDER BY usbr.created_at DESC
                 LIMIT 10
             """
             
