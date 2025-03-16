@@ -265,6 +265,8 @@ Spamchecks now follow this status flow:
   - `createdAt`: Creation date and time
   - `lastRunDate`: Last run date and time
   - `status`: Current status
+  - `scheduled_at`: Scheduled date and time for the spamcheck
+  - `recurring_days`: Number of days for recurring checks
   - `configuration`: Configuration details with:
     - `domainBased`: Whether the spamcheck is domain-based
     - `trackOpens`: Whether open tracking is enabled
@@ -297,6 +299,8 @@ Spamchecks now follow this status flow:
     "createdAt": "2024-07-10T09:15:30Z",
     "lastRunDate": "2024-07-15T14:30:00Z",
     "status": "waiting_for_reports",
+    "scheduled_at": "2024-07-15T14:30:00Z",
+    "recurring_days": 7,
     "configuration": {
       "domainBased": true,
       "trackOpens": false,

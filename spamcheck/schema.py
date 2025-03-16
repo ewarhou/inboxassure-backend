@@ -238,6 +238,8 @@ class SpamcheckBisonDetailsSchema(Schema):
     createdAt: str
     lastRunDate: str
     status: str
+    scheduled_at: str
+    recurring_days: Optional[int]
     configuration: SpamcheckBisonConfigurationSchema
     emailContent: SpamcheckBisonEmailContentSchema
     results: SpamcheckBisonResultsSchema
