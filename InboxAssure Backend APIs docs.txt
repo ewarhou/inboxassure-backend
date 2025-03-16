@@ -274,8 +274,8 @@ Spamchecks now follow this status flow:
     - `outlookInboxCriteria`: Outlook inbox criteria
     - `updateSendingLimit`: Whether to update sending limits in Bison API based on scores
     - `weekdays`: List of weekdays when the spamcheck should run
-    - `plainText`: Whether to send text-only emails
-    - `fullConditions`: Raw conditions string as stored in the database
+    - `text_only`: Whether to send text-only emails
+    - `conditions`: Raw conditions string as stored in the database
   - `emailContent`: Email content with:
     - `subject`: Email subject template
     - `body`: Email body template
@@ -306,8 +306,8 @@ Spamchecks now follow this status flow:
       "outlookInboxCriteria": "0.5",
       "updateSendingLimit": true,
       "weekdays": ["0", "3"],
-      "plainText": true,
-      "fullConditions": "google>=0.5andoutlook>=0.5sending=25/3"
+      "text_only": true,
+      "conditions": "google>=0.5andoutlook>=0.5sending=25/3"
     },
     "emailContent": {
       "subject": "Test Email Subject",

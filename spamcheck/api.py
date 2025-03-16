@@ -2322,8 +2322,8 @@ def get_bison_spamcheck_details(request, spamcheck_id: int):
                 "outlookInboxCriteria": outlook_inbox_criteria,
                 "updateSendingLimit": spamcheck.update_sending_limit,
                 "weekdays": spamcheck.weekdays.split(',') if spamcheck.weekdays else None,
-                "plainText": spamcheck.plain_text,
-                "fullConditions": spamcheck.conditions
+                "text_only": spamcheck.plain_text,
+                "conditions": spamcheck.conditions
             },
             "emailContent": {
                 "subject": spamcheck.subject,
@@ -2365,8 +2365,8 @@ def get_bison_spamcheck_details(request, spamcheck_id: int):
                     "outlookInboxCriteria": "N/A",
                     "updateSendingLimit": False,
                     "weekdays": None,
-                    "plainText": False,
-                    "fullConditions": None
+                    "text_only": False,
+                    "conditions": None
                 },
                 "emailContent": {
                     "subject": "",

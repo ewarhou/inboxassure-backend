@@ -215,8 +215,8 @@ class SpamcheckBisonConfigurationSchema(Schema):
     outlookInboxCriteria: str
     updateSendingLimit: bool = Field(default=True)
     weekdays: Optional[List[str]] = None
-    plainText: bool = Field(default=False)
-    fullConditions: Optional[str] = None
+    text_only: bool = Field(default=False)
+    conditions: Optional[str] = None
 
 class SpamcheckBisonEmailContentSchema(Schema):
     """Schema for Bison spamcheck email content"""
