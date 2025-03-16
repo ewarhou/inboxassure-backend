@@ -2321,7 +2321,9 @@ def get_bison_spamcheck_details(request, spamcheck_id: int):
                 "googleInboxCriteria": google_inbox_criteria,
                 "outlookInboxCriteria": outlook_inbox_criteria,
                 "updateSendingLimit": spamcheck.update_sending_limit,
-                "weekdays": spamcheck.weekdays.split(',') if spamcheck.weekdays else None
+                "weekdays": spamcheck.weekdays.split(',') if spamcheck.weekdays else None,
+                "plainText": spamcheck.plain_text,
+                "fullConditions": spamcheck.conditions
             },
             "emailContent": {
                 "subject": spamcheck.subject,
@@ -2362,7 +2364,9 @@ def get_bison_spamcheck_details(request, spamcheck_id: int):
                     "googleInboxCriteria": "N/A",
                     "outlookInboxCriteria": "N/A",
                     "updateSendingLimit": False,
-                    "weekdays": None
+                    "weekdays": None,
+                    "plainText": False,
+                    "fullConditions": None
                 },
                 "emailContent": {
                     "subject": "",

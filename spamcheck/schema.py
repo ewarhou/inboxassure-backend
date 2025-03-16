@@ -206,7 +206,7 @@ class UpdateSpamcheckBisonSchema(Schema):
         }
 
 class SpamcheckBisonConfigurationSchema(Schema):
-    """Schema for Bison spamcheck configuration details"""
+    """Schema for Bison spamcheck configuration"""
     domainBased: bool
     trackOpens: bool = Field(default=False)
     trackClicks: bool = Field(default=False)
@@ -215,6 +215,8 @@ class SpamcheckBisonConfigurationSchema(Schema):
     outlookInboxCriteria: str
     updateSendingLimit: bool = Field(default=True)
     weekdays: Optional[List[str]] = None
+    plainText: bool = Field(default=False)
+    fullConditions: Optional[str] = None
 
 class SpamcheckBisonEmailContentSchema(Schema):
     """Schema for Bison spamcheck email content"""

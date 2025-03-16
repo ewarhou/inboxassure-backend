@@ -187,10 +187,31 @@ Spamchecks now follow this status flow:
 - `data`: Updated spamcheck details with:
   - `id`: Spamcheck ID
   - `name`: Updated spamcheck name
-  - `scheduled_at`: Updated scheduled time
-  - `recurring_days`: Updated recurring days setting
   - `status`: Current status
-  - `accounts_updated`: Boolean indicating if accounts were updated
+  - `fields_updated`: List of fields that were updated
+
+**Example Request:**
+```json
+{
+  "name": "Updated Weekly Test",
+  "weekdays": [1, 3, 5],
+  "update_sending_limit": true
+}
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Spamcheck updated successfully",
+  "data": {
+    "id": 123,
+    "name": "Updated Weekly Test",
+    "status": "queued",
+    "fields_updated": ["name", "weekdays", "update_sending_limit", "updated_at"]
+  }
+}
+```
 
 ### Toggle Pause Bison Spamcheck
 
@@ -253,6 +274,8 @@ Spamchecks now follow this status flow:
     - `outlookInboxCriteria`: Outlook inbox criteria
     - `updateSendingLimit`: Whether to update sending limits in Bison API based on scores
     - `weekdays`: List of weekdays when the spamcheck should run
+    - `plainText`: Whether to send text-only emails
+    - `fullConditions`: Raw conditions string as stored in the database
   - `emailContent`: Email content with:
     - `subject`: Email subject template
     - `body`: Email body template
@@ -282,7 +305,9 @@ Spamchecks now follow this status flow:
       "googleInboxCriteria": "0.5",
       "outlookInboxCriteria": "0.5",
       "updateSendingLimit": true,
-      "weekdays": ["0", "3"]
+      "weekdays": ["0", "3"],
+      "plainText": true,
+      "fullConditions": "google>=0.5andoutlook>=0.5sending=25/3"
     },
     "emailContent": {
       "subject": "Test Email Subject",
