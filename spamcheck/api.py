@@ -1538,7 +1538,7 @@ def get_accounts(
             (email, domain, sends_per_day, google_score, outlook_score, 
              status, workspace_name, check_id, check_date, reports_link, 
              total_checks, good_checks, bad_checks, bounce_count, reply_count, 
-             emails_sent, total_count) = row
+             emails_sent, _) = row
             
             data.append({
                 "email": email,
@@ -1738,7 +1738,7 @@ def get_bison_accounts(
             (email, domain, sends_per_day, google_score, outlook_score, 
              status, workspace_name, check_id, check_date, reports_link, 
              total_checks, good_checks, bad_checks, bounce_count, reply_count, 
-             emails_sent, total_count) = row
+             emails_sent, _) = row
             
             data.append({
                 "email": email,
@@ -2525,6 +2525,16 @@ def get_bison_account_details(
             # Get the account details
             account_data = dict(zip(columns, row))
             
+            # Convert tags_list from string to array if it exists
+            tags_list = None
+            if account_data.get('tags_list'):
+                try:
+                    # Try to parse as JSON first
+                    tags_list = json.loads(account_data['tags_list'])
+                except json.JSONDecodeError:
+                    # If not JSON, split by comma
+                    tags_list = [tag.strip() for tag in account_data['tags_list'].split(',') if tag.strip()]
+            
             # Get historical score data for charts
             history_query = """
                 SELECT 
@@ -2729,7 +2739,7 @@ def get_bison_account_details(
                 "bounce_count": account_data['bounce_count'],
                 "reply_count": account_data['reply_count'],
                 "emails_sent": account_data['emails_sent'],
-                "tags_list": account_data['tags_list'].split(',') if account_data['tags_list'] else [],
+                "tags_list": tags_list,
                 "score_history": score_history,
                 "domain_accounts": domain_accounts,
                 "domain_summary": {

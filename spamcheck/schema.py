@@ -326,7 +326,7 @@ class BisonAccountDetailsSchema(Schema):
     bounce_count: Optional[int] = None
     reply_count: Optional[int] = None
     emails_sent: Optional[int] = None
-    tags_list: List[str] = Field(default_factory=list, description="List of tags used in the campaign")
+    tags_list: Optional[List[str]] = None
     score_history: List[BisonAccountScoreHistorySchema] = []
     domain_accounts: List[BisonDomainAccountSchema] = []
     domain_summary: BisonDomainSummarySchema
