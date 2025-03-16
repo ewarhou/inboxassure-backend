@@ -2313,6 +2313,8 @@ def get_bison_spamcheck_details(request, spamcheck_id: int):
             "createdAt": spamcheck.created_at.isoformat(),
             "lastRunDate": last_run_date.isoformat(),
             "status": spamcheck.status,
+            "scheduled_at": spamcheck.scheduled_at.isoformat() if spamcheck.scheduled_at else None,
+            "recurring_days": spamcheck.recurring_days,
             "configuration": {
                 "domainBased": spamcheck.is_domain_based,
                 "trackOpens": False,  # Placeholder, adjust if you track this
@@ -2356,6 +2358,8 @@ def get_bison_spamcheck_details(request, spamcheck_id: int):
                 "createdAt": timezone.now().isoformat(),
                 "lastRunDate": timezone.now().isoformat(),
                 "status": "error",
+                "scheduled_at": None,
+                "recurring_days": None,
                 "configuration": {
                     "domainBased": False,
                     "trackOpens": False,
