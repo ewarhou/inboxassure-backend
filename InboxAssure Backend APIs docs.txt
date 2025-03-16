@@ -10,10 +10,11 @@ Spamchecks now follow this status flow:
 1. **queued**: Initial status when a spamcheck is created or scheduled
 2. **pending**: Ready to be processed by the launcher
 3. **in_progress**: Currently being processed
-4. **generating_reports**: Reports are being generated
-5. **completed**: Spamcheck is complete
-6. **failed**: Spamcheck failed
-7. **paused**: Spamcheck is paused
+4. **waiting_for_reports**: Emails have been sent, waiting for the specified time before generating reports
+5. **generating_reports**: Reports are being generated
+6. **completed**: Spamcheck is complete
+7. **failed**: Spamcheck failed
+8. **paused**: Spamcheck is paused
 
 ### Create Spamcheck Bison
 
@@ -75,7 +76,7 @@ Spamchecks now follow this status flow:
 
 **Parameters:**
 - `search` (optional): Search term to filter spamchecks by name
-- `status` (optional): Status filter (queued, pending, in_progress, generating_reports, completed, failed, paused)
+- `status` (optional): Status filter (queued, pending, in_progress, waiting_for_reports, generating_reports, completed, failed, paused)
 - `platform` (optional): Platform filter (instantly, bison)
 - `page` (optional): Page number (default: 1)
 - `per_page` (optional): Items per page (default: 10)
@@ -161,7 +162,7 @@ Spamchecks now follow this status flow:
 
 **Authentication:** Bearer Token
 
-**Description:** Update an existing Bison spamcheck's details, including name, email content, and configuration settings. Only works if the current status is queued, pending, failed, completed, or paused.
+**Description:** Update an existing Bison spamcheck's details, including name, email content, and configuration settings. Only works if the current status is queued, pending, failed, completed, paused, or waiting_for_reports.
 
 **Parameters:**
 - `spamcheck_id`: ID of the spamcheck to update
@@ -272,7 +273,7 @@ Spamchecks now follow this status flow:
     "name": "Weekly Deliverability Test",
     "createdAt": "2024-07-10T09:15:30Z",
     "lastRunDate": "2024-07-15T14:30:00Z",
-    "status": "completed",
+    "status": "waiting_for_reports",
     "configuration": {
       "domainBased": true,
       "trackOpens": false,
@@ -306,7 +307,8 @@ The system processes spamchecks in the queue as follows:
 3. Only spamchecks scheduled for the current weekday are processed (if weekdays are specified)
 4. The oldest eligible queued spamcheck for each user is selected first
 5. When a spamcheck is completed, the next queued spamcheck for that user is processed
-6. Recurring spamchecks are automatically added back to the queue with 'queued' status
+6. Spamchecks in 'waiting_for_reports' status don't block other spamchecks from being processed
+7. Recurring spamchecks are automatically added back to the queue with 'queued' status
 
 This ensures fair resource allocation and prevents any single user from monopolizing the system while respecting scheduled dates and weekday preferences.
 
@@ -324,3 +326,19 @@ The system supports scheduling spamchecks to run only on specific days of the we
 For example:
 - If you set `scheduled_at=2023-05-01` (a Monday), `recurring_days=7`, and `weekdays=[0]` (Monday only), the spamcheck would run every Monday.
 - If you set `scheduled_at=2023-05-01`, `recurring_days=3`, and `weekdays=[0,3]` (Monday and Thursday), the spamcheck would run every 3 days, but only if that day is a Monday or Thursday.
+
+### Reports Waiting Time
+
+The system supports configurable waiting times before generating reports after emails are sent:
+
+- When emails are sent, the spamcheck enters the 'waiting_for_reports' status
+- The `reports_waiting_time` field determines how long to wait before generating reports
+- Available options:
+  * `0`: Immediate report generation (no waiting)
+  * `0.5`: 30 minutes waiting time
+  * `1.0`: 1 hour waiting time (default)
+  * `2.0` to `12.0`: 2 to 12 hours waiting time in 1-hour increments
+
+This waiting period allows time for emails to be delivered and processed by email providers before checking their placement, resulting in more accurate deliverability reports.
+
+During this waiting period, users can continue to queue and process other spamchecks, as the 'waiting_for_reports' status doesn't block the queue processing system.

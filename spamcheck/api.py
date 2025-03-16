@@ -1916,11 +1916,11 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
         log_to_terminal("Spamcheck", "Update Bison", f"Found spamcheck: {spamcheck.name} with status {spamcheck.status}")
         
         # Check if status allows updates
-        if spamcheck.status not in ['queued', 'pending', 'failed', 'completed', 'paused']:
+        if spamcheck.status not in ['queued', 'pending', 'failed', 'completed', 'paused', 'waiting_for_reports']:
             log_to_terminal("Spamcheck", "Update Bison", f"Cannot update spamcheck with status '{spamcheck.status}'")
             return {
                 "success": False,
-                "message": f"Cannot update spamcheck with status '{spamcheck.status}'. Only queued, pending, failed, completed, or paused spamchecks can be updated."
+                "message": f"Cannot update spamcheck with status '{spamcheck.status}'. Only queued, pending, failed, completed, paused, or waiting_for_reports spamchecks can be updated."
             }
         
         try:
@@ -2111,10 +2111,10 @@ def delete_spamcheck_bison(request, spamcheck_id: int):
         )
         
         # Check if status allows deletion
-        if spamcheck.status in ['in_progress', 'generating_reports']:
+        if spamcheck.status in ['in_progress', 'generating_reports', 'waiting_for_reports']:
             return {
                 "success": False,
-                "message": f"Cannot delete spamcheck with status '{spamcheck.status}'. Only spamchecks that are not in progress or generating reports can be deleted."
+                "message": f"Cannot delete spamcheck with status '{spamcheck.status}'. Only spamchecks that are not in progress, waiting for reports, or generating reports can be deleted."
             }
         
         # Store name for response
