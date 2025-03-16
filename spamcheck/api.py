@@ -1538,7 +1538,7 @@ def get_accounts(
             (email, domain, sends_per_day, google_score, outlook_score, 
              status, workspace_name, check_id, check_date, reports_link, 
              total_checks, good_checks, bad_checks, bounce_count, reply_count, 
-             emails_sent, _) = row
+             emails_sent, total_count) = row
             
             data.append({
                 "email": email,
@@ -1690,7 +1690,7 @@ def get_bison_accounts(
             COALESCE(lc.bounced_count, 0) as bounce_count,
             COALESCE(lc.unique_replied_count, 0) as reply_count,
             COALESCE(lc.emails_sent_count, 0) as emails_sent,
-            lc.tags_list
+            COUNT(*) OVER() as total_count
         FROM latest_checks lc
         LEFT JOIN account_stats ast ON lc.email_account = ast.email_account
         WHERE lc.rn = 1
@@ -1738,7 +1738,7 @@ def get_bison_accounts(
             (email, domain, sends_per_day, google_score, outlook_score, 
              status, workspace_name, check_id, check_date, reports_link, 
              total_checks, good_checks, bad_checks, bounce_count, reply_count, 
-             emails_sent, tags_list) = row
+             emails_sent, total_count) = row
             
             data.append({
                 "email": email,
@@ -1760,8 +1760,7 @@ def get_bison_accounts(
                 },
                 "bounce_count": bounce_count,
                 "reply_count": reply_count,
-                "emails_sent": emails_sent,
-                "tags_list": tags_list
+                "emails_sent": emails_sent
             })
         
         return {
