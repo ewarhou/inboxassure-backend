@@ -18,7 +18,7 @@ Launches scheduled Bison spamchecks by:
 Key Functions:
 - get_emailguard_tag: Creates test and returns UUID
 - get_bison_account_id: Gets Bison ID for email account
-- send_bison_email: Sends email via Bison API with EmailGuard filter phrase
+- send_bison_email: Sends email via Bison API
 
 Critical Settings:
 - Rate limit: 10 requests/second
@@ -150,7 +150,7 @@ class Command(BaseCommand):
             raise
 
     async def send_bison_email(self, session, spamcheck, account, test_emails, bison_api_key, bison_account_id, filter_phrase, base_url):
-        """Send email via Bison API"""
+        """Send email via Bison API - one email per recipient"""
         url = f"{base_url.rstrip('/')}/api/replies/new"
         headers = {
             "Authorization": f"Bearer {bison_api_key}",
@@ -160,18 +160,7 @@ class Command(BaseCommand):
         # Debug log the test_emails structure
         self.stdout.write(f"Test emails data: {test_emails}")
         
-        # Prepare all recipients in the format Bison API expects
-        to_emails = [
-            {
-                "name": email.get('name', ''),
-                "email_address": email['email']
-            }
-            for email in test_emails
-        ]
-        
         # Format the message body as HTML for better formatting
-        # We'll keep the content_type parameter as 'text' if plain_text is enabled
-        # This way Bison will handle the HTML-to-text conversion properly
         message_body = spamcheck.body
         
         # Add proper HTML formatting
@@ -191,62 +180,81 @@ class Command(BaseCommand):
         </html>
         """
         
-        data = {
-            "subject": spamcheck.subject,
-            "message": formatted_message,
-            "sender_email_id": bison_account_id,
-            # Keep content_type as 'text' if plain_text is enabled in spamcheck
-            # This tells Bison to handle the HTML-to-text conversion
-            "content_type": "text" if spamcheck.plain_text else "html",
-            "to_emails": to_emails
-        }
+        # Track successful sends
+        successful_sends = 0
+        failed_sends = 0
+        
+        # Send one email per recipient
+        for email in test_emails:
+            # Prepare single recipient in the format Bison API expects
+            to_email = [{
+                "name": email.get('name', ''),
+                "email_address": email['email']
+            }]
+            
+            data = {
+                "subject": spamcheck.subject,
+                "message": formatted_message,
+                "sender_email_id": bison_account_id,
+                "content_type": "text" if spamcheck.plain_text else "html",
+                "to_emails": to_email  # Single recipient
+            }
 
-        # Debug log the request payload
-        self.stdout.write(f"Request payload: {json.dumps(data, indent=2)}")
-
-        try:
-            async with self.rate_limit:
-                async with session.post(url, headers=headers, json=data) as response:
-                    response_text = await response.text()
-                    self.stdout.write(f"Response status: {response.status}")
-                    self.stdout.write(f"Response body: {response_text}")
-                    
-                    if response.status == 200:
-                        response_data = json.loads(response_text)
-                        if response_data['data']['success']:
-                            return True
+            # Debug log the request payload
+            self.stdout.write(f"Sending to recipient: {email['email']}")
+            
+            try:
+                # Use rate limit semaphore to control request rate
+                async with self.rate_limit:
+                    async with session.post(url, headers=headers, json=data) as response:
+                        response_text = await response.text()
+                        self.stdout.write(f"Response status: {response.status}")
+                        
+                        if response.status == 200:
+                            response_data = json.loads(response_text)
+                            if response_data['data']['success']:
+                                successful_sends += 1
+                                self.stdout.write(f"✅ Successfully sent to {email['email']}")
+                            else:
+                                failed_sends += 1
+                                self.stdout.write(f"❌ API returned success=false for {email['email']}: {response_text}")
+                        elif response.status == 500 and "Server Error" in response_text:
+                            # Increment server error count
+                            self.server_error_count += 1
+                            failed_sends += 1
+                            self.stdout.write(self.style.WARNING(f"Bison Server Error detected (count: {self.server_error_count}) for {email['email']}"))
+                            
+                            # Log the error but continue with other recipients
+                            await asyncio.to_thread(
+                                SpamcheckErrorLog.objects.create,
+                                user=spamcheck.user,
+                                bison_spamcheck=spamcheck,
+                                error_type='server_error',
+                                provider='bison',
+                                error_message=f"Bison Server Error when sending email to {email['email']} for account {account.email_account}",
+                                error_details={'response': response_text},
+                                account_email=account.email_account,
+                                step='send_bison_email',
+                                api_endpoint=url,
+                                status_code=response.status
+                            )
+                        elif response.status == 422:
+                            failed_sends += 1
+                            self.stdout.write(self.style.ERROR(f"Validation error from Bison API for {email['email']}: {response_text}"))
                         else:
-                            raise Exception(f"Bison API returned success=false: {response_text}")
-                    elif response.status == 500 and "Server Error" in response_text:
-                        # Increment server error count
-                        self.server_error_count += 1
-                        self.stdout.write(self.style.WARNING(f"Bison Server Error detected (count: {self.server_error_count}). Skipping account."))
-                        
-                        # Log the error but don't fail the entire spamcheck
-                        await asyncio.to_thread(
-                            SpamcheckErrorLog.objects.create,
-                            user=spamcheck.user,
-                            bison_spamcheck=spamcheck,
-                            error_type='server_error',
-                            provider='bison',
-                            error_message=f"Bison Server Error when sending email for account {account.email_account}",
-                            error_details={'response': response_text},
-                            account_email=account.email_account,
-                            step='send_bison_email',
-                            api_endpoint=url,
-                            status_code=response.status
-                        )
-                        
-                        # Return False but don't raise exception to skip this account
-                        return False
-                    elif response.status == 422:
-                        self.stdout.write(self.style.ERROR(f"Validation error from Bison API: {response_text}"))
-                        raise Exception(f"Validation error from Bison API: {response_text}")
-                    else:
-                        raise Exception(f"Failed to send email: {response.status} - {response_text}")
-        except Exception as e:
-            self.stdout.write(self.style.ERROR(f"Error sending Bison email: {str(e)}"))
-            raise
+                            failed_sends += 1
+                            self.stdout.write(self.style.ERROR(f"Failed to send email to {email['email']}: {response.status} - {response_text}"))
+            except Exception as e:
+                failed_sends += 1
+                self.stdout.write(self.style.ERROR(f"Error sending Bison email to {email['email']}: {str(e)}"))
+        
+        # Consider the overall operation successful if at least one email was sent successfully
+        if successful_sends > 0:
+            self.stdout.write(f"Successfully sent {successful_sends}/{len(test_emails)} emails")
+            return True
+        else:
+            self.stdout.write(self.style.ERROR(f"Failed to send any emails. All {failed_sends} attempts failed."))
+            return False
 
     async def process_spamcheck(self, session, spamcheck):
         """Process a single spamcheck"""
