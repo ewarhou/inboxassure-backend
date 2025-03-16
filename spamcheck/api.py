@@ -19,6 +19,8 @@ import re
 from html import unescape
 from ninja import Field
 import json
+from django.db.models import Max, Subquery, OuterRef
+from django.db.models import Avg
 
 router = Router(tags=["spamcheck"])
 
@@ -2214,26 +2216,47 @@ def get_bison_spamcheck_details(request, spamcheck_id: int):
                 "data": None
             }
         
-        # Get the latest reports for this spamcheck
-        reports = UserSpamcheckBisonReport.objects.filter(spamcheck_bison=spamcheck)
+        # Get the latest reports for each unique email account using a subquery
+        # This is much more efficient than fetching all reports and filtering in Python
         
-        # Calculate summary statistics
-        total_accounts = reports.count()
-        inboxed_accounts = reports.filter(is_good=True).count()
+        # First, get the maximum created_at for each email account
+        latest_dates = UserSpamcheckBisonReport.objects.filter(
+            spamcheck_bison=spamcheck
+        ).values('email_account').annotate(
+            latest_date=Max('created_at')
+        )
+        
+        # Then, get the reports that match these latest dates
+        latest_reports = UserSpamcheckBisonReport.objects.filter(
+            spamcheck_bison=spamcheck,
+            email_account__in=[item['email_account'] for item in latest_dates],
+            created_at__in=[item['latest_date'] for item in latest_dates]
+        )
+        
+        log_to_terminal("SpamCheck", "Info", f"Found {len(latest_dates)} unique accounts with latest reports for spamcheck {spamcheck_id}")
+        
+        # Calculate summary statistics based on latest reports
+        total_accounts = latest_reports.count()
+        inboxed_accounts = latest_reports.filter(is_good=True).count()
         spam_accounts = total_accounts - inboxed_accounts
         
-        # Calculate average scores
+        # Calculate average scores based on latest reports
         google_score = 0
         outlook_score = 0
         
         if total_accounts > 0:
-            google_score = sum(float(report.google_pro_score) for report in reports) / total_accounts * 100
-            outlook_score = sum(float(report.outlook_pro_score) for report in reports) / total_accounts * 100
+            # Use aggregate to calculate averages directly in the database
+            avg_scores = latest_reports.aggregate(
+                avg_google=Avg('google_pro_score'),
+                avg_outlook=Avg('outlook_pro_score')
+            )
+            google_score = float(avg_scores['avg_google'] or 0) * 100
+            outlook_score = float(avg_scores['avg_outlook'] or 0) * 100
         
         # Get the last run date (latest report creation date)
         last_run_date = spamcheck.updated_at
-        if reports.exists():
-            last_run_date = reports.order_by('-created_at').first().created_at
+        if latest_reports.exists():
+            last_run_date = latest_reports.order_by('-created_at').first().created_at
         
         # Format waiting time
         waiting_time = f"{spamcheck.reports_waiting_time} hours"
