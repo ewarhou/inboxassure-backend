@@ -371,25 +371,30 @@ class Command(BaseCommand):
                                 )
                             )
                             
-                            # Update sending limit
-                            self.stdout.write(f"   📤 Updating sending limit for {domain_account.email_account}")
-                            success = await self.update_sending_limit(domain_account.organization, domain_account.email_account, sending_limit)
-                            if success:
+                            # Update sending limit if enabled
+                            if account.bison_spamcheck.update_sending_limit:
+                                self.stdout.write(f"   📤 Updating sending limit for {domain_account.email_account}")
+                                success = await self.update_sending_limit(domain_account.organization, domain_account.email_account, sending_limit)
+                                if success:
+                                    self.processed_accounts.add(domain_account.email_account)
+                                    self.stdout.write(f"   ✅ Successfully processed {domain_account.email_account}")
+                                else:
+                                    self.stdout.write(f"   ❌ Failed to update sending limit for {domain_account.email_account}")
+                                    # Log the error
+                                    await asyncio.to_thread(
+                                        SpamcheckErrorLog.objects.create,
+                                        user=account.bison_spamcheck.user,
+                                        bison_spamcheck=account.bison_spamcheck,
+                                        error_type='api_error',
+                                        provider='bison',
+                                        error_message=f"Failed to update sending limit for {domain_account.email_account}",
+                                        account_email=domain_account.email_account,
+                                        step='update_sending_limit'
+                                    )
+                            else:
+                                self.stdout.write(f"   ℹ️ Skipping sending limit update for {domain_account.email_account} (update_sending_limit is disabled)")
                                 self.processed_accounts.add(domain_account.email_account)
                                 self.stdout.write(f"   ✅ Successfully processed {domain_account.email_account}")
-                            else:
-                                self.stdout.write(f"   ❌ Failed to update sending limit for {domain_account.email_account}")
-                                # Log the error
-                                await asyncio.to_thread(
-                                    SpamcheckErrorLog.objects.create,
-                                    user=account.bison_spamcheck.user,
-                                    bison_spamcheck=account.bison_spamcheck,
-                                    error_type='api_error',
-                                    provider='bison',
-                                    error_message=f"Failed to update sending limit for {domain_account.email_account}",
-                                    account_email=domain_account.email_account,
-                                    step='update_sending_limit'
-                                )
                     else:
                         # Single account processing
                         self.stdout.write(f"   📝 Creating report for {account.email_account}")
@@ -415,25 +420,30 @@ class Command(BaseCommand):
                             )
                         )
                         
-                        # Update sending limit
-                        self.stdout.write(f"   📤 Updating sending limit for {account.email_account}")
-                        success = await self.update_sending_limit(account.organization, account.email_account, sending_limit)
-                        if success:
+                        # Update sending limit if enabled
+                        if account.bison_spamcheck.update_sending_limit:
+                            self.stdout.write(f"   📤 Updating sending limit for {account.email_account}")
+                            success = await self.update_sending_limit(account.organization, account.email_account, sending_limit)
+                            if success:
+                                self.processed_accounts.add(account.email_account)
+                                self.stdout.write(f"   ✅ Successfully processed {account.email_account}")
+                            else:
+                                self.stdout.write(f"   ❌ Failed to update sending limit for {account.email_account}")
+                                # Log the error
+                                await asyncio.to_thread(
+                                    SpamcheckErrorLog.objects.create,
+                                    user=account.bison_spamcheck.user,
+                                    bison_spamcheck=account.bison_spamcheck,
+                                    error_type='api_error',
+                                    provider='bison',
+                                    error_message=f"Failed to update sending limit for {account.email_account}",
+                                    account_email=account.email_account,
+                                    step='update_sending_limit'
+                                )
+                        else:
+                            self.stdout.write(f"   ℹ️ Skipping sending limit update for {account.email_account} (update_sending_limit is disabled)")
                             self.processed_accounts.add(account.email_account)
                             self.stdout.write(f"   ✅ Successfully processed {account.email_account}")
-                        else:
-                            self.stdout.write(f"   ❌ Failed to update sending limit for {account.email_account}")
-                            # Log the error
-                            await asyncio.to_thread(
-                                SpamcheckErrorLog.objects.create,
-                                user=account.bison_spamcheck.user,
-                                bison_spamcheck=account.bison_spamcheck,
-                                error_type='api_error',
-                                provider='bison',
-                                error_message=f"Failed to update sending limit for {account.email_account}",
-                                account_email=account.email_account,
-                                step='update_sending_limit'
-                            )
 
                     return True
                 else:
@@ -657,9 +667,13 @@ class Command(BaseCommand):
                             )
                         )
 
-                        # Update sending limit
-                        success = await self.update_sending_limit(account.organization, account.email_account, scores['sending_limit'])
-                        if success:
+                        # Update sending limit if enabled
+                        if spamcheck.update_sending_limit:
+                            success = await self.update_sending_limit(account.organization, account.email_account, scores['sending_limit'])
+                            if success:
+                                self.processed_accounts.add(account.email_account)
+                        else:
+                            self.stdout.write(f"   ℹ️ Skipping sending limit update for {account.email_account} (update_sending_limit is disabled)")
                             self.processed_accounts.add(account.email_account)
                     except Exception as e:
                         self.stdout.write(self.style.ERROR(f"   ❌ Error creating report for {account.email_account}: {str(e)}"))
@@ -750,7 +764,7 @@ class Command(BaseCommand):
         try:
             spamchecks = await asyncio.to_thread(
                 lambda: list(UserSpamcheckBison.objects.filter(
-                    Q(status='in_progress') &
+                    Q(status='waiting_for_reports') &
                     (
                         Q(reports_waiting_time__isnull=True) |  # No waiting time specified (uses default 1h)
                         Q(reports_waiting_time=0) |  # Immediate generation
@@ -760,7 +774,13 @@ class Command(BaseCommand):
                         Q(updated_at__lte=now - timedelta(hours=3), reports_waiting_time=3.0) |  # 3h waiting
                         Q(updated_at__lte=now - timedelta(hours=4), reports_waiting_time=4.0) |  # 4h waiting
                         Q(updated_at__lte=now - timedelta(hours=5), reports_waiting_time=5.0) |  # 5h waiting
-                        Q(updated_at__lte=now - timedelta(hours=6), reports_waiting_time=6.0)   # 6h waiting
+                        Q(updated_at__lte=now - timedelta(hours=6), reports_waiting_time=6.0) |  # 6h waiting
+                        Q(updated_at__lte=now - timedelta(hours=7), reports_waiting_time=7.0) |  # 7h waiting
+                        Q(updated_at__lte=now - timedelta(hours=8), reports_waiting_time=8.0) |  # 8h waiting
+                        Q(updated_at__lte=now - timedelta(hours=9), reports_waiting_time=9.0) |  # 9h waiting
+                        Q(updated_at__lte=now - timedelta(hours=10), reports_waiting_time=10.0) |  # 10h waiting
+                        Q(updated_at__lte=now - timedelta(hours=11), reports_waiting_time=11.0) |  # 11h waiting
+                        Q(updated_at__lte=now - timedelta(hours=12), reports_waiting_time=12.0)   # 12h waiting
                     )
                 ).select_related('user', 'user_organization'))
             )

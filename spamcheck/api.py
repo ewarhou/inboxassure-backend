@@ -1,11 +1,11 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 from ninja import Router, Schema
 from ninja.pagination import paginate
 from django.shortcuts import get_object_or_404
 from django.db import transaction, IntegrityError, connection
 from django.core.exceptions import ObjectDoesNotExist
 from authentication.authorization import AuthBearer
-from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema, ListAccountsRequestSchema, ListAccountsResponseSchema, ListSpamchecksResponseSchema, CreateSpamcheckBisonSchema, UpdateSpamcheckBisonSchema, SpamcheckBisonDetailsResponseSchema, BisonAccountsReportsResponseSchema, CampaignCopyResponse
+from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema, ListAccountsRequestSchema, ListAccountsResponseSchema, ListSpamchecksResponseSchema, CreateSpamcheckBisonSchema, UpdateSpamcheckBisonSchema, SpamcheckBisonDetailsResponseSchema, BisonAccountsReportsResponseSchema, CampaignCopyResponse, BisonAccountDetailsResponseSchema
 from .models import UserSpamcheck, UserSpamcheckAccounts, UserSpamcheckCampaignOptions, UserSpamcheckCampaigns, UserSpamcheckReport, UserSpamcheckBison, UserSpamcheckAccountsBison, UserSpamcheckBisonReport, SpamcheckErrorLog
 from settings.models import UserInstantly, UserSettings, UserBison
 import requests
@@ -15,6 +15,10 @@ from django.utils import timezone
 import pytz
 from ninja.errors import HttpError
 from settings.api import log_to_terminal
+import re
+from html import unescape
+from ninja import Field
+import json
 
 router = Router(tags=["spamcheck"])
 
@@ -1055,7 +1059,7 @@ def list_accounts(
                 # Skip if account is not active (status != 1)
                 if payload.is_active and account.get("status") != 1:
                     continue
-                
+                    
                 # Get account tags
                 account_tags = [tag.get("label", "").lower() for tag in account.get("tags", [])] if account.get("tags") else []
                 
@@ -1080,7 +1084,7 @@ def list_accounts(
                             break
                     if not has_required_tag:
                         continue
-                    
+                        
                 email_list.append(email)
 
         else:  # Bison platform
@@ -1188,7 +1192,7 @@ def list_accounts(
                             break
                     if not has_required_tag:
                         continue
-                    
+                
                 email_list.append(email)
             
             # Apply limit after filtering all accounts
@@ -1222,9 +1226,23 @@ def list_accounts(
         return empty_response
 
 @router.get("/list-spamchecks", auth=AuthBearer(), response=ListSpamchecksResponseSchema)
-def list_spamchecks(request):
+def list_spamchecks(
+    request,
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    platform: Optional[str] = None,
+    page: int = 1,
+    per_page: int = 10
+):
     """
     Get all spamchecks (both Instantly and Bison) with their details
+    
+    Parameters:
+        - search: Optional search term to filter spamchecks by name
+        - status: Optional status filter (queued, pending, in_progress, generating_reports, completed, failed, paused)
+        - platform: Optional platform filter (instantly, bison)
+        - page: Page number (default: 1)
+        - per_page: Items per page (default: 10)
     """
     user = request.auth
     
@@ -1238,12 +1256,36 @@ def list_spamchecks(request):
             'campaigns'
         ).filter(user=user)
         
+        # Apply search filter if provided
+        if search:
+            instantly_spamchecks = instantly_spamchecks.filter(name__icontains=search)
+            
+        # Apply status filter if provided
+        if status:
+            instantly_spamchecks = instantly_spamchecks.filter(status=status)
+            
+        # Apply platform filter if provided
+        if platform and platform.lower() == 'bison':
+            instantly_spamchecks = UserSpamcheck.objects.none()  # Empty queryset
+        
         # Get all Bison spamchecks for the user with related data
         bison_spamchecks = UserSpamcheckBison.objects.select_related(
             'user_organization'
         ).prefetch_related(
             'accounts'
         ).filter(user=user)
+        
+        # Apply search filter if provided
+        if search:
+            bison_spamchecks = bison_spamchecks.filter(name__icontains=search)
+            
+        # Apply status filter if provided
+        if status:
+            bison_spamchecks = bison_spamchecks.filter(status=status)
+            
+        # Apply platform filter if provided
+        if platform and platform.lower() == 'instantly':
+            bison_spamchecks = UserSpamcheckBison.objects.none()  # Empty queryset
         
         spamcheck_list = []
         
@@ -1311,10 +1353,25 @@ def list_spamchecks(request):
         # Sort combined list by creation date (newest first)
         spamcheck_list.sort(key=lambda x: x['created_at'], reverse=True)
         
+        # Calculate pagination
+        total_count = len(spamcheck_list)
+        total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
+        
+        # Apply pagination
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        paginated_list = spamcheck_list[start_idx:end_idx]
+        
         return {
             'success': True,
-            'message': f'Successfully retrieved {len(spamcheck_list)} spamchecks',
-            'data': spamcheck_list
+            'message': f'Successfully retrieved {total_count} spamchecks',
+            'data': paginated_list,
+            'meta': {
+                'total': total_count,
+                'page': page,
+                'per_page': per_page,
+                'total_pages': total_pages
+            }
         }
         
     except Exception as e:
@@ -1322,7 +1379,13 @@ def list_spamchecks(request):
         return {
             'success': False,
             'message': f'Error retrieving spamchecks: {str(e)}',
-            'data': []
+            'data': [],
+            'meta': {
+                'total': 0,
+                'page': page,
+                'per_page': per_page,
+                'total_pages': 0
+            }
         }
 
 @router.get(
@@ -1548,12 +1611,14 @@ def get_bison_accounts(
             SELECT 
                 usbr.*,
                 ub.bison_organization_name,
+                usb.update_sending_limit,
                 ROW_NUMBER() OVER (
                     PARTITION BY usbr.email_account 
                     ORDER BY usbr.created_at DESC
                 ) as rn
             FROM user_spamcheck_bison_reports usbr
             JOIN user_bison ub ON usbr.bison_organization_id = ub.id
+            JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
             WHERE ub.user_id = %s
     """
     params = [user.id]
@@ -1562,6 +1627,9 @@ def get_bison_accounts(
     if spamcheck_id:
         query += " AND usbr.spamcheck_bison_id = %s"
         params.append(spamcheck_id)
+    else:
+        # Only apply update_sending_limit filter when no specific spamcheck_id is provided
+        query += " AND usb.update_sending_limit = TRUE"
     
     # Add search condition if provided
     if search:
@@ -1578,25 +1646,29 @@ def get_bison_accounts(
         ),
         account_stats AS (
             SELECT 
-                email_account,
+                usbr.email_account,
                 COUNT(*) as total_checks,
-                SUM(CASE WHEN is_good = TRUE THEN 1 ELSE 0 END) as good_checks,
-                SUM(CASE WHEN is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
-            FROM user_spamcheck_bison_reports
+                SUM(CASE WHEN usbr.is_good = TRUE THEN 1 ELSE 0 END) as good_checks,
+                SUM(CASE WHEN usbr.is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
+            FROM user_spamcheck_bison_reports usbr
+            JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
             WHERE 1=1
     """
     
     # Add user filter to account_stats using the correct column name
-    query += " AND bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)"
+    query += " AND usbr.bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)"
     params.append(user.id)
     
     # Add spamcheck filter to account_stats if provided
     if spamcheck_id:
-        query += " AND spamcheck_bison_id = %s"
+        query += " AND usbr.spamcheck_bison_id = %s"
         params.append(spamcheck_id)
+    else:
+        # Only apply update_sending_limit filter when no specific spamcheck_id is provided
+        query += " AND usb.update_sending_limit = TRUE"
     
     query += """
-        GROUP BY email_account
+        GROUP BY usbr.email_account
         )
         SELECT 
             lc.email_account,
@@ -1715,9 +1787,11 @@ def create_spamcheck_bison(request, payload: CreateSpamcheckBisonSchema):
         - body: Email body template
         - scheduled_at: When to run the spamcheck
         - recurring_days: Optional, number of days for recurring checks
+        - weekdays: Optional, list of weekdays (0=Monday, 6=Sunday) when this spamcheck should run
         - is_domain_based: Whether to filter accounts by domain
         - conditions: Optional, conditions for sending
         - reports_waiting_time: Optional, reports waiting time
+        - update_sending_limit: Whether to update sending limits in Bison API based on scores
     """
     user = request.auth
     
@@ -1767,11 +1841,14 @@ def create_spamcheck_bison(request, payload: CreateSpamcheckBisonSchema):
                 user=user,
                 user_organization=user_organization,
                 name=payload.name,
+                status='queued',  # Explicitly set status to queued
                 scheduled_at=payload.scheduled_at,
                 recurring_days=payload.recurring_days,
+                weekdays=','.join(map(str, payload.weekdays)) if payload.weekdays else None,
                 is_domain_based=payload.is_domain_based,
                 conditions=payload.conditions,
                 reports_waiting_time=payload.reports_waiting_time,
+                update_sending_limit=payload.update_sending_limit,
                 plain_text=payload.text_only,
                 subject=payload.subject,
                 body=payload.body
@@ -1820,9 +1897,11 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
         - body: Optional, new email body template
         - scheduled_at: Optional, new scheduled time
         - recurring_days: Optional, new recurring days setting
+        - weekdays: Optional, list of weekdays (0=Monday, 6=Sunday) when this spamcheck should run
         - is_domain_based: Optional, whether to filter accounts by domain
         - conditions: Optional, conditions for sending
         - reports_waiting_time: Optional, reports waiting time
+        - update_sending_limit: Optional, whether to update sending limits in Bison API based on scores
     """
     user = request.auth
     log_to_terminal("Spamcheck", "Update Bison", f"Starting update for spamcheck ID {spamcheck_id}")
@@ -1837,11 +1916,11 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
         log_to_terminal("Spamcheck", "Update Bison", f"Found spamcheck: {spamcheck.name} with status {spamcheck.status}")
         
         # Check if status allows updates
-        if spamcheck.status not in ['pending', 'failed', 'completed', 'paused']:
+        if spamcheck.status not in ['queued', 'pending', 'failed', 'completed', 'paused', 'waiting_for_reports']:
             log_to_terminal("Spamcheck", "Update Bison", f"Cannot update spamcheck with status '{spamcheck.status}'")
             return {
                 "success": False,
-                "message": f"Cannot update spamcheck with status '{spamcheck.status}'. Only pending, failed, completed, or paused spamchecks can be updated."
+                "message": f"Cannot update spamcheck with status '{spamcheck.status}'. Only queued, pending, failed, completed, paused, or waiting_for_reports spamchecks can be updated."
             }
         
         try:
@@ -1853,9 +1932,11 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
                    payload.name is None and \
                    payload.scheduled_at is None and \
                    payload.recurring_days is None and \
+                   payload.weekdays is None and \
                    payload.is_domain_based is None and \
                    payload.conditions is None and \
                    payload.reports_waiting_time is None and \
+                   payload.update_sending_limit is None and \
                    payload.accounts is None:
                     
                     log_to_terminal("Spamcheck", "Update Bison", "Performing simple update with direct SQL")
@@ -1916,6 +1997,10 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
                     log_to_terminal("Spamcheck", "Update Bison", f"Updating recurring_days to '{payload.recurring_days}'")
                     spamcheck.recurring_days = payload.recurring_days
                     update_fields.append('recurring_days')
+                if payload.weekdays is not None:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Updating weekdays to '{payload.weekdays}'")
+                    spamcheck.weekdays = ','.join(map(str, payload.weekdays)) if payload.weekdays else None
+                    update_fields.append('weekdays')
                 if payload.is_domain_based is not None:
                     log_to_terminal("Spamcheck", "Update Bison", f"Updating is_domain_based to '{payload.is_domain_based}'")
                     spamcheck.is_domain_based = payload.is_domain_based
@@ -1928,6 +2013,10 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
                     log_to_terminal("Spamcheck", "Update Bison", f"Updating reports_waiting_time to '{payload.reports_waiting_time}'")
                     spamcheck.reports_waiting_time = payload.reports_waiting_time
                     update_fields.append('reports_waiting_time')
+                if payload.update_sending_limit is not None:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Updating update_sending_limit to '{payload.update_sending_limit}'")
+                    spamcheck.update_sending_limit = payload.update_sending_limit
+                    update_fields.append('update_sending_limit')
                 if payload.text_only is not None:
                     log_to_terminal("Spamcheck", "Update Bison", f"Updating plain_text to '{payload.text_only}'")
                     spamcheck.plain_text = payload.text_only
@@ -2022,10 +2111,10 @@ def delete_spamcheck_bison(request, spamcheck_id: int):
         )
         
         # Check if status allows deletion
-        if spamcheck.status in ['in_progress', 'generating_reports']:
+        if spamcheck.status in ['in_progress', 'generating_reports', 'waiting_for_reports']:
             return {
                 "success": False,
-                "message": f"Cannot delete spamcheck with status '{spamcheck.status}'. Only spamchecks that are not in progress or generating reports can be deleted."
+                "message": f"Cannot delete spamcheck with status '{spamcheck.status}'. Only spamchecks that are not in progress, waiting for reports, or generating reports can be deleted."
             }
         
         # Store name for response
@@ -2054,8 +2143,8 @@ def delete_spamcheck_bison(request, spamcheck_id: int):
 @router.post("/toggle-pause-bison/{spamcheck_id}", auth=AuthBearer())
 def toggle_pause_spamcheck_bison(request, spamcheck_id: int):
     """
-    Toggle Bison spamcheck between paused and pending status.
-    Only works if current status is paused, pending, or completed.
+    Toggle Bison spamcheck between paused and queued status.
+    Only works if current status is paused, queued, pending, or completed.
     """
     user = request.auth
     log_to_terminal("Spamcheck", "TogglePause", f"User {user.email} toggling pause for Bison spamcheck ID {spamcheck_id}")
@@ -2065,15 +2154,15 @@ def toggle_pause_spamcheck_bison(request, spamcheck_id: int):
         spamcheck = get_object_or_404(UserSpamcheckBison, id=spamcheck_id, user=user)
         
         # Check if status allows toggling
-        if spamcheck.status not in ['pending', 'paused', 'completed']:
+        if spamcheck.status not in ['queued', 'pending', 'paused', 'completed']:
             log_to_terminal("Spamcheck", "TogglePause", f"Cannot toggle pause for spamcheck with status '{spamcheck.status}'")
             return {
                 "success": False,
-                "message": f"Cannot toggle pause for spamcheck with status '{spamcheck.status}'. Only pending, paused, or completed spamchecks can be toggled."
+                "message": f"Cannot toggle pause for spamcheck with status '{spamcheck.status}'. Only queued, pending, paused, or completed spamchecks can be toggled."
             }
         
         # Toggle status
-        new_status = 'paused' if spamcheck.status in ['pending', 'completed'] else 'pending'
+        new_status = 'paused' if spamcheck.status in ['queued', 'pending', 'completed'] else 'queued'
         spamcheck.status = new_status
         spamcheck.save()
         
@@ -2230,7 +2319,9 @@ def get_bison_spamcheck_details(request, spamcheck_id: int):
                 "trackClicks": False,  # Placeholder, adjust if you track this
                 "waitingTime": waiting_time,
                 "googleInboxCriteria": google_inbox_criteria,
-                "outlookInboxCriteria": outlook_inbox_criteria
+                "outlookInboxCriteria": outlook_inbox_criteria,
+                "updateSendingLimit": spamcheck.update_sending_limit,
+                "weekdays": spamcheck.weekdays.split(',') if spamcheck.weekdays else None
             },
             "emailContent": {
                 "subject": spamcheck.subject,
@@ -2269,7 +2360,9 @@ def get_bison_spamcheck_details(request, spamcheck_id: int):
                     "trackClicks": False,
                     "waitingTime": "N/A",
                     "googleInboxCriteria": "N/A",
-                    "outlookInboxCriteria": "N/A"
+                    "outlookInboxCriteria": "N/A",
+                    "updateSendingLimit": False,
+                    "weekdays": None
                 },
                 "emailContent": {
                     "subject": "",
@@ -2340,7 +2433,335 @@ def get_bison_spamcheck_reports(request, spamcheck_id: int):
             "success": False,
             "message": f"Error retrieving spam check reports: {str(e)}",
             "data": []
-        } 
+        }
+
+@router.get(
+    "/account-bison-details",
+    response=BisonAccountDetailsResponseSchema,
+    auth=AuthBearer(),
+    summary="Get Bison Account Details",
+    description="Get detailed information for a specific Bison email account"
+)
+def get_bison_account_details(
+    request,
+    email: str
+):
+    """
+    Get detailed information for a specific Bison email account.
+    
+    Args:
+        email: The email address to get details for
+    """
+    try:
+        user = request.auth
+        
+        # Get the latest check for this account
+        query = """
+            WITH latest_check AS (
+                SELECT 
+                    usbr.*,
+                    ub.bison_organization_name,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY usbr.email_account 
+                        ORDER BY usbr.created_at DESC
+                    ) as rn
+                FROM user_spamcheck_bison_reports usbr
+                JOIN user_bison ub ON usbr.bison_organization_id = ub.id
+                JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
+                WHERE ub.user_id = %s AND usbr.email_account = %s
+                AND usb.update_sending_limit = TRUE
+            ),
+            account_stats AS (
+                SELECT 
+                    usbr.email_account,
+                    COUNT(*) as total_checks,
+                    SUM(CASE WHEN usbr.is_good = TRUE THEN 1 ELSE 0 END) as good_checks,
+                    SUM(CASE WHEN usbr.is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
+                FROM user_spamcheck_bison_reports usbr
+                JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
+                WHERE usbr.bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
+                AND usbr.email_account = %s
+                AND usb.update_sending_limit = TRUE
+                GROUP BY usbr.email_account
+            )
+            SELECT 
+                lc.email_account,
+                SUBSTRING_INDEX(lc.email_account, '@', -1) as domain,
+                COALESCE(lc.sending_limit, 25) as sends_per_day,
+                lc.google_pro_score as google_score,
+                lc.outlook_pro_score as outlook_score,
+                CASE 
+                    WHEN lc.is_good THEN 'Inboxing'
+                    ELSE 'Resting'
+                END as status,
+                lc.bison_organization_name as workspace,
+                lc.id as check_id,
+                lc.created_at as check_date,
+                lc.report_link as reports_link,
+                COALESCE(ast.total_checks, 0) as total_checks,
+                COALESCE(ast.good_checks, 0) as good_checks,
+                COALESCE(ast.bad_checks, 0) as bad_checks,
+                COALESCE(lc.bounced_count, 0) as bounce_count,
+                COALESCE(lc.unique_replied_count, 0) as reply_count,
+                COALESCE(lc.emails_sent_count, 0) as emails_sent,
+                lc.tags_list
+            FROM latest_check lc
+            LEFT JOIN account_stats ast ON lc.email_account = ast.email_account
+            WHERE lc.rn = 1
+        """
+        
+        with connection.cursor() as cursor:
+            cursor.execute(query, [user.id, email, user.id, email])
+            columns = [col[0] for col in cursor.description]
+            row = cursor.fetchone()
+            
+            if not row:
+                return {
+                    "success": False,
+                    "message": f"No data found for email: {email}",
+                    "data": None
+                }
+            
+            # Get the account details
+            account_data = dict(zip(columns, row))
+            
+            # Convert tags_list from string to array if it exists
+            tags_list = None
+            if account_data.get('tags_list'):
+                try:
+                    # Try to parse as JSON first
+                    tags_list = json.loads(account_data['tags_list'])
+                except json.JSONDecodeError:
+                    # If not JSON, split by comma
+                    tags_list = [tag.strip() for tag in account_data['tags_list'].split(',') if tag.strip()]
+            
+            # Get historical score data for charts
+            history_query = """
+                SELECT 
+                    usbr.id,
+                    usbr.created_at as date,
+                    usbr.google_pro_score as google_score,
+                    usbr.outlook_pro_score as outlook_score,
+                    CASE 
+                        WHEN usbr.is_good THEN 'Inboxing'
+                        ELSE 'Resting'
+                    END as status,
+                    usbr.report_link
+                FROM user_spamcheck_bison_reports usbr
+                JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
+                WHERE usbr.bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
+                AND usbr.email_account = %s
+                AND usb.update_sending_limit = TRUE
+                ORDER BY usbr.created_at DESC
+                LIMIT 10
+            """
+            
+            cursor.execute(history_query, [user.id, email])
+            history_columns = [col[0] for col in cursor.description]
+            history_rows = cursor.fetchall()
+            
+            score_history = []
+            for history_row in history_rows:
+                history_data = dict(zip(history_columns, history_row))
+                score_history.append({
+                    "date": history_data['date'].isoformat() if history_data['date'] else None,
+                    "google_score": round_to_quarter(history_data['google_score']),
+                    "outlook_score": round_to_quarter(history_data['outlook_score']),
+                    "status": history_data['status'],
+                    "report_link": history_data['report_link']
+                })
+            
+            # Get other accounts with the same domain
+            domain = account_data['domain']
+            domain_accounts_query = """
+                WITH latest_domain_checks AS (
+                    SELECT 
+                        usbr.*,
+                        ub.bison_organization_name,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY usbr.email_account 
+                            ORDER BY usbr.created_at DESC
+                        ) as rn
+                    FROM user_spamcheck_bison_reports usbr
+                    JOIN user_bison ub ON usbr.bison_organization_id = ub.id
+                    WHERE ub.user_id = %s 
+                    AND SUBSTRING_INDEX(usbr.email_account, '@', -1) = %s
+                    AND usbr.email_account != %s
+                ),
+                account_stats AS (
+                    SELECT 
+                        email_account,
+                        COUNT(*) as total_checks,
+                        SUM(CASE WHEN is_good = TRUE THEN 1 ELSE 0 END) as good_checks,
+                        SUM(CASE WHEN is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
+                    FROM user_spamcheck_bison_reports
+                    WHERE bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
+                    AND SUBSTRING_INDEX(email_account, '@', -1) = %s
+                    AND email_account != %s
+                    GROUP BY email_account
+                )
+                SELECT 
+                    ldc.email_account,
+                    ldc.google_pro_score as google_score,
+                    ldc.outlook_pro_score as outlook_score,
+                    CASE 
+                        WHEN ldc.is_good THEN 'Inboxing'
+                        ELSE 'Resting'
+                    END as status,
+                    ldc.bison_organization_name as workspace,
+                    ldc.created_at as last_check_date,
+                    COALESCE(ldc.bounced_count, 0) as bounce_count,
+                    COALESCE(ldc.unique_replied_count, 0) as reply_count,
+                    COALESCE(ldc.emails_sent_count, 0) as emails_sent,
+                    COALESCE(ast.total_checks, 0) as total_checks,
+                    COALESCE(ast.good_checks, 0) as good_checks,
+                    COALESCE(ast.bad_checks, 0) as bad_checks
+                FROM latest_domain_checks ldc
+                LEFT JOIN account_stats ast ON ldc.email_account = ast.email_account
+                WHERE ldc.rn = 1
+                ORDER BY ldc.created_at DESC
+                LIMIT 10
+            """
+            
+            cursor.execute(domain_accounts_query, [user.id, domain, email, user.id, domain, email])
+            domain_columns = [col[0] for col in cursor.description]
+            domain_rows = cursor.fetchall()
+            
+            domain_accounts = []
+            for domain_row in domain_rows:
+                domain_data = dict(zip(domain_columns, domain_row))
+                domain_accounts.append({
+                    "email": domain_data['email_account'],
+                    "google_score": round_to_quarter(domain_data['google_score']),
+                    "outlook_score": round_to_quarter(domain_data['outlook_score']),
+                    "status": domain_data['status'],
+                    "workspace": domain_data['workspace'],
+                    "last_check_date": domain_data['last_check_date'].isoformat() if domain_data['last_check_date'] else None,
+                    "bounce_count": domain_data['bounce_count'],
+                    "reply_count": domain_data['reply_count'],
+                    "emails_sent": domain_data['emails_sent'],
+                    "history": {
+                        "total_checks": domain_data['total_checks'],
+                        "good_checks": domain_data['good_checks'],
+                        "bad_checks": domain_data['bad_checks']
+                    }
+                })
+            
+            # Get domain performance summary
+            domain_summary_query = """
+                WITH domain_checks AS (
+                    SELECT 
+                        SUBSTRING_INDEX(email_account, '@', -1) as domain,
+                        COUNT(DISTINCT email_account) as total_accounts,
+                        AVG(google_pro_score) as avg_google_score,
+                        AVG(outlook_pro_score) as avg_outlook_score,
+                        SUM(CASE WHEN is_good = TRUE THEN 1 ELSE 0 END) as inboxing_accounts,
+                        SUM(CASE WHEN is_good = FALSE THEN 1 ELSE 0 END) as resting_accounts,
+                        COUNT(*) as total_checks,
+                        SUM(CASE WHEN is_good = TRUE THEN 1 ELSE 0 END) as good_checks,
+                        SUM(CASE WHEN is_good = FALSE THEN 1 ELSE 0 END) as bad_checks
+                    FROM (
+                        SELECT 
+                            usbr.email_account,
+                            usbr.google_pro_score,
+                            usbr.outlook_pro_score,
+                            usbr.is_good,
+                            ROW_NUMBER() OVER (
+                                PARTITION BY usbr.email_account 
+                                ORDER BY usbr.created_at DESC
+                            ) as rn
+                        FROM user_spamcheck_bison_reports usbr
+                        JOIN user_bison ub ON usbr.bison_organization_id = ub.id
+                        WHERE ub.user_id = %s
+                        AND SUBSTRING_INDEX(usbr.email_account, '@', -1) = %s
+                    ) latest_checks
+                    WHERE rn = 1
+                    GROUP BY domain
+                ),
+                domain_check_stats AS (
+                    SELECT 
+                        SUBSTRING_INDEX(email_account, '@', -1) as domain,
+                        COUNT(*) as total_domain_checks,
+                        SUM(CASE WHEN is_good = TRUE THEN 1 ELSE 0 END) as good_domain_checks,
+                        SUM(CASE WHEN is_good = FALSE THEN 1 ELSE 0 END) as bad_domain_checks
+                    FROM user_spamcheck_bison_reports
+                    WHERE bison_organization_id IN (SELECT id FROM user_bison WHERE user_id = %s)
+                    AND SUBSTRING_INDEX(email_account, '@', -1) = %s
+                    GROUP BY domain
+                )
+                SELECT 
+                    dc.domain,
+                    dc.total_accounts,
+                    dc.avg_google_score,
+                    dc.avg_outlook_score,
+                    dc.inboxing_accounts,
+                    dc.resting_accounts,
+                    dc.total_checks,
+                    dc.good_checks,
+                    dc.bad_checks,
+                    dcs.total_domain_checks,
+                    dcs.good_domain_checks,
+                    dcs.bad_domain_checks
+                FROM domain_checks dc
+                LEFT JOIN domain_check_stats dcs ON dc.domain = dcs.domain
+            """
+            
+            cursor.execute(domain_summary_query, [user.id, domain, user.id, domain])
+            summary_columns = [col[0] for col in cursor.description]
+            summary_row = cursor.fetchone()
+            
+            domain_summary = {}
+            if summary_row:
+                domain_summary = dict(zip(summary_columns, summary_row))
+        
+        # Format the response
+        return {
+            "success": True,
+            "message": "Account details retrieved successfully",
+            "data": {
+                "email": account_data['email_account'],
+                "domain": account_data['domain'],
+                "sends_per_day": account_data['sends_per_day'],
+                "google_score": round_to_quarter(account_data['google_score']),
+                "outlook_score": round_to_quarter(account_data['outlook_score']),
+                "status": account_data['status'],
+                "workspace": account_data['workspace'],
+                "last_check": {
+                    "id": str(account_data['check_id']),
+                    "date": account_data['check_date'].isoformat() if account_data['check_date'] else None
+                },
+                "reports_link": account_data['reports_link'],
+                "history": {
+                    "total_checks": account_data['total_checks'],
+                    "good_checks": account_data['good_checks'],
+                    "bad_checks": account_data['bad_checks']
+                },
+                "bounce_count": account_data['bounce_count'],
+                "reply_count": account_data['reply_count'],
+                "emails_sent": account_data['emails_sent'],
+                "tags_list": tags_list,
+                "score_history": score_history,
+                "domain_accounts": domain_accounts,
+                "domain_summary": {
+                    "total_accounts": domain_summary.get('total_accounts', 0),
+                    "avg_google_score": round_to_quarter(domain_summary.get('avg_google_score', 0)),
+                    "avg_outlook_score": round_to_quarter(domain_summary.get('avg_outlook_score', 0)),
+                    "inboxing_accounts": domain_summary.get('inboxing_accounts', 0),
+                    "resting_accounts": domain_summary.get('resting_accounts', 0),
+                    "total_checks": domain_summary.get('total_domain_checks', 0),
+                    "good_checks": domain_summary.get('good_domain_checks', 0),
+                    "bad_checks": domain_summary.get('bad_domain_checks', 0)
+                }
+            }
+        }
+        
+    except Exception as e:
+        log_to_terminal("SpamCheck", "Error", f"Error getting account details: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Error retrieving account details: {str(e)}",
+            "data": None
+        }
 
 @router.get(
     "/fetch-campaign-copy-bison/{campaign_id}", 
@@ -2487,4 +2908,220 @@ def fetch_campaign_copy(request, campaign_id: str):
                 "body": "",
                 "campaign_id": campaign_id
             }
-        } 
+        }
+
+class ContentSpamCheckSchema(Schema):
+    """Schema for content spam check request"""
+    content: str = Field(..., description="The content to check for spam")
+
+class SpamCheckResultSchema(Schema):
+    """Schema for spam check result"""
+    is_spam: bool
+    spam_score: float
+    number_of_spam_words: int
+    spam_words: List[str]
+    comma_separated_spam_words: str
+
+class SpamCheckResponseSchema(Schema):
+    """Schema for spam check response"""
+    success: bool
+    message: str
+    data: Dict[str, SpamCheckResultSchema]
+
+@router.post(
+    "/content-spam-check",
+    auth=AuthBearer(),
+    response=SpamCheckResponseSchema,
+    summary="Check Content for Spam",
+    description="Submits content to check for spam using the EmailGuard API"
+)
+def check_content_for_spam(request, payload: ContentSpamCheckSchema):
+    """
+    Check if content contains spam using EmailGuard API
+    """
+    try:
+        user = request.auth
+        
+        # Get user's EmailGuard settings
+        try:
+            user_settings = UserSettings.objects.get(user=user)
+            if not user_settings.emailguard_api_key:
+                return {
+                    "success": False,
+                    "message": "EmailGuard API key not configured for this user",
+                    "data": {
+                        "message": {
+                            "is_spam": False,
+                            "spam_score": 0.0,
+                            "number_of_spam_words": 0,
+                            "spam_words": [],
+                            "comma_separated_spam_words": ""
+                        }
+                    }
+                }
+            emailguard_api_key = user_settings.emailguard_api_key
+        except UserSettings.DoesNotExist:
+            return {
+                "success": False,
+                "message": "User settings not found",
+                "data": {
+                    "message": {
+                        "is_spam": False,
+                        "spam_score": 0.0,
+                        "number_of_spam_words": 0,
+                        "spam_words": [],
+                        "comma_separated_spam_words": ""
+                    }
+                }
+            }
+        
+        # Call EmailGuard API to check content
+        api_url = "https://app.emailguard.io/api/v1/content-spam-check"
+        
+        response = requests.post(
+            api_url,
+            headers={
+                "Authorization": f"Bearer {emailguard_api_key}",
+                "Content-Type": "application/json"
+            },
+            json={"content": payload.content},
+            timeout=30
+        )
+        
+        # Print raw response for debugging
+        print(f"EmailGuard API raw response: {response.text}")
+        log_to_terminal("SpamCheck", "Debug", f"EmailGuard API raw response: {response.text}")
+        
+        if response.status_code != 200:
+            return {
+                "success": False,
+                "message": f"Failed to check content with EmailGuard API: {response.text}",
+                "data": {
+                    "message": {
+                        "is_spam": False,
+                        "spam_score": 0.0,
+                        "number_of_spam_words": 0,
+                        "spam_words": [],
+                        "comma_separated_spam_words": ""
+                    }
+                }
+            }
+        
+        result = response.json()
+        
+        # Log the exact response for debugging
+        print(f"EmailGuard API parsed response: {result}")
+        log_to_terminal("SpamCheck", "Debug", f"EmailGuard API parsed response: {result}")
+        
+        # Handle the correct nested structure from EmailGuard API
+        if "data" in result and "message" in result["data"]:
+            message_data = result["data"]["message"]
+            # Ensure all required fields are present with default values if missing
+            formatted_message = {
+                "is_spam": message_data.get("is_spam", False),
+                "spam_score": message_data.get("spam_score", 0.0),
+                "number_of_spam_words": message_data.get("number_of_spam_words", 0),
+                "spam_words": message_data.get("spam_words", []),
+                "comma_separated_spam_words": message_data.get("comma_separated_spam_words", "")
+            }
+            
+            return {
+                "success": True,
+                "message": "Content spam check completed successfully",
+                "data": {"message": formatted_message}
+            }
+        # Try other possible structures
+        elif "message" in result:
+            message_data = result["message"]
+            # Ensure all required fields are present with default values if missing
+            formatted_message = {
+                "is_spam": message_data.get("is_spam", False),
+                "spam_score": message_data.get("spam_score", 0.0),
+                "number_of_spam_words": message_data.get("number_of_spam_words", 0),
+                "spam_words": message_data.get("spam_words", []),
+                "comma_separated_spam_words": message_data.get("comma_separated_spam_words", "")
+            }
+            
+            return {
+                "success": True,
+                "message": "Content spam check completed successfully",
+                "data": {"message": formatted_message}
+            }
+        # Try alternative response format
+        elif "is_spam" in result:
+            # The API might be returning the spam check result directly at the root level
+            formatted_message = {
+                "is_spam": result.get("is_spam", False),
+                "spam_score": result.get("spam_score", 0.0),
+                "number_of_spam_words": result.get("number_of_spam_words", 0),
+                "spam_words": result.get("spam_words", []),
+                "comma_separated_spam_words": result.get("comma_separated_spam_words", "")
+            }
+            
+            return {
+                "success": True,
+                "message": "Content spam check completed successfully",
+                "data": {"message": formatted_message}
+            }
+        else:
+            # If the response doesn't have the expected structure, create a default response
+            log_to_terminal("SpamCheck", "Warning", f"Unexpected response format from EmailGuard API: {result}")
+            return {
+                "success": True,
+                "message": "Content spam check completed with unexpected response format",
+                "data": {
+                    "message": {
+                        "is_spam": False,
+                        "spam_score": 0.0,
+                        "number_of_spam_words": 0,
+                        "spam_words": [],
+                        "comma_separated_spam_words": ""
+                    }
+                }
+            }
+        
+    except Exception as e:
+        log_to_terminal("SpamCheck", "Error", f"Error checking content for spam: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Error checking content for spam: {str(e)}",
+            "data": {
+                "message": {
+                    "is_spam": False,
+                    "spam_score": 0.0,
+                    "number_of_spam_words": 0,
+                    "spam_words": [],
+                    "comma_separated_spam_words": ""
+                }
+            }
+        }
+
+def html_to_text(html):
+    """Convert HTML to plain text while preserving some formatting"""
+    # Remove style and script tags
+    html = re.sub(r'<style.*?>.*?</style>', '', html, flags=re.DOTALL)
+    html = re.sub(r'<script.*?>.*?</script>', '', html, flags=re.DOTALL)
+    
+    # Replace common tags with text equivalents
+    html = html.replace('<br>', '\n').replace('<br/>', '\n').replace('<br />', '\n')
+    html = html.replace('</p>', '\n\n').replace('</div>', '\n')
+    html = html.replace('</h1>', '\n\n').replace('</h2>', '\n\n').replace('</h3>', '\n\n')
+    html = html.replace('</h4>', '\n\n').replace('</h5>', '\n\n').replace('</h6>', '\n\n')
+    html = html.replace('<li>', '- ').replace('</li>', '\n')
+    
+    # Remove all remaining HTML tags
+    html = re.sub(r'<.*?>', '', html)
+    
+    # Fix spacing
+    html = re.sub(r' +', ' ', html)
+    html = re.sub(r'\n+', '\n\n', html)
+    
+    # Decode HTML entities
+    html = html.replace('&nbsp;', ' ')
+    html = html.replace('&amp;', '&')
+    html = html.replace('&lt;', '<')
+    html = html.replace('&gt;', '>')
+    html = html.replace('&quot;', '"')
+    html = html.replace('&#39;', "'")
+    
+    return html.strip() 

@@ -126,10 +126,18 @@ class SpamcheckDetailsSchema(Schema):
     options: dict
     platform: str
 
+class PaginationMetaSchema(Schema):
+    """Schema for pagination metadata"""
+    total: int = Field(..., description="Total number of items")
+    page: int = Field(..., description="Current page number")
+    per_page: int = Field(..., description="Items per page")
+    total_pages: int = Field(..., description="Total number of pages")
+
 class ListSpamchecksResponseSchema(Schema):
     success: bool
     message: str
     data: List[SpamcheckDetailsSchema]
+    meta: PaginationMetaSchema
 
 class CreateSpamcheckBisonSchema(Schema):
     name: str
@@ -140,9 +148,11 @@ class CreateSpamcheckBisonSchema(Schema):
     body: str
     scheduled_at: datetime
     recurring_days: Optional[int] = None
+    weekdays: Optional[List[int]] = Field(None, description="List of weekdays (0=Monday, 6=Sunday) when this spamcheck should run")
     is_domain_based: bool = Field(default=False)
     conditions: Optional[str] = None
     reports_waiting_time: Optional[float] = Field(default=1.0)
+    update_sending_limit: bool = Field(default=True, description="Whether to update sending limits in Bison API based on scores")
 
     class Config:
         json_schema_extra = {
@@ -155,9 +165,11 @@ class CreateSpamcheckBisonSchema(Schema):
                 "body": "Test Body",
                 "scheduled_at": "2025-02-23T00:17:51.315Z",
                 "recurring_days": 0,
+                "weekdays": [0, 3],  # Run on Monday and Thursday
                 "is_domain_based": False,
                 "conditions": "google>=0.5andoutlook>=0.5",
-                "reports_waiting_time": 1.0
+                "reports_waiting_time": 1.0,
+                "update_sending_limit": True
             }
         }
 
@@ -169,9 +181,11 @@ class UpdateSpamcheckBisonSchema(Schema):
     body: Optional[str] = Field(None, description="Email body template")
     scheduled_at: Optional[datetime] = Field(None, description="When to run the spamcheck")
     recurring_days: Optional[int] = Field(None, description="Number of days for recurring checks")
+    weekdays: Optional[List[int]] = Field(None, description="List of weekdays (0=Monday, 6=Sunday) when this spamcheck should run")
     is_domain_based: Optional[bool] = Field(None, description="Whether to filter accounts by domain")
     conditions: Optional[str] = Field(None, description="Conditions for sending")
     reports_waiting_time: Optional[float] = Field(None, description="Time in hours to wait before generating reports")
+    update_sending_limit: Optional[bool] = Field(None, description="Whether to update sending limits in Bison API based on scores")
 
     class Config:
         json_schema_extra = {
@@ -183,9 +197,11 @@ class UpdateSpamcheckBisonSchema(Schema):
                 "body": "Updated Body",
                 "scheduled_at": "2025-02-23T00:17:51.315Z",
                 "recurring_days": 7,
+                "weekdays": [0, 3],  # Run on Monday and Thursday
                 "is_domain_based": False,
                 "conditions": "google>=0.5andoutlook>=0.5",
-                "reports_waiting_time": 1.0
+                "reports_waiting_time": 1.0,
+                "update_sending_limit": True
             }
         }
 
@@ -197,6 +213,8 @@ class SpamcheckBisonConfigurationSchema(Schema):
     waitingTime: str
     googleInboxCriteria: str
     outlookInboxCriteria: str
+    updateSendingLimit: bool = Field(default=True)
+    weekdays: Optional[List[str]] = None
 
 class SpamcheckBisonEmailContentSchema(Schema):
     """Schema for Bison spamcheck email content"""
@@ -244,6 +262,81 @@ class BisonAccountsReportsResponseSchema(Schema):
     message: str
     data: List[BisonAccountReportSchema]
 
+class BisonAccountHistorySchema(Schema):
+    """Schema for Bison account history data"""
+    total_checks: int
+    good_checks: int
+    bad_checks: int
+    
+class BisonAccountLastCheckSchema(Schema):
+    """Schema for Bison account last check data"""
+    id: str
+    date: str
+    
+class BisonAccountScoreHistorySchema(Schema):
+    """Schema for Bison account score history data"""
+    date: str
+    google_score: float
+    outlook_score: float
+    status: str
+    report_link: str
+
+class BisonDomainAccountHistorySchema(Schema):
+    """Schema for Bison domain account history data"""
+    total_checks: int
+    good_checks: int
+    bad_checks: int
+
+class BisonDomainAccountSchema(Schema):
+    """Schema for Bison domain account data"""
+    email: str
+    google_score: float
+    outlook_score: float
+    status: str
+    workspace: str
+    last_check_date: str
+    bounce_count: Optional[int] = None
+    reply_count: Optional[int] = None
+    emails_sent: Optional[int] = None
+    history: BisonDomainAccountHistorySchema
+
+class BisonDomainSummarySchema(Schema):
+    """Schema for Bison domain summary data"""
+    total_accounts: int
+    avg_google_score: float
+    avg_outlook_score: float
+    inboxing_accounts: int
+    resting_accounts: int
+    total_checks: int
+    good_checks: int
+    bad_checks: int
+    
+class BisonAccountDetailsSchema(Schema):
+    """Schema for Bison account details"""
+    email: str
+    domain: str
+    sends_per_day: int
+    google_score: float
+    outlook_score: float
+    status: str
+    workspace: str
+    last_check: BisonAccountLastCheckSchema
+    reports_link: str
+    history: BisonAccountHistorySchema
+    bounce_count: Optional[int] = None
+    reply_count: Optional[int] = None
+    emails_sent: Optional[int] = None
+    tags_list: Optional[List[str]] = None
+    score_history: List[BisonAccountScoreHistorySchema] = []
+    domain_accounts: List[BisonDomainAccountSchema] = []
+    domain_summary: BisonDomainSummarySchema
+    
+class BisonAccountDetailsResponseSchema(Schema):
+    """Response schema for get Bison account details endpoint"""
+    success: bool
+    message: str
+    data: BisonAccountDetailsSchema
+
 class CampaignCopyData(Schema):
     """Schema for campaign copy data"""
     subject: str = Field(..., description="Email subject from the campaign")
@@ -254,4 +347,4 @@ class CampaignCopyResponse(Schema):
     """Schema for campaign copy response"""
     success: bool
     message: str
-    data: CampaignCopyData 
+    data: Optional[CampaignCopyData] = None 
