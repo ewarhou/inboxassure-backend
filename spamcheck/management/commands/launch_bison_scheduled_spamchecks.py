@@ -561,7 +561,7 @@ class Command(BaseCommand):
 
             # Only update to in_progress if at least one account was successful
             if successful_accounts > 0:
-                spamcheck.status = 'in_progress'
+                spamcheck.status = 'waiting_for_reports'
                 await asyncio.to_thread(spamcheck.save)
                 return True
             else:

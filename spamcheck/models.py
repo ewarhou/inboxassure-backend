@@ -169,6 +169,7 @@ class UserSpamcheckBison(models.Model):
         ('queued', 'Queued'),
         ('pending', 'Pending'),
         ('in_progress', 'In Progress'),
+        ('waiting_for_reports', 'Waiting For Reports'),
         ('generating_reports', 'Generating Reports'),
         ('completed', 'Completed'),
         ('failed', 'Failed'),
@@ -185,7 +186,7 @@ class UserSpamcheckBison(models.Model):
     recurring_days = models.IntegerField(null=True, blank=True)
     weekdays = models.CharField(max_length=21, null=True, blank=True, help_text="Comma-separated list of weekdays (0=Monday, 6=Sunday) when this spamcheck should run")
     conditions = models.CharField(max_length=255, null=True, blank=True)
-    reports_waiting_time = models.FloatField(null=True, blank=True, default=1.0, help_text="Time in hours to wait before generating reports (0 for immediate, 0.5 for 30min, 1 for 1h, etc). Default is 1h")
+    reports_waiting_time = models.FloatField(null=True, blank=True, default=1.0, help_text="Time in hours to wait before generating reports (0 for immediate, 0.5 for 30min, 1-12 for 1-12 hours). Default is 1h")
     update_sending_limit = models.BooleanField(default=True, help_text="Whether to update sending limits in Bison API based on scores")
     plain_text = models.BooleanField(default=False)
     subject = models.TextField(help_text='Email subject template')

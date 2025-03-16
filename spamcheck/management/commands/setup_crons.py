@@ -31,7 +31,7 @@ class Command(BaseCommand):
             },
             {
                 'command': 'process_spamcheck_queue',
-                'schedule': '* * * * *',  # Every minute
+                'schedule': '*/5 * * * *',  # Every 5 minutes
                 'log': 'cron_queue.log',
                 'comment': 'inboxassure_queue'
             },

@@ -764,7 +764,7 @@ class Command(BaseCommand):
         try:
             spamchecks = await asyncio.to_thread(
                 lambda: list(UserSpamcheckBison.objects.filter(
-                    Q(status='in_progress') &
+                    Q(status='waiting_for_reports') &
                     (
                         Q(reports_waiting_time__isnull=True) |  # No waiting time specified (uses default 1h)
                         Q(reports_waiting_time=0) |  # Immediate generation
@@ -774,7 +774,13 @@ class Command(BaseCommand):
                         Q(updated_at__lte=now - timedelta(hours=3), reports_waiting_time=3.0) |  # 3h waiting
                         Q(updated_at__lte=now - timedelta(hours=4), reports_waiting_time=4.0) |  # 4h waiting
                         Q(updated_at__lte=now - timedelta(hours=5), reports_waiting_time=5.0) |  # 5h waiting
-                        Q(updated_at__lte=now - timedelta(hours=6), reports_waiting_time=6.0)   # 6h waiting
+                        Q(updated_at__lte=now - timedelta(hours=6), reports_waiting_time=6.0) |  # 6h waiting
+                        Q(updated_at__lte=now - timedelta(hours=7), reports_waiting_time=7.0) |  # 7h waiting
+                        Q(updated_at__lte=now - timedelta(hours=8), reports_waiting_time=8.0) |  # 8h waiting
+                        Q(updated_at__lte=now - timedelta(hours=9), reports_waiting_time=9.0) |  # 9h waiting
+                        Q(updated_at__lte=now - timedelta(hours=10), reports_waiting_time=10.0) |  # 10h waiting
+                        Q(updated_at__lte=now - timedelta(hours=11), reports_waiting_time=11.0) |  # 11h waiting
+                        Q(updated_at__lte=now - timedelta(hours=12), reports_waiting_time=12.0)   # 12h waiting
                     )
                 ).select_related('user', 'user_organization'))
             )
