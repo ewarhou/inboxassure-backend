@@ -261,6 +261,11 @@ class Command(BaseCommand):
         try:
             self.stdout.write(f"\nProcessing Bison spamcheck {spamcheck.id}")
             
+            # Update status immediately to prevent double-processing
+            spamcheck.status = 'in_progress'
+            await asyncio.to_thread(spamcheck.save)
+            self.stdout.write(f"Updated spamcheck {spamcheck.id} status to 'in_progress'")
+            
             # Reset server error counter for this spamcheck
             self.server_error_count = 0
             # Track failed domains and accounts for potential removal
@@ -319,6 +324,9 @@ class Command(BaseCommand):
 
             if not all_accounts:
                 self.stdout.write("No accounts to check")
+                # Reset status to pending if no accounts found
+                spamcheck.status = 'failed'
+                await asyncio.to_thread(spamcheck.save)
                 return False
 
             # Group accounts by domain if domain-based is enabled
