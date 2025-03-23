@@ -256,6 +256,10 @@ class SpamcheckBisonDetailsSchema(Schema):
     status: str
     scheduled_at: str
     recurring_days: Optional[int]
+    account_selection_type: str
+    include_tags: Optional[List[str]]
+    exclude_tags: Optional[List[str]]
+    campaign_copy_source_id: Optional[str]
     configuration: SpamcheckBisonConfigurationSchema
     emailContent: SpamcheckBisonEmailContentSchema
     results: SpamcheckBisonResultsSchema

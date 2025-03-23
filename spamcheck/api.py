@@ -2385,6 +2385,10 @@ def get_bison_spamcheck_details(request, spamcheck_id: int):
             "status": spamcheck.status,
             "scheduled_at": spamcheck.scheduled_at.isoformat() if spamcheck.scheduled_at else None,
             "recurring_days": spamcheck.recurring_days,
+            "account_selection_type": spamcheck.account_selection_type,
+            "include_tags": spamcheck.include_tags,
+            "exclude_tags": spamcheck.exclude_tags,
+            "campaign_copy_source_id": spamcheck.campaign_copy_source_id,
             "configuration": {
                 "domainBased": spamcheck.is_domain_based,
                 "trackOpens": False,  # Placeholder, adjust if you track this
@@ -2430,6 +2434,10 @@ def get_bison_spamcheck_details(request, spamcheck_id: int):
                 "status": "error",
                 "scheduled_at": None,
                 "recurring_days": None,
+                "account_selection_type": "specific",
+                "include_tags": None,
+                "exclude_tags": None,
+                "campaign_copy_source_id": None,
                 "configuration": {
                     "domainBased": False,
                     "trackOpens": False,
