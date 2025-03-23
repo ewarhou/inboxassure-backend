@@ -39,6 +39,7 @@ class Command(BaseCommand):
     def get_next_schedule_date(self, base_date, recurring_days, weekdays=None):
         """
         Calculate the next scheduled date, prioritizing weekdays if set.
+        Always sets the time to 00:30 AM regardless of original time.
         
         Args:
             base_date: The original scheduled date or current time
@@ -46,7 +47,7 @@ class Command(BaseCommand):
             weekdays: List of weekdays (0=Monday, 6=Sunday) or None
             
         Returns:
-            Next scheduled date
+            Next scheduled date with time set to 00:30 AM
         """
         now = timezone.now()
         
@@ -67,8 +68,10 @@ class Command(BaseCommand):
             next_date = now + timedelta(days=days_to_add)
             self.stdout.write(f"  - Adjusted to future date: {next_date}")
         
-        # If weekdays is not set or empty, just return the calculated date
+        # If weekdays is not set or empty, just process the calculated date
         if not weekdays:
+            # Only adjust the time part to 00:30 while keeping the date part
+            next_date = next_date.replace(hour=0, minute=30, second=0, microsecond=0)
             return next_date
         
         # Convert weekdays to integers if they're strings
@@ -82,6 +85,8 @@ class Command(BaseCommand):
         
         # If no valid weekdays after conversion, return the calculated date
         if not weekday_ints:
+            # Only adjust the time part to 00:30 while keeping the date part
+            next_date = next_date.replace(hour=0, minute=30, second=0, microsecond=0)
             return next_date
         
         # Get the weekday of the calculated date (0=Monday, 6=Sunday)
@@ -89,6 +94,8 @@ class Command(BaseCommand):
         
         # If the calculated date falls on one of the specified weekdays, return it
         if calculated_weekday in weekday_ints:
+            # Only adjust the time part to 00:30 while keeping the date part
+            next_date = next_date.replace(hour=0, minute=30, second=0, microsecond=0)
             return next_date
         
         # Find the next date that falls on one of the specified weekdays
@@ -100,6 +107,8 @@ class Command(BaseCommand):
             days_checked += 1
             
             if next_date.weekday() in weekday_ints:
+                # Only adjust the time part to 00:30 while keeping the date part
+                next_date = next_date.replace(hour=0, minute=30, second=0, microsecond=0)
                 return next_date
         
         # If no suitable day found within a week, return the closest day
@@ -115,7 +124,12 @@ class Command(BaseCommand):
         
         # Adjust the date to the closest weekday
         days_to_add = (closest_day - calculated_weekday) % 7
-        return next_date + timedelta(days=days_to_add - days_checked)
+        result_date = next_date + timedelta(days=days_to_add - days_checked)
+        
+        # Set the time to 00:30
+        result_date = result_date.replace(hour=0, minute=30, second=0, microsecond=0)
+        
+        return result_date
     
     def process_instantly_spamchecks(self, now):
         """Process Instantly spamchecks with recurring settings"""
