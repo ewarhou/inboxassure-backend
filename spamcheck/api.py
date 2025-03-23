@@ -2389,6 +2389,7 @@ def get_bison_spamcheck_details(request, spamcheck_id: int):
             "include_tags": spamcheck.include_tags,
             "exclude_tags": spamcheck.exclude_tags,
             "campaign_copy_source_id": spamcheck.campaign_copy_source_id,
+            "organization_id": spamcheck.user_organization_id,
             "configuration": {
                 "domainBased": spamcheck.is_domain_based,
                 "trackOpens": False,  # Placeholder, adjust if you track this
@@ -2438,6 +2439,7 @@ def get_bison_spamcheck_details(request, spamcheck_id: int):
                 "include_tags": None,
                 "exclude_tags": None,
                 "campaign_copy_source_id": None,
+                "organization_id": 0,
                 "configuration": {
                     "domainBased": False,
                     "trackOpens": False,

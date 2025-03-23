@@ -260,6 +260,7 @@ class SpamcheckBisonDetailsSchema(Schema):
     include_tags: Optional[List[str]]
     exclude_tags: Optional[List[str]]
     campaign_copy_source_id: Optional[str]
+    organization_id: int
     configuration: SpamcheckBisonConfigurationSchema
     emailContent: SpamcheckBisonEmailContentSchema
     results: SpamcheckBisonResultsSchema

@@ -353,6 +353,7 @@
   - `include_tags`: List of tags to include when account_selection_type is 'tag_based' (or null if not applicable)
   - `exclude_tags`: List of tags to exclude when account_selection_type is 'tag_based' (or null if not applicable)
   - `campaign_copy_source_id`: ID of the Bison campaign used as source for email content (or null if not used)
+  - `organization_id`: ID of the Bison organization this spamcheck belongs to
   - `configuration`: Object containing configuration details:
     - `domainBased`: Whether the spamcheck is domain-based
     - `trackOpens`: Whether open tracking is enabled (always false for Bison)
@@ -391,6 +392,7 @@
     "include_tags": ["important", "marketing"],
     "exclude_tags": ["test"],
     "campaign_copy_source_id": "456",
+    "organization_id": "123",
     "configuration": {
       "domainBased": false,
       "trackOpens": false,
