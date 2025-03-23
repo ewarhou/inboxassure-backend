@@ -111,4 +111,8 @@ class BisonWorkspaceResponseSchema(Schema):
 
 class BisonWorkspacesResponseSchema(Schema):
     workspaces: List[BisonWorkspaceResponseSchema]
+    message: str
+
+class BisonTagsResponseSchema(Schema):
+    tags: List[str]
     message: str 
