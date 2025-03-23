@@ -176,6 +176,12 @@ class UserSpamcheckBison(models.Model):
         ('paused', 'Paused')
     ]
     
+    ACCOUNT_SELECTION_CHOICES = [
+        ('specific', 'Specific Accounts'),
+        ('all', 'All Accounts'),
+        ('tag_based', 'Tag-Based Selection')
+    ]
+    
     id = models.BigAutoField(primary_key=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bison_spamchecks')
     user_organization = models.ForeignKey('settings.UserBison', on_delete=models.CASCADE, related_name='bison_spamchecks', null=True)
@@ -191,6 +197,13 @@ class UserSpamcheckBison(models.Model):
     plain_text = models.BooleanField(default=False)
     subject = models.TextField(help_text='Email subject template')
     body = models.TextField(help_text='Email body template')
+    
+    # New fields for enhanced account selection and campaign copy
+    account_selection_type = models.CharField(max_length=20, choices=ACCOUNT_SELECTION_CHOICES, default='specific', help_text="Method to select accounts for this spamcheck")
+    include_tags = models.JSONField(null=True, blank=True, help_text="Tags to include when selecting accounts (for tag-based selection)")
+    exclude_tags = models.JSONField(null=True, blank=True, help_text="Tags to exclude when selecting accounts (for tag-based selection)")
+    campaign_copy_source_id = models.CharField(max_length=255, null=True, blank=True, help_text="ID of campaign to copy email content from")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

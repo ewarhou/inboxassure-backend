@@ -762,6 +762,16 @@ class Command(BaseCommand):
         self.stdout.write(f"🔍 Finding spamchecks ready for report generation at {now}")
         
         try:
+            # First, get all users who already have spamchecks in 'generating_reports' status
+            users_with_active_reports = await asyncio.to_thread(
+                lambda: set(UserSpamcheckBison.objects.filter(
+                    status='generating_reports'
+                ).values_list('user_id', flat=True))
+            )
+            
+            self.stdout.write(f"ℹ️ Found {len(users_with_active_reports)} users with active report generation")
+            
+            # Get spamchecks ready for report generation, excluding users who already have active report generation
             spamchecks = await asyncio.to_thread(
                 lambda: list(UserSpamcheckBison.objects.filter(
                     Q(status='waiting_for_reports') &
@@ -782,6 +792,8 @@ class Command(BaseCommand):
                         Q(updated_at__lte=now - timedelta(hours=11), reports_waiting_time=11.0) |  # 11h waiting
                         Q(updated_at__lte=now - timedelta(hours=12), reports_waiting_time=12.0)   # 12h waiting
                     )
+                ).exclude(
+                    user_id__in=users_with_active_reports  # Exclude users who already have active report generation
                 ).select_related('user', 'user_organization'))
             )
             

@@ -218,6 +218,21 @@ class Command(BaseCommand):
                             else:
                                 failed_sends += 1
                                 self.stdout.write(f"❌ API returned success=false for {email['email']}: {response_text}")
+                                
+                                # Log this specific failure
+                                await asyncio.to_thread(
+                                    SpamcheckErrorLog.objects.create,
+                                    user=spamcheck.user,
+                                    bison_spamcheck=spamcheck,
+                                    error_type='api_error',
+                                    provider='bison',
+                                    error_message=f"Bison API returned success=false for {email['email']}",
+                                    error_details={'response': response_text},
+                                    account_email=account.email_account,
+                                    step='send_bison_email',
+                                    api_endpoint=url,
+                                    status_code=response.status
+                                )
                         elif response.status == 500 and "Server Error" in response_text:
                             # Increment server error count
                             self.server_error_count += 1
@@ -241,12 +256,56 @@ class Command(BaseCommand):
                         elif response.status == 422:
                             failed_sends += 1
                             self.stdout.write(self.style.ERROR(f"Validation error from Bison API for {email['email']}: {response_text}"))
+                            
+                            # Log validation error
+                            await asyncio.to_thread(
+                                SpamcheckErrorLog.objects.create,
+                                user=spamcheck.user,
+                                bison_spamcheck=spamcheck,
+                                error_type='validation_error',
+                                provider='bison',
+                                error_message=f"Validation error for {email['email']}",
+                                error_details={'response': response_text},
+                                account_email=account.email_account,
+                                step='send_bison_email',
+                                api_endpoint=url,
+                                status_code=response.status
+                            )
                         else:
                             failed_sends += 1
                             self.stdout.write(self.style.ERROR(f"Failed to send email to {email['email']}: {response.status} - {response_text}"))
+                            
+                            # Log general API error
+                            await asyncio.to_thread(
+                                SpamcheckErrorLog.objects.create,
+                                user=spamcheck.user,
+                                bison_spamcheck=spamcheck,
+                                error_type='api_error',
+                                provider='bison',
+                                error_message=f"Failed to send email to {email['email']}: HTTP {response.status}",
+                                error_details={'response': response_text},
+                                account_email=account.email_account,
+                                step='send_bison_email',
+                                api_endpoint=url,
+                                status_code=response.status
+                            )
             except Exception as e:
                 failed_sends += 1
                 self.stdout.write(self.style.ERROR(f"Error sending Bison email to {email['email']}: {str(e)}"))
+                
+                # Log exception
+                await asyncio.to_thread(
+                    SpamcheckErrorLog.objects.create,
+                    user=spamcheck.user,
+                    bison_spamcheck=spamcheck,
+                    error_type='exception',
+                    provider='bison',
+                    error_message=f"Exception sending email to {email['email']}",
+                    error_details={'error': str(e), 'traceback': traceback.format_exc()},
+                    account_email=account.email_account,
+                    step='send_bison_email',
+                    api_endpoint=url
+                )
         
         # Consider the overall operation successful if at least one email was sent successfully
         if successful_sends > 0:
@@ -316,6 +375,20 @@ class Command(BaseCommand):
             self.stdout.write(f"Bison Base URL: {bison_base_url}")
             self.stdout.write(f"Bison API Key exists: {bool(user_bison.bison_organization_api_key)}")
             self.stdout.write(f"Bison Organization Status: {user_bison.bison_organization_status}")
+            
+            # NEW: Refresh accounts if needed (tag-based or all accounts)
+            if spamcheck.account_selection_type in ['tag_based', 'all']:
+                self.stdout.write(f"Account selection type: {spamcheck.account_selection_type}")
+                refresh_success = await self.refresh_accounts(session, spamcheck, user_bison)
+                if not refresh_success:
+                    self.stdout.write(self.style.ERROR(f"Failed to refresh accounts for {spamcheck.account_selection_type} selection"))
+                    spamcheck.status = 'failed'
+                    await asyncio.to_thread(spamcheck.save)
+                    return False
+            
+            # NEW: Fetch campaign copy if campaign_copy_source_id is set
+            if spamcheck.campaign_copy_source_id:
+                await self.fetch_campaign_copy(session, spamcheck, user_bison)
             
             # Get accounts to check
             all_accounts = await asyncio.to_thread(
@@ -461,15 +534,40 @@ class Command(BaseCommand):
                         except Exception as e:
                             self.stdout.write(self.style.ERROR(f"Error removing account {account_email}: {str(e)}"))
                 
-                # Only fail the spamcheck if we have 5 or more server errors or all domains failed
-                if self.server_error_count >= 5:
+                # Only fail the spamcheck if we have 30 or more server errors or all domains failed
+                if self.server_error_count >= 30:
                     self.stdout.write(self.style.ERROR(f"Too many Bison Server Errors ({self.server_error_count}). Marking spamcheck as failed."))
+                    
+                    # Log the failure due to too many server errors
+                    await asyncio.to_thread(
+                        SpamcheckErrorLog.objects.create,
+                        user=spamcheck.user,
+                        bison_spamcheck=spamcheck,
+                        error_type='too_many_server_errors',
+                        provider='bison',
+                        error_message=f"Too many Bison Server Errors ({self.server_error_count}). Marking spamcheck as failed.",
+                        step='process_domain_based'
+                    )
+                    
                     spamcheck.status = 'failed'
                     await asyncio.to_thread(spamcheck.save)
                     return False
                 
                 if len(failed_domains) == len(accounts_by_domain):
                     self.stdout.write(self.style.ERROR(f"All domains failed. Marking spamcheck as failed."))
+                    
+                    # Log the failure due to all domains failing
+                    await asyncio.to_thread(
+                        SpamcheckErrorLog.objects.create,
+                        user=spamcheck.user,
+                        bison_spamcheck=spamcheck,
+                        error_type='all_domains_failed',
+                        provider='bison',
+                        error_message=f"All domains ({len(failed_domains)}) failed. Marking spamcheck as failed.",
+                        error_details={'failed_domains': list(failed_domains)},
+                        step='process_domain_based'
+                    )
+                    
                     spamcheck.status = 'failed'
                     await asyncio.to_thread(spamcheck.save)
                     return False
@@ -562,15 +660,40 @@ class Command(BaseCommand):
                         except Exception as e:
                             self.stdout.write(self.style.ERROR(f"Error removing account {account_email}: {str(e)}"))
                         
-                # Only fail the spamcheck if we have 5 or more server errors or all accounts failed
-                if self.server_error_count >= 5:
+                # Only fail the spamcheck if we have 30 or more server errors or all accounts failed
+                if self.server_error_count >= 30:
                     self.stdout.write(self.style.ERROR(f"Too many Bison Server Errors ({self.server_error_count}). Marking spamcheck as failed."))
+                    
+                    # Log the failure due to too many server errors
+                    await asyncio.to_thread(
+                        SpamcheckErrorLog.objects.create,
+                        user=spamcheck.user,
+                        bison_spamcheck=spamcheck,
+                        error_type='too_many_server_errors',
+                        provider='bison',
+                        error_message=f"Too many Bison Server Errors ({self.server_error_count}). Marking spamcheck as failed.",
+                        step='process_non_domain_based'
+                    )
+                    
                     spamcheck.status = 'failed'
                     await asyncio.to_thread(spamcheck.save)
                     return False
                 
                 if len(failed_accounts) == total_accounts:
                     self.stdout.write(self.style.ERROR(f"All accounts failed. Marking spamcheck as failed."))
+                    
+                    # Log the failure due to all accounts failing
+                    await asyncio.to_thread(
+                        SpamcheckErrorLog.objects.create,
+                        user=spamcheck.user,
+                        bison_spamcheck=spamcheck,
+                        error_type='all_accounts_failed',
+                        provider='bison',
+                        error_message=f"All accounts ({len(failed_accounts)}) failed. Marking spamcheck as failed.",
+                        error_details={'failed_accounts_count': len(failed_accounts)},
+                        step='process_non_domain_based'
+                    )
+                    
                     spamcheck.status = 'failed'
                     await asyncio.to_thread(spamcheck.save)
                     return False
@@ -581,7 +704,8 @@ class Command(BaseCommand):
                 await asyncio.to_thread(spamcheck.save)
                 return True
             else:
-                self.stdout.write(self.style.ERROR(f"No accounts were successfully processed for spamcheck {spamcheck.id}"))
+                error_msg = f"No accounts were successfully processed for spamcheck {spamcheck.id}"
+                self.stdout.write(self.style.ERROR(error_msg))
                 
                 # Log the error
                 try:
@@ -589,9 +713,14 @@ class Command(BaseCommand):
                         SpamcheckErrorLog.objects.create,
                         user=spamcheck.user,
                         bison_spamcheck=spamcheck,
-                        error_type='processing_error',
+                        error_type='no_successful_processing',
                         provider='bison',
-                        error_message=f"No accounts were successfully processed for spamcheck {spamcheck.id}",
+                        error_message=error_msg,
+                        error_details={
+                            'total_accounts': len(all_accounts),
+                            'failed_accounts': len(failed_accounts),
+                            'server_error_count': self.server_error_count
+                        },
                         step='process_accounts'
                     )
                 except Exception as log_error:
@@ -660,4 +789,345 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         """Entry point for the command"""
-        asyncio.run(self.handle_async(*args, **options)) 
+        asyncio.run(self.handle_async(*args, **options))
+
+    async def refresh_accounts(self, session, spamcheck, user_bison):
+        """
+        Refresh accounts for the spamcheck based on selection type.
+        - If specific accounts, keep existing accounts
+        - If all accounts, fetch all accounts from Bison API
+        - If tag-based, fetch accounts from Bison API with matching tags
+        """
+        self.stdout.write(f"Refreshing accounts for spamcheck {spamcheck.id}")
+        
+        # If using specific accounts, no need to refresh
+        if spamcheck.account_selection_type == 'specific':
+            self.stdout.write("Using specific accounts, no refresh needed")
+            return True
+            
+        # Fetch accounts from Bison API
+        url = f"{user_bison.base_url.rstrip('/')}/api/sender-emails"
+        headers = {
+            "Authorization": f"Bearer {user_bison.bison_organization_api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        try:
+            # Initialize variables for pagination
+            all_accounts = []
+            page = 1
+            has_more = True
+            
+            self.stdout.write(f"Fetching accounts from Bison API for {spamcheck.account_selection_type} selection")
+            
+            while has_more:
+                params = {"page": page}
+                
+                async with self.rate_limit:
+                    async with session.get(url, headers=headers, params=params) as response:
+                        if response.status != 200:
+                            error_text = await response.text()
+                            error_msg = f"Failed to fetch accounts: {response.status} - {error_text}"
+                            self.stdout.write(self.style.ERROR(error_msg))
+                            
+                            # Log API error
+                            await asyncio.to_thread(
+                                SpamcheckErrorLog.objects.create,
+                                user=spamcheck.user,
+                                bison_spamcheck=spamcheck,
+                                error_type='api_error',
+                                provider='bison',
+                                error_message=error_msg,
+                                error_details={'response': error_text},
+                                step='refresh_accounts',
+                                api_endpoint=url,
+                                status_code=response.status
+                            )
+                            
+                            raise Exception(error_msg)
+                        
+                        data = await response.json()
+                        current_page_accounts = data.get("data", [])
+                        
+                        # Check if we have more pages
+                        has_more = (
+                            data and 
+                            data.get("data") and 
+                            isinstance(data.get("data"), list) and 
+                            len(data.get("data")) > 0
+                        )
+                        
+                        if current_page_accounts:
+                            all_accounts.extend(current_page_accounts)
+                            self.stdout.write(f"Found {len(current_page_accounts)} accounts on page {page}")
+                            page += 1
+                        else:
+                            self.stdout.write(f"No more accounts found on page {page}")
+                            break
+            
+            self.stdout.write(f"Total accounts fetched: {len(all_accounts)}")
+            
+            if not all_accounts:
+                error_msg = "No accounts found in Bison organization"
+                self.stdout.write(self.style.ERROR(error_msg))
+                
+                # Log the error
+                await asyncio.to_thread(
+                    SpamcheckErrorLog.objects.create,
+                    user=spamcheck.user,
+                    bison_spamcheck=spamcheck,
+                    error_type='no_accounts',
+                    provider='bison',
+                    error_message=error_msg,
+                    step='refresh_accounts'
+                )
+                
+                return False
+            
+            # Filter accounts based on selection type
+            filtered_accounts = []
+            
+            if spamcheck.account_selection_type == 'all':
+                # Use all active accounts
+                filtered_accounts = [
+                    account for account in all_accounts 
+                    if account.get("status") == "Connected"
+                ]
+                self.stdout.write(f"Selected all connected accounts: {len(filtered_accounts)}")
+                
+            elif spamcheck.account_selection_type == 'tag_based':
+                # Filter by tags
+                include_tags = spamcheck.include_tags or []
+                exclude_tags = spamcheck.exclude_tags or []
+                
+                for account in all_accounts:
+                    # Skip if account is not active
+                    if account.get("status") != "Connected":
+                        continue
+                        
+                    # Get account tags
+                    account_tags = [tag.get("name", "").lower() for tag in account.get("tags", [])] if account.get("tags") else []
+                    
+                    # Skip if has any excluded tag
+                    if exclude_tags and account_tags:
+                        should_skip = False
+                        for exclude_tag in exclude_tags:
+                            exclude_tag_lower = exclude_tag.lower()
+                            if any(exclude_tag_lower == tag.lower() for tag in account_tags):
+                                should_skip = True
+                                break
+                        if should_skip:
+                            continue
+                    
+                    # Skip if doesn't have any of the required tags
+                    if include_tags and account_tags:
+                        has_required_tag = False
+                        for include_tag in include_tags:
+                            include_tag_lower = include_tag.lower()
+                            if any(include_tag_lower == tag.lower() for tag in account_tags):
+                                has_required_tag = True
+                                break
+                        if not has_required_tag:
+                            continue
+                    
+                    filtered_accounts.append(account)
+                
+                self.stdout.write(f"Selected {len(filtered_accounts)} accounts matching tag criteria")
+            
+            if not filtered_accounts:
+                error_msg = f"No accounts were selected after filtering for {spamcheck.account_selection_type} selection"
+                self.stdout.write(self.style.WARNING(error_msg))
+                
+                # Log the error
+                await asyncio.to_thread(
+                    SpamcheckErrorLog.objects.create,
+                    user=spamcheck.user,
+                    bison_spamcheck=spamcheck,
+                    error_type='no_matching_accounts',
+                    provider='bison',
+                    error_message=error_msg,
+                    error_details={
+                        'selection_type': spamcheck.account_selection_type,
+                        'include_tags': spamcheck.include_tags,
+                        'exclude_tags': spamcheck.exclude_tags,
+                        'total_accounts': len(all_accounts)
+                    },
+                    step='refresh_accounts'
+                )
+                
+                return False
+                
+            # Clear existing accounts first
+            await asyncio.to_thread(
+                lambda: UserSpamcheckAccountsBison.objects.filter(
+                    bison_spamcheck=spamcheck
+                ).delete()
+            )
+            self.stdout.write(f"Cleared existing accounts for spamcheck {spamcheck.id}")
+            
+            # Create new account entries
+            accounts_to_create = []
+            for account in filtered_accounts:
+                email = account.get("email")
+                if not email:
+                    continue
+                    
+                accounts_to_create.append(
+                    UserSpamcheckAccountsBison(
+                        user=spamcheck.user,
+                        organization=user_bison,
+                        bison_spamcheck=spamcheck,
+                        email_account=email
+                    )
+                )
+            
+            # Bulk create the accounts
+            if accounts_to_create:
+                await asyncio.to_thread(
+                    lambda: UserSpamcheckAccountsBison.objects.bulk_create(accounts_to_create)
+                )
+                self.stdout.write(f"Created {len(accounts_to_create)} new account entries")
+                return True
+            else:
+                error_msg = "No valid accounts to create after filtering"
+                self.stdout.write(self.style.WARNING(error_msg))
+                
+                # Log the error
+                await asyncio.to_thread(
+                    SpamcheckErrorLog.objects.create,
+                    user=spamcheck.user,
+                    bison_spamcheck=spamcheck,
+                    error_type='no_valid_accounts',
+                    provider='bison',
+                    error_message=error_msg,
+                    step='refresh_accounts'
+                )
+                
+                return False
+                
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"Error refreshing accounts: {str(e)}"))
+            
+            # Log the error
+            await asyncio.to_thread(
+                SpamcheckErrorLog.objects.create,
+                user=spamcheck.user,
+                bison_spamcheck=spamcheck,
+                error_type='processing_error',
+                provider='bison',
+                error_message=f"Error refreshing accounts: {str(e)}",
+                error_details={'full_error': str(e), 'traceback': traceback.format_exc()},
+                step='refresh_accounts'
+            )
+            return False
+    
+    async def fetch_campaign_copy(self, session, spamcheck, user_bison):
+        """
+        Fetch email subject and body from campaign if campaign_copy_source_id is set
+        """
+        if not spamcheck.campaign_copy_source_id:
+            self.stdout.write(f"No campaign copy source ID set for spamcheck {spamcheck.id}")
+            return True
+            
+        self.stdout.write(f"Fetching campaign copy from campaign ID: {spamcheck.campaign_copy_source_id}")
+        
+        url = f"{user_bison.base_url.rstrip('/')}/api/campaigns/{spamcheck.campaign_copy_source_id}/sequence-steps"
+        headers = {
+            "Authorization": f"Bearer {user_bison.bison_organization_api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        try:
+            async with self.rate_limit:
+                async with session.get(url, headers=headers) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        self.stdout.write(self.style.WARNING(f"Could not fetch campaign copy: {response.status} - {error_text}"))
+                        self.stdout.write(f"Using existing subject and body from spamcheck")
+                        return True
+                    
+                    data = await response.json()
+                    steps = data.get('data', [])
+                    
+                    if not steps:
+                        self.stdout.write(self.style.WARNING(f"No sequence steps found for campaign {spamcheck.campaign_copy_source_id}"))
+                        self.stdout.write(f"Using existing subject and body from spamcheck")
+                        return True
+                    
+                    # Get the first step (step 1)
+                    first_step = steps[0]
+                    subject = first_step.get('email_subject', '')
+                    html_body = first_step.get('email_body', '')
+                    
+                    if not subject or not html_body:
+                        self.stdout.write(self.style.WARNING(f"Campaign has empty subject or body"))
+                        self.stdout.write(f"Using existing subject and body from spamcheck")
+                        return True
+                    
+                    # Convert HTML to plain text
+                    try:
+                        import re
+                        from html import unescape
+                        
+                        # Function to convert HTML to formatted plain text
+                        def html_to_text(html):
+                            if not html:
+                                return ""
+                            
+                            # Unescape HTML entities
+                            html = unescape(html)
+                            
+                            # Replace common block elements with newlines
+                            html = re.sub(r'</(div|p|h\d|ul|ol|li|blockquote|pre|table|tr)>', '\n', html)
+                            
+                            # Replace <br> tags with newlines
+                            html = re.sub(r'<br[^>]*>', '\n', html)
+                            
+                            # Replace multiple consecutive newlines with just two
+                            html = re.sub(r'\n{3,}', '\n\n', html)
+                            
+                            # Remove all remaining HTML tags
+                            html = re.sub(r'<[^>]*>', '', html)
+                            
+                            # Trim leading/trailing whitespace
+                            html = html.strip()
+                            
+                            return html
+                        
+                        plain_body = html_to_text(html_body)
+                    except Exception as e:
+                        self.stdout.write(self.style.ERROR(f"Error converting HTML to text: {str(e)}"))
+                        plain_body = html_body  # Fallback to original HTML
+                    
+                    # Update the spamcheck with the new subject and body
+                    await asyncio.to_thread(
+                        lambda: UserSpamcheckBison.objects.filter(id=spamcheck.id).update(
+                            subject=subject,
+                            body=plain_body
+                        )
+                    )
+                    
+                    # Refresh the spamcheck object
+                    spamcheck.subject = subject
+                    spamcheck.body = plain_body
+                    
+                    self.stdout.write(f"Updated spamcheck with campaign copy:")
+                    self.stdout.write(f"Subject: {subject}")
+                    self.stdout.write(f"Body: {plain_body[:100]}...")
+                    return True
+                    
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"Error fetching campaign copy: {str(e)}"))
+            
+            # Log the error
+            await asyncio.to_thread(
+                SpamcheckErrorLog.objects.create,
+                user=spamcheck.user,
+                bison_spamcheck=spamcheck,
+                error_type='processing_error',
+                provider='bison',
+                error_message=f"Error fetching campaign copy: {str(e)}",
+                error_details={'full_error': str(e), 'traceback': traceback.format_exc()},
+                step='fetch_campaign_copy'
+            )
+            return True  # Continue with existing copy 

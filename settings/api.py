@@ -26,7 +26,8 @@ from settings.schema import (
     UpdateProfileSchema,
     BisonWorkspaceRequestSchema,
     BisonWorkspaceResponseSchema,
-    BisonWorkspacesResponseSchema
+    BisonWorkspacesResponseSchema,
+    BisonTagsResponseSchema
 )
 import requests
 import pytz
@@ -1057,4 +1058,68 @@ def retrieve_bison_workspaces(request: HttpRequest, payload: BisonWorkspaceReque
     except Exception as e:
         print(f"❌ Unexpected error: {str(e)}")
         log_to_terminal("Bison", "Workspaces", f"Unexpected error: {str(e)}")
-        return 400, {"detail": str(e)} 
+        return 400, {"detail": str(e)}
+
+@router.get("/get-bison-tags/{org_id}", auth=AuthBearer(), response={200: BisonTagsResponseSchema, 400: ErrorResponseSchema, 404: ErrorResponseSchema})
+def get_bison_tags(request: HttpRequest, org_id: int):
+    """
+    Get all tags from Bison organization, excluding default tags.
+    
+    Args:
+        request: The HTTP request
+        org_id: The ID of the Bison organization
+        
+    Returns:
+        200: A list of tag names (excluding default tags)
+        400: Error response if there's a problem with the request
+        404: If the Bison organization doesn't exist
+    """
+    try:
+        # Check if org_id is valid
+        if not isinstance(org_id, int):
+            return 400, {"detail": "Invalid organization ID format"}
+            
+        try:
+            bison_org = UserBison.objects.get(id=org_id, user=request.auth)
+        except UserBison.DoesNotExist:
+            return 404, {"detail": f"Bison organization with ID {org_id} not found for this user"}
+        
+        # Return error if organization is not active or API key is missing
+        if not bison_org.bison_organization_status:
+            return 400, {"detail": "Bison organization is not active"}
+            
+        if not bison_org.bison_organization_api_key:
+            return 400, {"detail": "Bison organization API key not configured"}
+        
+        # Fetch tags from Bison API
+        headers = {
+            'Authorization': f'Bearer {bison_org.bison_organization_api_key}'
+        }
+        
+        try:
+            response = requests.get(f'{bison_org.base_url.rstrip("/")}/api/tags', headers=headers)
+            
+            # Log the response for debugging
+            log_to_terminal("BisonTags", "API", f"Fetching tags for org {org_id}, status: {response.status_code}")
+            
+            if response.status_code != 200:
+                return 400, {"detail": f"Failed to fetch tags from Bison API: {response.status_code}"}
+                
+            data = response.json()
+            
+            # Filter out default tags (where default=True) and extract only the name
+            tag_names = [tag["name"] for tag in data.get("data", []) if not tag.get("default", False)]
+            
+            return 200, {
+                "tags": tag_names,
+                "message": f"Successfully retrieved {len(tag_names)} tags from Bison"
+            }
+            
+        except requests.exceptions.RequestException as e:
+            return 400, {"detail": f"Failed to connect to Bison API: {str(e)}"}
+            
+    except ValueError as e:
+        return 400, {"detail": f"Invalid input: {str(e)}"}
+    except Exception as e:
+        log_to_terminal("BisonTags", "API", f"Error in get_bison_tags: {str(e)}")
+        return 400, {"detail": f"An unexpected error occurred while fetching tags: {str(e)}"} 
