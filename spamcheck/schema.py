@@ -142,7 +142,7 @@ class ListSpamchecksResponseSchema(Schema):
 class CreateSpamcheckBisonSchema(Schema):
     name: str
     user_organization_id: int
-    accounts: List[str]
+    accounts: Optional[List[str]] = Field(default=None, description="List of email accounts to check (required for specific account selection)")
     text_only: bool = Field(default=False)
     subject: str
     body: str
@@ -153,6 +153,10 @@ class CreateSpamcheckBisonSchema(Schema):
     conditions: Optional[str] = None
     reports_waiting_time: Optional[float] = Field(default=1.0)
     update_sending_limit: bool = Field(default=True, description="Whether to update sending limits in Bison API based on scores")
+    account_selection_type: str = Field(default="specific", description="How to select accounts: 'specific', 'all', or 'tag_based'")
+    include_tags: Optional[List[str]] = Field(default=None, description="Tags to include when account_selection_type is 'tag_based'")
+    exclude_tags: Optional[List[str]] = Field(default=None, description="Tags to exclude when account_selection_type is 'tag_based'")
+    campaign_copy_source_id: Optional[str] = Field(default=None, description="ID of campaign to copy email content from")
 
     class Config:
         json_schema_extra = {
@@ -169,7 +173,11 @@ class CreateSpamcheckBisonSchema(Schema):
                 "is_domain_based": False,
                 "conditions": "google>=0.5andoutlook>=0.5",
                 "reports_waiting_time": 1.0,
-                "update_sending_limit": True
+                "update_sending_limit": True,
+                "account_selection_type": "specific",
+                "include_tags": ["important", "test"],
+                "exclude_tags": ["blocked"],
+                "campaign_copy_source_id": "12345"
             }
         }
 
@@ -186,6 +194,10 @@ class UpdateSpamcheckBisonSchema(Schema):
     conditions: Optional[str] = Field(None, description="Conditions for sending")
     reports_waiting_time: Optional[float] = Field(None, description="Time in hours to wait before generating reports")
     update_sending_limit: Optional[bool] = Field(None, description="Whether to update sending limits in Bison API based on scores")
+    account_selection_type: Optional[str] = Field(None, description="How to select accounts: 'specific', 'all', or 'tag_based'")
+    include_tags: Optional[List[str]] = Field(None, description="Tags to include when account_selection_type is 'tag_based'")
+    exclude_tags: Optional[List[str]] = Field(None, description="Tags to exclude when account_selection_type is 'tag_based'")
+    campaign_copy_source_id: Optional[str] = Field(None, description="ID of campaign to copy email content from")
 
     class Config:
         json_schema_extra = {
@@ -201,7 +213,11 @@ class UpdateSpamcheckBisonSchema(Schema):
                 "is_domain_based": False,
                 "conditions": "google>=0.5andoutlook>=0.5",
                 "reports_waiting_time": 1.0,
-                "update_sending_limit": True
+                "update_sending_limit": True,
+                "account_selection_type": "tag_based",
+                "include_tags": ["important", "active"],
+                "exclude_tags": ["blocked", "paused"],
+                "campaign_copy_source_id": "12345"
             }
         }
 

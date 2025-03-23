@@ -1783,7 +1783,11 @@ def create_spamcheck_bison(request, payload: CreateSpamcheckBisonSchema):
     Parameters:
         - name: Name of the spamcheck
         - user_organization_id: ID of the Bison organization to use
-        - accounts: List of email accounts to check (e.g. ["test1@example.com", "test2@example.com"])
+        - account_selection_type: How to select accounts ('specific', 'all', or 'tag_based')
+        - accounts: List of email accounts (required for 'specific' selection)
+        - include_tags: Tags to include (for 'tag_based' selection)
+        - exclude_tags: Tags to exclude (for 'tag_based' selection)
+        - campaign_copy_source_id: Optional ID of campaign to copy email content from
         - text_only: Whether to send text-only emails
         - subject: Email subject template
         - body: Email body template
@@ -1796,12 +1800,20 @@ def create_spamcheck_bison(request, payload: CreateSpamcheckBisonSchema):
         - update_sending_limit: Whether to update sending limits in Bison API based on scores
     """
     user = request.auth
+    log_to_terminal("Spamcheck", "Create Bison", f"Creating spamcheck: {payload.name}")
     
-    # Validate accounts list is not empty
-    if not payload.accounts:
+    # Validate account selection based on selection type
+    if payload.account_selection_type == 'specific' and not payload.accounts:
         return {
             "success": False,
-            "message": "At least one email account is required"
+            "message": "At least one email account is required when using 'specific' account selection"
+        }
+    
+    # Validate tag selection for tag-based account selection
+    if payload.account_selection_type == 'tag_based' and not payload.include_tags:
+        return {
+            "success": False,
+            "message": "At least one include tag is required when using 'tag_based' account selection"
         }
     
     # Get the specific organization with better error handling
@@ -1838,6 +1850,7 @@ def create_spamcheck_bison(request, payload: CreateSpamcheckBisonSchema):
     
     try:
         with transaction.atomic():
+            log_to_terminal("Spamcheck", "Create Bison", "Starting transaction for create")
             # Create spamcheck
             spamcheck = UserSpamcheckBison.objects.create(
                 user=user,
@@ -1853,19 +1866,26 @@ def create_spamcheck_bison(request, payload: CreateSpamcheckBisonSchema):
                 update_sending_limit=payload.update_sending_limit,
                 plain_text=payload.text_only,
                 subject=payload.subject,
-                body=payload.body
+                body=payload.body,
+                # Store the new fields for account selection and campaign copy
+                account_selection_type=payload.account_selection_type,
+                include_tags=payload.include_tags,
+                exclude_tags=payload.exclude_tags,
+                campaign_copy_source_id=payload.campaign_copy_source_id
             )
             
-            # Create accounts
+            # Only create accounts if using specific account selection
             accounts = []
-            for email in payload.accounts:
-                account = UserSpamcheckAccountsBison.objects.create(
-                    user=user,
-                    organization=user_organization,
-                    bison_spamcheck=spamcheck,
-                    email_account=email
-                )
-                accounts.append(account)
+            if payload.account_selection_type == 'specific' and payload.accounts:
+                log_to_terminal("Spamcheck", "Create Bison", f"Adding {len(payload.accounts)} specific accounts")
+                for email in payload.accounts:
+                    account = UserSpamcheckAccountsBison.objects.create(
+                        user=user,
+                        organization=user_organization,
+                        bison_spamcheck=spamcheck,
+                        email_account=email
+                    )
+                    accounts.append(account)
             
             return {
                 "success": True,
@@ -1874,7 +1894,8 @@ def create_spamcheck_bison(request, payload: CreateSpamcheckBisonSchema):
                     "id": spamcheck.id,
                     "name": spamcheck.name,
                     "status": spamcheck.status,
-                    "accounts_count": len(accounts)
+                    "account_selection_type": spamcheck.account_selection_type,
+                    "accounts_count": len(accounts) if payload.account_selection_type == 'specific' else 0
                 }
             }
             
@@ -1904,6 +1925,10 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
         - conditions: Optional, conditions for sending
         - reports_waiting_time: Optional, reports waiting time
         - update_sending_limit: Optional, whether to update sending limits in Bison API based on scores
+        - account_selection_type: Optional, method to select accounts ('specific', 'all', or 'tag_based')
+        - include_tags: Optional, tags to include when using tag-based selection
+        - exclude_tags: Optional, tags to exclude when using tag-based selection
+        - campaign_copy_source_id: Optional, ID of campaign to copy email content from
     """
     user = request.auth
     log_to_terminal("Spamcheck", "Update Bison", f"Starting update for spamcheck ID {spamcheck_id}")
@@ -1939,7 +1964,11 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
                    payload.conditions is None and \
                    payload.reports_waiting_time is None and \
                    payload.update_sending_limit is None and \
-                   payload.accounts is None:
+                   payload.accounts is None and \
+                   payload.account_selection_type is None and \
+                   payload.include_tags is None and \
+                   payload.exclude_tags is None and \
+                   payload.campaign_copy_source_id is None:
                     
                     log_to_terminal("Spamcheck", "Update Bison", "Performing simple update with direct SQL")
                     
@@ -2032,6 +2061,24 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
                     spamcheck.body = payload.body
                     update_fields.append('body')
                 
+                # Update new fields
+                if payload.account_selection_type is not None:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Updating account_selection_type to '{payload.account_selection_type}'")
+                    spamcheck.account_selection_type = payload.account_selection_type
+                    update_fields.append('account_selection_type')
+                if payload.include_tags is not None:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Updating include_tags to '{payload.include_tags}'")
+                    spamcheck.include_tags = payload.include_tags
+                    update_fields.append('include_tags')
+                if payload.exclude_tags is not None:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Updating exclude_tags to '{payload.exclude_tags}'")
+                    spamcheck.exclude_tags = payload.exclude_tags
+                    update_fields.append('exclude_tags')
+                if payload.campaign_copy_source_id is not None:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Updating campaign_copy_source_id to '{payload.campaign_copy_source_id}'")
+                    spamcheck.campaign_copy_source_id = payload.campaign_copy_source_id
+                    update_fields.append('campaign_copy_source_id')
+                
                 # Always update updated_at
                 update_fields.append('updated_at')
                 
@@ -2039,9 +2086,9 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
                 spamcheck.save(update_fields=update_fields)
                 log_to_terminal("Spamcheck", "Update Bison", "Spamcheck saved successfully")
                 
-                # Update accounts if provided
+                # Update accounts if provided and account_selection_type is 'specific'
                 accounts_updated = False
-                if payload.accounts is not None:
+                if payload.accounts is not None and (payload.account_selection_type == 'specific' or spamcheck.account_selection_type == 'specific'):
                     log_to_terminal("Spamcheck", "Update Bison", f"Updating accounts list with {len(payload.accounts)} accounts")
                     # Delete existing accounts
                     existing_count = UserSpamcheckAccountsBison.objects.filter(bison_spamcheck=spamcheck).count()

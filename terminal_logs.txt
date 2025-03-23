@@ -2942,3 +2942,38 @@
 [2025-03-16 11:44:24] [Signals] [ProviderPerformance] Found 144 accounts with provider tags
 [2025-03-16 11:44:25] [Signals] [ProviderPerformance] Created provider performance record for Maildoso in CoachPro
 [2025-03-16 11:44:25] [BisonCampaigns] [Signal] Skipping sending power update for spamcheck: TEST Sun (ID: 52) - update_sending_limit is False
+[2025-03-16 12:31:22] [BisonCampaigns] [Signal] Spamcheck status is pending, not triggering API calls
+[2025-03-16 12:31:22] [SpamcheckQueue] [Process] Moved spamcheck 52 (TEST Sun) scheduled for 2025-03-16 10:17:35.780000+00:00 to pending for user dev@vitalitymarketingfirm.com
+[2025-03-16 12:32:11] [BisonCampaigns] [Signal] Spamcheck status is waiting_for_reports, not triggering API calls
+[2025-03-16 15:32:53] [SpamCheck] [Error] Error getting spamcheck details: No UserSpamcheckBison matches the given query.
+[2025-03-16 15:33:25] [SpamCheck] [Debug] Parsing conditions: google>0.44andoutlook>0.04
+[2025-03-16 15:33:25] [SpamCheck] [Debug] Parsed Google criteria: Above 44.0%
+[2025-03-16 15:33:25] [SpamCheck] [Debug] Parsed Outlook criteria: Above 4.0%
+[2025-03-16 16:17:41] [SpamCheck] [Error] Error getting spamcheck details: No UserSpamcheckBison matches the given query.
+[2025-03-16 16:18:03] [SpamCheck] [Debug] Parsing conditions: google>=0.5andoutlook>=0sending=25/1
+[2025-03-16 16:18:03] [SpamCheck] [Debug] Parsed Google criteria: 50.0% or higher
+[2025-03-16 16:18:03] [SpamCheck] [Debug] Parsed Outlook criteria: 0.0% or higher
+[2025-03-16 16:22:04] [SpamCheck] [Debug] Parsing conditions: google>=0.5andoutlook>=0sending=25/1
+[2025-03-16 16:22:04] [SpamCheck] [Debug] Parsed Google criteria: 50.0% or higher
+[2025-03-16 16:22:04] [SpamCheck] [Debug] Parsed Outlook criteria: 0.0% or higher
+[2025-03-16 16:50:28] [SpamCheck] [Debug] Parsing conditions: google>=0.5andoutlook>=0sending=25/1
+[2025-03-16 16:50:28] [SpamCheck] [Debug] Parsed Google criteria: 50.0% or higher
+[2025-03-16 16:50:28] [SpamCheck] [Debug] Parsed Outlook criteria: 0.0% or higher
+[2025-03-16 17:01:41] [SpamCheck] [Info] Found 144 unique accounts with latest reports for spamcheck 34
+[2025-03-16 17:01:42] [SpamCheck] [Debug] Parsing conditions: google>=0.5andoutlook>=0sending=25/1
+[2025-03-16 17:01:42] [SpamCheck] [Debug] Parsed Google criteria: 50.0% or higher
+[2025-03-16 17:01:42] [SpamCheck] [Debug] Parsed Outlook criteria: 0.0% or higher
+[2025-03-23 13:34:01] [Spamcheck] [Create Bison] Creating spamcheck: Test Spamcheck
+[2025-03-23 13:34:02] [Spamcheck] [Create Bison] Starting transaction for create
+[2025-03-23 13:34:02] [Spamcheck] [Create Bison] Adding 1 specific accounts
+[2025-03-23 13:37:12] [Spamcheck] [Create Bison] Creating spamcheck: Test Spamcheck2
+[2025-03-23 13:37:12] [Spamcheck] [Create Bison] Starting transaction for create
+[2025-03-23 13:44:33] [Spamcheck] [Create Bison] Creating spamcheck: Test Spamcheck2
+[2025-03-23 13:44:44] [Spamcheck] [Create Bison] Creating spamcheck: Test Spamcheck Tags
+[2025-03-23 13:44:45] [Spamcheck] [Create Bison] Starting transaction for create
+[2025-03-23 13:48:35] [BisonCampaigns] [Signal] Spamcheck status is in_progress, not triggering API calls
+[2025-03-23 13:48:50] [BisonCampaigns] [Signal] Spamcheck status is waiting_for_reports, not triggering API calls
+[2025-03-23 13:53:03] [BisonCampaigns] [Signal] Spamcheck status is in_progress, not triggering API calls
+[2025-03-23 13:53:29] [BisonCampaigns] [Signal] Spamcheck status is waiting_for_reports, not triggering API calls
+[2025-03-23 14:05:14] [BisonCampaigns] [Signal] Spamcheck status is in_progress, not triggering API calls
+[2025-03-23 14:05:37] [BisonCampaigns] [Signal] Spamcheck status is waiting_for_reports, not triggering API calls
