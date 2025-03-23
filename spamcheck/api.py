@@ -2067,16 +2067,31 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
                     spamcheck.account_selection_type = payload.account_selection_type
                     update_fields.append('account_selection_type')
                 if payload.include_tags is not None:
-                    log_to_terminal("Spamcheck", "Update Bison", f"Updating include_tags to '{payload.include_tags}'")
-                    spamcheck.include_tags = payload.include_tags
+                    # Convert empty list to None
+                    if payload.include_tags == []:
+                        log_to_terminal("Spamcheck", "Update Bison", f"Empty list detected for include_tags, converting to None")
+                        spamcheck.include_tags = None
+                    else:
+                        log_to_terminal("Spamcheck", "Update Bison", f"Updating include_tags to '{payload.include_tags}'")
+                        spamcheck.include_tags = payload.include_tags
                     update_fields.append('include_tags')
                 if payload.exclude_tags is not None:
-                    log_to_terminal("Spamcheck", "Update Bison", f"Updating exclude_tags to '{payload.exclude_tags}'")
-                    spamcheck.exclude_tags = payload.exclude_tags
+                    # Convert empty list to None
+                    if payload.exclude_tags == []:
+                        log_to_terminal("Spamcheck", "Update Bison", f"Empty list detected for exclude_tags, converting to None")
+                        spamcheck.exclude_tags = None
+                    else:
+                        log_to_terminal("Spamcheck", "Update Bison", f"Updating exclude_tags to '{payload.exclude_tags}'")
+                        spamcheck.exclude_tags = payload.exclude_tags
                     update_fields.append('exclude_tags')
                 if payload.campaign_copy_source_id is not None:
-                    log_to_terminal("Spamcheck", "Update Bison", f"Updating campaign_copy_source_id to '{payload.campaign_copy_source_id}'")
-                    spamcheck.campaign_copy_source_id = payload.campaign_copy_source_id
+                    # Convert empty string to None
+                    if payload.campaign_copy_source_id == "":
+                        log_to_terminal("Spamcheck", "Update Bison", f"Empty string detected for campaign_copy_source_id, converting to None")
+                        spamcheck.campaign_copy_source_id = None
+                    else:
+                        log_to_terminal("Spamcheck", "Update Bison", f"Updating campaign_copy_source_id to '{payload.campaign_copy_source_id}'")
+                        spamcheck.campaign_copy_source_id = payload.campaign_copy_source_id
                     update_fields.append('campaign_copy_source_id')
                 
                 # Always update updated_at
