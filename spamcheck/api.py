@@ -1932,6 +1932,24 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
     """
     user = request.auth
     log_to_terminal("Spamcheck", "Update Bison", f"Starting update for spamcheck ID {spamcheck_id}")
+    
+    # Check if there's an explicit null in the original request for campaign_copy_source_id
+    # Django Ninja doesn't distinguish between field not present and null in Optional fields
+    try:
+        import json
+        raw_request_data = json.loads(request.body.decode('utf-8'))
+        log_to_terminal("Spamcheck", "Update Bison", f"Raw request data: {raw_request_data}")
+    except Exception as e:
+        log_to_terminal("Spamcheck", "Update Bison", f"Error parsing raw request data: {str(e)}")
+        raw_request_data = {}
+    
+    # Handle explicit null case for special fields
+    explicitly_null_fields = {}
+    for field in ['campaign_copy_source_id', 'include_tags', 'exclude_tags']:
+        if field in raw_request_data and raw_request_data[field] is None:
+            log_to_terminal("Spamcheck", "Update Bison", f"Detected explicit null for {field}")
+            explicitly_null_fields[field] = True
+    
     log_to_terminal("Spamcheck", "Update Bison", f"Payload received: {payload.dict()}")
     
     try:
@@ -2075,6 +2093,11 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
                         log_to_terminal("Spamcheck", "Update Bison", f"Updating include_tags to '{payload.include_tags}'")
                         spamcheck.include_tags = payload.include_tags
                     update_fields.append('include_tags')
+                elif 'include_tags' in explicitly_null_fields:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Setting include_tags to None (explicit null)")
+                    spamcheck.include_tags = None
+                    update_fields.append('include_tags')
+                    
                 if payload.exclude_tags is not None:
                     # Convert empty list to None
                     if payload.exclude_tags == []:
@@ -2084,6 +2107,10 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
                         log_to_terminal("Spamcheck", "Update Bison", f"Updating exclude_tags to '{payload.exclude_tags}'")
                         spamcheck.exclude_tags = payload.exclude_tags
                     update_fields.append('exclude_tags')
+                elif 'exclude_tags' in explicitly_null_fields:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Setting exclude_tags to None (explicit null)")
+                    spamcheck.exclude_tags = None
+                    update_fields.append('exclude_tags')
                 if payload.campaign_copy_source_id is not None:
                     # Convert empty string to None
                     if payload.campaign_copy_source_id == "":
@@ -2092,6 +2119,10 @@ def update_spamcheck_bison(request, spamcheck_id: int, payload: UpdateSpamcheckB
                     else:
                         log_to_terminal("Spamcheck", "Update Bison", f"Updating campaign_copy_source_id to '{payload.campaign_copy_source_id}'")
                         spamcheck.campaign_copy_source_id = payload.campaign_copy_source_id
+                    update_fields.append('campaign_copy_source_id')
+                elif 'campaign_copy_source_id' in explicitly_null_fields:
+                    log_to_terminal("Spamcheck", "Update Bison", f"Setting campaign_copy_source_id to None (explicit null)")
+                    spamcheck.campaign_copy_source_id = None
                     update_fields.append('campaign_copy_source_id')
                 
                 # Always update updated_at
