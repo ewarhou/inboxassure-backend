@@ -814,7 +814,7 @@ class PaginatedBisonCampaignsResponse(BaseModel):
     summary="Get Bison Campaigns",
     description="Get all campaigns from Bison with connected emails and deliverability scores, grouped by organization"
 )
-def get_bison_campaigns(request, page: int = 1, per_page: int = 10, search: Optional[str] = None):
+def get_bison_campaigns(request, page: int = 1, per_page: int = 10, search: Optional[str] = None, workspace: Optional[int] = None):
     """
     Get all campaigns from Bison with connected emails and deliverability scores, grouped by organization.
     This endpoint now uses cached data from the UserCampaignsBison table for improved performance.
@@ -823,18 +823,24 @@ def get_bison_campaigns(request, page: int = 1, per_page: int = 10, search: Opti
         page: Page number (default: 1)
         per_page: Number of campaigns per page (default: 10)
         search: Search term to filter campaigns by name (optional)
+        workspace: Filter campaigns by workspace ID (optional)
     """
     import time
     start_time = time.time()
     
     user = request.auth
-    log_to_terminal("Bison", "Campaigns", f"User {user.email} requested Bison campaigns (page {page}, per_page {per_page}, search: {search or 'None'})")
+    log_to_terminal("Bison", "Campaigns", f"User {user.email} requested Bison campaigns (page {page}, per_page {per_page}, search: {search or 'None'}, workspace: {workspace or 'None'})")
     
     # Get all active Bison organizations for the user
     bison_orgs = UserBison.objects.filter(
         user=user,
         bison_organization_status=True
     )
+    
+    # Filter by workspace if provided
+    if workspace:
+        bison_orgs = bison_orgs.filter(id=workspace)
+        log_to_terminal("Bison", "Campaigns", f"Filtering by workspace ID: {workspace}")
     
     if not bison_orgs:
         log_to_terminal("Bison", "Campaigns", f"No active Bison organizations found for user {user.email}")
