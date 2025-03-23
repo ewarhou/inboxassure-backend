@@ -2977,3 +2977,46 @@
 [2025-03-23 13:53:29] [BisonCampaigns] [Signal] Spamcheck status is waiting_for_reports, not triggering API calls
 [2025-03-23 14:05:14] [BisonCampaigns] [Signal] Spamcheck status is in_progress, not triggering API calls
 [2025-03-23 14:05:37] [BisonCampaigns] [Signal] Spamcheck status is waiting_for_reports, not triggering API calls
+[2025-03-23 14:25:06] [BisonTags] [API] Fetching tags for org 10, status: 200
+[2025-03-23 14:43:06] [BisonCampaigns] [Signal] Spamcheck status is queued, not triggering API calls
+[2025-03-23 14:43:47] [BisonCampaigns] [Signal] Spamcheck status is queued, not triggering API calls
+[2025-03-23 14:48:13] [BisonCampaigns] [Signal] Spamcheck status is queued, not triggering API calls
+[2025-03-23 15:25:51] [Bison] [Campaigns] User dev@vitalitymarketingfirm.com requested Bison campaigns (page 1, per_page 10, search: None)
+[2025-03-23 15:25:51] [Bison] [Campaigns] Retrieved 19 cached campaigns for CoachPro
+[2025-03-23 15:25:51] [Bison] [Campaigns] No cached campaigns found for organization DealFlow Group
+[2025-03-23 15:25:51] [Bison] [Campaigns] Retrieved 18 cached campaigns for Evolve Business Group
+[2025-03-23 15:25:51] [Bison] [Campaigns] Retrieved 9 cached campaigns for Karpos
+[2025-03-23 15:25:51] [Bison] [Campaigns] No cached campaigns found for organization PAWFC
+[2025-03-23 15:25:51] [Bison] [Campaigns] Returning campaigns for page 1/5 (took 0.84s)
+[2025-03-23 15:46:32] [Bison] [Campaigns] User dev@vitalitymarketingfirm.com requested Bison campaigns (page 1, per_page 10, search: None, workspace: coachpro)
+[2025-03-23 15:46:41] [Bison] [Campaigns] User dev@vitalitymarketingfirm.com requested Bison campaigns (page 1, per_page 10, search: None, workspace: 10)
+[2025-03-23 15:47:56] [Bison] [Campaigns] User dev@vitalitymarketingfirm.com requested Bison campaigns (page 1, per_page 10, search: None, workspace: 10)
+[2025-03-23 15:47:56] [Bison] [Campaigns] Filtering by workspace ID: 10
+[2025-03-23 15:47:56] [Bison] [Campaigns] Retrieved 19 cached campaigns for CoachPro
+[2025-03-23 15:47:56] [Bison] [Campaigns] Returning campaigns for page 1/2 (took 0.27s)
+[2025-03-23 17:53:39] [BisonCampaigns] [Signal] Spamcheck status is pending, not triggering API calls
+[2025-03-23 17:53:39] [SpamcheckQueue] [Process] Moved spamcheck 62 (Test Amine) scheduled for 2025-03-23 17:43:07.757000+00:00 to pending for user dev@vitalitymarketingfirm.com
+[2025-03-23 22:19:55] [Spamcheck] [Update Bison] Starting update for spamcheck ID 9
+[2025-03-23 22:19:55] [Spamcheck] [Update Bison] Payload received: {'name': None, 'accounts': None, 'text_only': None, 'subject': None, 'body': None, 'scheduled_at': None, 'recurring_days': None, 'weekdays': None, 'is_domain_based': None, 'conditions': None, 'reports_waiting_time': None, 'update_sending_limit': None, 'account_selection_type': None, 'include_tags': None, 'exclude_tags': None, 'campaign_copy_source_id': None}
+[2025-03-23 22:19:55] [Spamcheck] [Update Bison] Spamcheck with ID 9 not found
+[2025-03-23 22:20:21] [Spamcheck] [Update Bison] Starting update for spamcheck ID 62
+[2025-03-23 22:20:21] [Spamcheck] [Update Bison] Payload received: {'name': None, 'accounts': None, 'text_only': None, 'subject': None, 'body': None, 'scheduled_at': None, 'recurring_days': None, 'weekdays': None, 'is_domain_based': None, 'conditions': None, 'reports_waiting_time': None, 'update_sending_limit': None, 'account_selection_type': None, 'include_tags': None, 'exclude_tags': None, 'campaign_copy_source_id': None}
+[2025-03-23 22:20:21] [Spamcheck] [Update Bison] Found spamcheck: Test Amine with status queued
+[2025-03-23 22:20:21] [Spamcheck] [Update Bison] Starting transaction for update
+[2025-03-23 22:20:21] [Spamcheck] [Update Bison] Performing complex update with ORM
+[2025-03-23 22:20:21] [Spamcheck] [Update Bison] About to save spamcheck changes with fields: ['updated_at']
+[2025-03-23 22:20:21] [BisonCampaigns] [Signal] Skipping API calls - status field not updated for spamcheck: Test Amine (ID: 62)
+[2025-03-23 22:20:21] [Spamcheck] [Update Bison] Spamcheck saved successfully
+[2025-03-23 22:20:21] [Spamcheck] [Update Bison] Update completed successfully
+[2025-03-23 22:24:13] [Spamcheck] [Update Bison] Starting update for spamcheck ID 62
+[2025-03-23 22:24:13] [Spamcheck] [Update Bison] Raw request data: {'campaign_copy_source_id': None}
+[2025-03-23 22:24:13] [Spamcheck] [Update Bison] Detected explicit null for campaign_copy_source_id
+[2025-03-23 22:24:13] [Spamcheck] [Update Bison] Payload received: {'name': None, 'accounts': None, 'text_only': None, 'subject': None, 'body': None, 'scheduled_at': None, 'recurring_days': None, 'weekdays': None, 'is_domain_based': None, 'conditions': None, 'reports_waiting_time': None, 'update_sending_limit': None, 'account_selection_type': None, 'include_tags': None, 'exclude_tags': None, 'campaign_copy_source_id': None}
+[2025-03-23 22:24:13] [Spamcheck] [Update Bison] Found spamcheck: Test Amine with status queued
+[2025-03-23 22:24:13] [Spamcheck] [Update Bison] Starting transaction for update
+[2025-03-23 22:24:13] [Spamcheck] [Update Bison] Performing complex update with ORM
+[2025-03-23 22:24:13] [Spamcheck] [Update Bison] Setting campaign_copy_source_id to None (explicit null)
+[2025-03-23 22:24:13] [Spamcheck] [Update Bison] About to save spamcheck changes with fields: ['campaign_copy_source_id', 'updated_at']
+[2025-03-23 22:24:13] [BisonCampaigns] [Signal] Skipping API calls - status field not updated for spamcheck: Test Amine (ID: 62)
+[2025-03-23 22:24:13] [Spamcheck] [Update Bison] Spamcheck saved successfully
+[2025-03-23 22:24:13] [Spamcheck] [Update Bison] Update completed successfully

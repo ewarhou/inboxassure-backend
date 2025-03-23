@@ -144,7 +144,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"- Name: {spamcheck.name}")
                 self.stdout.write(f"- Original schedule: {spamcheck.scheduled_at}")
                 self.stdout.write(f"- Recurring days: {spamcheck.recurring_days}")
-                
+
                 if hasattr(spamcheck, 'weekdays') and spamcheck.weekdays:
                     self.stdout.write(f"- Weekdays: {spamcheck.weekdays}")
 
@@ -220,7 +220,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"- Name: {spamcheck.name}")
                 self.stdout.write(f"- Original schedule: {spamcheck.scheduled_at}")
                 self.stdout.write(f"- Recurring days: {spamcheck.recurring_days}")
-                
+
                 if hasattr(spamcheck, 'weekdays') and spamcheck.weekdays:
                     self.stdout.write(f"- Weekdays: {spamcheck.weekdays}")
 

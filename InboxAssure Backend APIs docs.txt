@@ -58,7 +58,7 @@
 }
 ```
 
-### Update Bison Spamcheck
+### Update Spamcheck Bison
 
 **Endpoint:** `PUT /api/spamcheck/update-spamcheck-bison/{spamcheck_id}`
 
