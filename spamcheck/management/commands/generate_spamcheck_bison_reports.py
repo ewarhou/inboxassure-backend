@@ -50,6 +50,7 @@ import json
 from collections import defaultdict
 import requests
 import logging
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -89,53 +90,136 @@ class Command(BaseCommand):
                 'good_limit': 25, 
                 'bad_limit': 3,
                 'google_operator': '>=',
-                'outlook_operator': '>='
+                'outlook_operator': '>=',
+                'logic_operator': 'and'  # Default to AND logic
             }
 
         conditions = {}
         
-        parts = conditions_str.lower().split('sending=')
-        if len(parts) == 2:
-            scores_part = parts[0]
-            limits_part = parts[1]
+        # Identify the logic operator (and/or)
+        conditions_str = conditions_str.lower()
+        if 'and' in conditions_str:
+            conditions['logic_operator'] = 'and'
+        elif 'or' in conditions_str:
+            conditions['logic_operator'] = 'or'
+        else:
+            conditions['logic_operator'] = 'and'  # Default to AND logic
+        
+        # Split by the detected logic operator to get parts
+        score_parts = []
+        if 'and' in conditions_str:
+            parts = conditions_str.split('sending=')
+            if len(parts) >= 1:
+                score_parts = parts[0].split('and')
+        elif 'or' in conditions_str:
+            parts = conditions_str.split('sending=')
+            if len(parts) >= 1:
+                score_parts = parts[0].split('or')
+        else:
+            # Handle malformed conditions by falling back to defaults
+            self.stdout.write(self.style.WARNING(f"⚠️ Malformed conditions string: {conditions_str}. Using defaults."))
+            return {
+                'google': 0.5, 
+                'outlook': 0.5, 
+                'good_limit': 25, 
+                'bad_limit': 3,
+                'google_operator': '>=',
+                'outlook_operator': '>=',
+                'logic_operator': 'and'
+            }
+        
+        # Get the sending limits part
+        limits_part = "25"  # Default
+        if 'sending=' in conditions_str:
+            limits_part = conditions_str.split('sending=')[1].strip()
             
-            # Parse scores
-            score_parts = scores_part.split('and')
-            for part in score_parts:
-                if 'google' in part:
-                    if '>=' in part:
+        # Parse scores
+        for part in score_parts:
+            part = part.strip()
+            if 'google' in part:
+                if '>=' in part:
+                    try:
                         conditions['google'] = float(part.split('>=')[1])
                         conditions['google_operator'] = '>='
-                    elif '<=' in part:
+                    except ValueError:
+                        self.stdout.write(self.style.WARNING(f"⚠️ Invalid Google condition format: {part}. Using default 0.5"))
+                        conditions['google'] = 0.5
+                        conditions['google_operator'] = '>='
+                elif '<=' in part:
+                    try:
                         conditions['google'] = float(part.split('<=')[1])
                         conditions['google_operator'] = '<='
-                    elif '>' in part:
+                    except ValueError:
+                        self.stdout.write(self.style.WARNING(f"⚠️ Invalid Google condition format: {part}. Using default 0.5"))
+                        conditions['google'] = 0.5
+                        conditions['google_operator'] = '<='
+                elif '>' in part:
+                    try:
                         conditions['google'] = float(part.split('>')[1])
                         conditions['google_operator'] = '>'
-                    elif '<' in part:
+                    except ValueError:
+                        self.stdout.write(self.style.WARNING(f"⚠️ Invalid Google condition format: {part}. Using default 0.5"))
+                        conditions['google'] = 0.5
+                        conditions['google_operator'] = '>'
+                elif '<' in part:
+                    try:
                         conditions['google'] = float(part.split('<')[1])
                         conditions['google_operator'] = '<'
-                elif 'outlook' in part:
-                    if '>=' in part:
+                    except ValueError:
+                        self.stdout.write(self.style.WARNING(f"⚠️ Invalid Google condition format: {part}. Using default 0.5"))
+                        conditions['google'] = 0.5
+                        conditions['google_operator'] = '<'
+            elif 'outlook' in part:
+                if '>=' in part:
+                    try:
                         conditions['outlook'] = float(part.split('>=')[1])
                         conditions['outlook_operator'] = '>='
-                    elif '<=' in part:
+                    except ValueError:
+                        self.stdout.write(self.style.WARNING(f"⚠️ Invalid Outlook condition format: {part}. Using default 0.5"))
+                        conditions['outlook'] = 0.5
+                        conditions['outlook_operator'] = '>='
+                elif '<=' in part:
+                    try:
                         conditions['outlook'] = float(part.split('<=')[1])
                         conditions['outlook_operator'] = '<='
-                    elif '>' in part:
+                    except ValueError:
+                        self.stdout.write(self.style.WARNING(f"⚠️ Invalid Outlook condition format: {part}. Using default 0.5"))
+                        conditions['outlook'] = 0.5
+                        conditions['outlook_operator'] = '<='
+                elif '>' in part:
+                    try:
                         conditions['outlook'] = float(part.split('>')[1])
                         conditions['outlook_operator'] = '>'
-                    elif '<' in part:
+                    except ValueError:
+                        self.stdout.write(self.style.WARNING(f"⚠️ Invalid Outlook condition format: {part}. Using default 0.5"))
+                        conditions['outlook'] = 0.5
+                        conditions['outlook_operator'] = '>'
+                elif '<' in part:
+                    try:
                         conditions['outlook'] = float(part.split('<')[1])
                         conditions['outlook_operator'] = '<'
-            
-            # Parse sending limits
-            if '/' in limits_part:
+                    except ValueError:
+                        self.stdout.write(self.style.WARNING(f"⚠️ Invalid Outlook condition format: {part}. Using default 0.5"))
+                        conditions['outlook'] = 0.5
+                        conditions['outlook_operator'] = '<'
+        
+        # Parse sending limits
+        if '/' in limits_part:
+            try:
                 good_limit, bad_limit = limits_part.split('/')
                 conditions['good_limit'] = int(good_limit)
                 conditions['bad_limit'] = int(bad_limit)
-            else:
+            except (ValueError, IndexError):
+                self.stdout.write(self.style.WARNING(f"⚠️ Invalid sending limits format: {limits_part}. Using defaults 25/3"))
+                conditions['good_limit'] = 25
+                conditions['bad_limit'] = 3
+        else:
+            try:
                 conditions['good_limit'] = int(limits_part)
+                conditions['bad_limit'] = 3
+            except ValueError:
+                self.stdout.write(self.style.WARNING(f"⚠️ Invalid good limit format: {limits_part}. Using default 25"))
+                conditions['good_limit'] = 25
                 conditions['bad_limit'] = 3
         
         # Set defaults for missing values
@@ -149,6 +233,9 @@ class Command(BaseCommand):
             conditions['good_limit'] = 25
         if 'bad_limit' not in conditions:
             conditions['bad_limit'] = 3
+
+        # Log the parsed conditions
+        self.stdout.write(f"📊 Parsed conditions: Google {conditions['google_operator']} {conditions['google']} {conditions['logic_operator'].upper()} Outlook {conditions['outlook_operator']} {conditions['outlook']}, Good limit: {conditions['good_limit']}, Bad limit: {conditions['bad_limit']}")
 
         return conditions
 
@@ -178,8 +265,20 @@ class Command(BaseCommand):
             conditions['outlook_operator']
         )
         
-        self.conditions_met = google_ok and outlook_ok
+        # Apply AND/OR logic based on the detected logic operator
+        if conditions.get('logic_operator') == 'or':
+            self.conditions_met = google_ok or outlook_ok
+        else:  # Default to 'and'
+            self.conditions_met = google_ok and outlook_ok
+        
         sending_limit = conditions.get('good_limit', 25) if self.conditions_met else conditions.get('bad_limit', 3)
+        
+        # Log the evaluation results
+        self.stdout.write(f"   📊 Condition evaluation: Google score {google_score} {conditions['google_operator']} {conditions['google']} = {google_ok}")
+        self.stdout.write(f"   📊 Condition evaluation: Outlook score {outlook_score} {conditions['outlook_operator']} {conditions['outlook']} = {outlook_ok}")
+        self.stdout.write(f"   📊 Logic operator: {conditions['logic_operator'].upper()}")
+        self.stdout.write(f"   📊 Conditions met: {self.conditions_met}, Sending limit: {sending_limit}")
+        
         return self.conditions_met, sending_limit
 
     async def update_sending_limit(self, organization, email_id, daily_limit):
@@ -507,6 +606,9 @@ class Command(BaseCommand):
 
     async def process_spamcheck(self, spamcheck):
         """Process a single spamcheck"""
+        start_time = timezone.now()
+        self.stdout.write(f"🚀 Starting to process spamcheck {spamcheck.id} ({spamcheck.name}) at {start_time}")
+        
         try:
             # Reset tracking variables for this spamcheck
             self.processed_accounts = set()
@@ -517,7 +619,8 @@ class Command(BaseCommand):
                 self.stdout.write(f"🔍 Getting user settings for spamcheck {spamcheck.id}")
                 user_settings = await self.get_user_settings(spamcheck.user)
             except UserSettings.DoesNotExist:
-                self.stdout.write(self.style.ERROR(f"❌ User settings not found for spamcheck {spamcheck.id}"))
+                error_message = f"User settings not found for spamcheck {spamcheck.id}"
+                self.stdout.write(self.style.ERROR(f"❌ {error_message}"))
                 
                 # Log the error
                 await asyncio.to_thread(
@@ -526,7 +629,7 @@ class Command(BaseCommand):
                     bison_spamcheck=spamcheck,
                     error_type='validation_error',
                     provider='system',
-                    error_message=f"User settings not found for spamcheck {spamcheck.id}",
+                    error_message=error_message,
                     step='get_user_settings'
                 )
                 
@@ -542,7 +645,8 @@ class Command(BaseCommand):
             total_accounts = len(accounts)
 
             if not accounts:
-                self.stdout.write(self.style.WARNING(f"⚠️ No accounts found for spamcheck {spamcheck.id}"))
+                error_message = f"No accounts found for spamcheck {spamcheck.id}"
+                self.stdout.write(self.style.WARNING(f"⚠️ {error_message}"))
                 
                 # Log the error
                 await asyncio.to_thread(
@@ -551,7 +655,7 @@ class Command(BaseCommand):
                     bison_spamcheck=spamcheck,
                     error_type='validation_error',
                     provider='system',
-                    error_message=f"No accounts found for spamcheck {spamcheck.id}",
+                    error_message=error_message,
                     step='get_accounts'
                 )
                 
@@ -699,8 +803,13 @@ class Command(BaseCommand):
             processed_count = len(self.processed_accounts)
             skipped_count = len(self.skipped_accounts)
             failed_count = len(self.failed_accounts)
+            end_time = timezone.now()
+            processing_time = (end_time - start_time).total_seconds()
 
             self.stdout.write(f"\n📈 Processing Summary for spamcheck {spamcheck.id}:")
+            self.stdout.write(f"   Started at: {start_time}")
+            self.stdout.write(f"   Completed at: {end_time}")
+            self.stdout.write(f"   Total processing time: {processing_time:.2f} seconds")
             self.stdout.write(f"   ✓ Successfully processed: {processed_count}")
             self.stdout.write(f"   ⚠️ Skipped: {skipped_count}")
             self.stdout.write(f"   ❌ Failed: {failed_count}")
@@ -724,15 +833,61 @@ class Command(BaseCommand):
                 self.stdout.write(f"✅ Marking spamcheck {spamcheck.id} as completed")
                 spamcheck.status = 'completed'
                 await asyncio.to_thread(spamcheck.save)
+                
+                # Log success
+                await asyncio.to_thread(
+                    SpamcheckErrorLog.objects.create,
+                    user=spamcheck.user,
+                    bison_spamcheck=spamcheck,
+                    error_type='info',
+                    provider='system',
+                    error_message=f"Spamcheck completed successfully. Processed: {processed_count}, Skipped: {skipped_count}, Failed: {failed_count}",
+                    step='process_spamcheck_complete',
+                    error_details={
+                        'processing_time_seconds': processing_time,
+                        'processed_count': processed_count,
+                        'skipped_count': skipped_count,
+                        'failed_count': failed_count
+                    }
+                )
+                
                 return True
             else:
                 self.stdout.write(f"⚠️ No accounts processed for spamcheck {spamcheck.id}")
+                
+                # Set spamcheck status to failed if nothing processed
+                spamcheck.status = 'failed'
+                await asyncio.to_thread(spamcheck.save)
+                
+                # Log failure
+                await asyncio.to_thread(
+                    SpamcheckErrorLog.objects.create,
+                    user=spamcheck.user,
+                    bison_spamcheck=spamcheck,
+                    error_type='validation_error',
+                    provider='system',
+                    error_message=f"Spamcheck failed - no accounts were processed successfully",
+                    step='process_spamcheck_complete',
+                    error_details={
+                        'processing_time_seconds': processing_time,
+                        'skipped_count': skipped_count,
+                        'failed_count': failed_count,
+                        'skipped_accounts': self.skipped_accounts[:20],
+                        'failed_accounts': self.failed_accounts[:20]
+                    }
+                )
+                
                 return False
 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"❌ Error processing spamcheck {spamcheck.id}: {str(e)}"))
-            import traceback
-            self.stdout.write(self.style.ERROR(traceback.format_exc()))
+            end_time = timezone.now()
+            processing_time = (end_time - start_time).total_seconds()
+            error_message = f"Error processing spamcheck {spamcheck.id}: {str(e)}"
+            self.stdout.write(self.style.ERROR(f"❌ {error_message}"))
+            
+            # Get traceback
+            tb = traceback.format_exc()
+            self.stdout.write(self.style.ERROR(tb))
             
             # Log the error
             try:
@@ -742,8 +897,12 @@ class Command(BaseCommand):
                     bison_spamcheck=spamcheck,
                     error_type='unknown_error',
                     provider='system',
-                    error_message=str(e),
-                    error_details={'full_error': str(e), 'traceback': traceback.format_exc()},
+                    error_message=error_message,
+                    error_details={
+                        'full_error': str(e), 
+                        'traceback': tb,
+                        'processing_time_seconds': processing_time
+                    },
                     step='process_spamcheck'
                 )
                 
@@ -762,7 +921,25 @@ class Command(BaseCommand):
         self.stdout.write(f"🔍 Finding spamchecks ready for report generation at {now}")
         
         try:
-            # First, get all users who already have spamchecks in 'generating_reports' status
+            # First, check how many spamchecks are currently in 'generating_reports' status
+            spamchecks_in_progress_count = await asyncio.to_thread(
+                lambda: UserSpamcheckBison.objects.filter(
+                    status='generating_reports'
+                ).count()
+            )
+            
+            self.stdout.write(f"ℹ️ Found {spamchecks_in_progress_count} spamchecks currently in generating_reports status")
+            
+            # If we already have 2 or more spamchecks in progress, don't start any new ones
+            if spamchecks_in_progress_count >= 2:
+                self.stdout.write(f"⚠️ Already have {spamchecks_in_progress_count} spamchecks in generating_reports status. Skipping new ones.")
+                return []
+            
+            # Calculate how many more we can process
+            available_slots = 2 - spamchecks_in_progress_count
+            self.stdout.write(f"ℹ️ Can process up to {available_slots} more spamchecks")
+            
+            # Get users who already have spamchecks in 'generating_reports' status
             users_with_active_reports = await asyncio.to_thread(
                 lambda: set(UserSpamcheckBison.objects.filter(
                     status='generating_reports'
@@ -794,13 +971,14 @@ class Command(BaseCommand):
                     )
                 ).exclude(
                     user_id__in=users_with_active_reports  # Exclude users who already have active report generation
-                ).select_related('user', 'user_organization'))
+                ).select_related('user', 'user_organization').order_by('updated_at')[:available_slots])
             )
             
             if spamchecks:
                 self.stdout.write(f"✅ Found {len(spamchecks)} spamchecks ready for report generation")
                 for i, spamcheck in enumerate(spamchecks):
-                    self.stdout.write(f"   {i+1}. Spamcheck ID: {spamcheck.id}, Name: {spamcheck.name}, Updated: {spamcheck.updated_at}, Waiting time: {spamcheck.reports_waiting_time}")
+                    waiting_hours = (now - spamcheck.updated_at).total_seconds() / 3600
+                    self.stdout.write(f"   {i+1}. Spamcheck ID: {spamcheck.id}, Name: {spamcheck.name}, Updated: {spamcheck.updated_at}, Waiting time: {spamcheck.reports_waiting_time}h, Has been waiting: {waiting_hours:.1f}h")
             else:
                 self.stdout.write("ℹ️ No spamchecks found that match the criteria")
                 
@@ -808,6 +986,19 @@ class Command(BaseCommand):
             
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"❌ Error finding ready spamchecks: {str(e)}"))
+            # Log the error
+            try:
+                await asyncio.to_thread(
+                    SpamcheckErrorLog.objects.create,
+                    error_type='unknown_error',
+                    provider='system',
+                    error_message=f"Error finding ready spamchecks: {str(e)}",
+                    error_details={'traceback': traceback.format_exc()},
+                    step='get_ready_spamchecks'
+                )
+            except Exception as log_error:
+                self.stdout.write(self.style.ERROR(f"❌ Error logging error: {str(log_error)}"))
+            
             import traceback
             self.stdout.write(self.style.ERROR(traceback.format_exc()))
             return []
