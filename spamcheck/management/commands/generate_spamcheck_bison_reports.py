@@ -90,53 +90,136 @@ class Command(BaseCommand):
                 'good_limit': 25, 
                 'bad_limit': 3,
                 'google_operator': '>=',
-                'outlook_operator': '>='
+                'outlook_operator': '>=',
+                'logic_operator': 'and'  # Default to AND logic
             }
 
         conditions = {}
         
-        parts = conditions_str.lower().split('sending=')
-        if len(parts) == 2:
-            scores_part = parts[0]
-            limits_part = parts[1]
+        # Identify the logic operator (and/or)
+        conditions_str = conditions_str.lower()
+        if 'and' in conditions_str:
+            conditions['logic_operator'] = 'and'
+        elif 'or' in conditions_str:
+            conditions['logic_operator'] = 'or'
+        else:
+            conditions['logic_operator'] = 'and'  # Default to AND logic
+        
+        # Split by the detected logic operator to get parts
+        score_parts = []
+        if 'and' in conditions_str:
+            parts = conditions_str.split('sending=')
+            if len(parts) >= 1:
+                score_parts = parts[0].split('and')
+        elif 'or' in conditions_str:
+            parts = conditions_str.split('sending=')
+            if len(parts) >= 1:
+                score_parts = parts[0].split('or')
+        else:
+            # Handle malformed conditions by falling back to defaults
+            self.stdout.write(self.style.WARNING(f"⚠️ Malformed conditions string: {conditions_str}. Using defaults."))
+            return {
+                'google': 0.5, 
+                'outlook': 0.5, 
+                'good_limit': 25, 
+                'bad_limit': 3,
+                'google_operator': '>=',
+                'outlook_operator': '>=',
+                'logic_operator': 'and'
+            }
+        
+        # Get the sending limits part
+        limits_part = "25"  # Default
+        if 'sending=' in conditions_str:
+            limits_part = conditions_str.split('sending=')[1].strip()
             
-            # Parse scores
-            score_parts = scores_part.split('and')
-            for part in score_parts:
-                if 'google' in part:
-                    if '>=' in part:
+        # Parse scores
+        for part in score_parts:
+            part = part.strip()
+            if 'google' in part:
+                if '>=' in part:
+                    try:
                         conditions['google'] = float(part.split('>=')[1])
                         conditions['google_operator'] = '>='
-                    elif '<=' in part:
+                    except ValueError:
+                        self.stdout.write(self.style.WARNING(f"⚠️ Invalid Google condition format: {part}. Using default 0.5"))
+                        conditions['google'] = 0.5
+                        conditions['google_operator'] = '>='
+                elif '<=' in part:
+                    try:
                         conditions['google'] = float(part.split('<=')[1])
                         conditions['google_operator'] = '<='
-                    elif '>' in part:
+                    except ValueError:
+                        self.stdout.write(self.style.WARNING(f"⚠️ Invalid Google condition format: {part}. Using default 0.5"))
+                        conditions['google'] = 0.5
+                        conditions['google_operator'] = '<='
+                elif '>' in part:
+                    try:
                         conditions['google'] = float(part.split('>')[1])
                         conditions['google_operator'] = '>'
-                    elif '<' in part:
+                    except ValueError:
+                        self.stdout.write(self.style.WARNING(f"⚠️ Invalid Google condition format: {part}. Using default 0.5"))
+                        conditions['google'] = 0.5
+                        conditions['google_operator'] = '>'
+                elif '<' in part:
+                    try:
                         conditions['google'] = float(part.split('<')[1])
                         conditions['google_operator'] = '<'
-                elif 'outlook' in part:
-                    if '>=' in part:
+                    except ValueError:
+                        self.stdout.write(self.style.WARNING(f"⚠️ Invalid Google condition format: {part}. Using default 0.5"))
+                        conditions['google'] = 0.5
+                        conditions['google_operator'] = '<'
+            elif 'outlook' in part:
+                if '>=' in part:
+                    try:
                         conditions['outlook'] = float(part.split('>=')[1])
                         conditions['outlook_operator'] = '>='
-                    elif '<=' in part:
+                    except ValueError:
+                        self.stdout.write(self.style.WARNING(f"⚠️ Invalid Outlook condition format: {part}. Using default 0.5"))
+                        conditions['outlook'] = 0.5
+                        conditions['outlook_operator'] = '>='
+                elif '<=' in part:
+                    try:
                         conditions['outlook'] = float(part.split('<=')[1])
                         conditions['outlook_operator'] = '<='
-                    elif '>' in part:
+                    except ValueError:
+                        self.stdout.write(self.style.WARNING(f"⚠️ Invalid Outlook condition format: {part}. Using default 0.5"))
+                        conditions['outlook'] = 0.5
+                        conditions['outlook_operator'] = '<='
+                elif '>' in part:
+                    try:
                         conditions['outlook'] = float(part.split('>')[1])
                         conditions['outlook_operator'] = '>'
-                    elif '<' in part:
+                    except ValueError:
+                        self.stdout.write(self.style.WARNING(f"⚠️ Invalid Outlook condition format: {part}. Using default 0.5"))
+                        conditions['outlook'] = 0.5
+                        conditions['outlook_operator'] = '>'
+                elif '<' in part:
+                    try:
                         conditions['outlook'] = float(part.split('<')[1])
                         conditions['outlook_operator'] = '<'
-            
-            # Parse sending limits
-            if '/' in limits_part:
+                    except ValueError:
+                        self.stdout.write(self.style.WARNING(f"⚠️ Invalid Outlook condition format: {part}. Using default 0.5"))
+                        conditions['outlook'] = 0.5
+                        conditions['outlook_operator'] = '<'
+        
+        # Parse sending limits
+        if '/' in limits_part:
+            try:
                 good_limit, bad_limit = limits_part.split('/')
                 conditions['good_limit'] = int(good_limit)
                 conditions['bad_limit'] = int(bad_limit)
-            else:
+            except (ValueError, IndexError):
+                self.stdout.write(self.style.WARNING(f"⚠️ Invalid sending limits format: {limits_part}. Using defaults 25/3"))
+                conditions['good_limit'] = 25
+                conditions['bad_limit'] = 3
+        else:
+            try:
                 conditions['good_limit'] = int(limits_part)
+                conditions['bad_limit'] = 3
+            except ValueError:
+                self.stdout.write(self.style.WARNING(f"⚠️ Invalid good limit format: {limits_part}. Using default 25"))
+                conditions['good_limit'] = 25
                 conditions['bad_limit'] = 3
         
         # Set defaults for missing values
@@ -150,6 +233,9 @@ class Command(BaseCommand):
             conditions['good_limit'] = 25
         if 'bad_limit' not in conditions:
             conditions['bad_limit'] = 3
+
+        # Log the parsed conditions
+        self.stdout.write(f"📊 Parsed conditions: Google {conditions['google_operator']} {conditions['google']} {conditions['logic_operator'].upper()} Outlook {conditions['outlook_operator']} {conditions['outlook']}, Good limit: {conditions['good_limit']}, Bad limit: {conditions['bad_limit']}")
 
         return conditions
 
@@ -179,8 +265,20 @@ class Command(BaseCommand):
             conditions['outlook_operator']
         )
         
-        self.conditions_met = google_ok and outlook_ok
+        # Apply AND/OR logic based on the detected logic operator
+        if conditions.get('logic_operator') == 'or':
+            self.conditions_met = google_ok or outlook_ok
+        else:  # Default to 'and'
+            self.conditions_met = google_ok and outlook_ok
+        
         sending_limit = conditions.get('good_limit', 25) if self.conditions_met else conditions.get('bad_limit', 3)
+        
+        # Log the evaluation results
+        self.stdout.write(f"   📊 Condition evaluation: Google score {google_score} {conditions['google_operator']} {conditions['google']} = {google_ok}")
+        self.stdout.write(f"   📊 Condition evaluation: Outlook score {outlook_score} {conditions['outlook_operator']} {conditions['outlook']} = {outlook_ok}")
+        self.stdout.write(f"   📊 Logic operator: {conditions['logic_operator'].upper()}")
+        self.stdout.write(f"   📊 Conditions met: {self.conditions_met}, Sending limit: {sending_limit}")
+        
         return self.conditions_met, sending_limit
 
     async def update_sending_limit(self, organization, email_id, daily_limit):
