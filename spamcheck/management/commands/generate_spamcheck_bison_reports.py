@@ -50,6 +50,7 @@ import json
 from collections import defaultdict
 import requests
 import logging
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -507,6 +508,9 @@ class Command(BaseCommand):
 
     async def process_spamcheck(self, spamcheck):
         """Process a single spamcheck"""
+        start_time = timezone.now()
+        self.stdout.write(f"🚀 Starting to process spamcheck {spamcheck.id} ({spamcheck.name}) at {start_time}")
+        
         try:
             # Reset tracking variables for this spamcheck
             self.processed_accounts = set()
@@ -517,7 +521,8 @@ class Command(BaseCommand):
                 self.stdout.write(f"🔍 Getting user settings for spamcheck {spamcheck.id}")
                 user_settings = await self.get_user_settings(spamcheck.user)
             except UserSettings.DoesNotExist:
-                self.stdout.write(self.style.ERROR(f"❌ User settings not found for spamcheck {spamcheck.id}"))
+                error_message = f"User settings not found for spamcheck {spamcheck.id}"
+                self.stdout.write(self.style.ERROR(f"❌ {error_message}"))
                 
                 # Log the error
                 await asyncio.to_thread(
@@ -526,7 +531,7 @@ class Command(BaseCommand):
                     bison_spamcheck=spamcheck,
                     error_type='validation_error',
                     provider='system',
-                    error_message=f"User settings not found for spamcheck {spamcheck.id}",
+                    error_message=error_message,
                     step='get_user_settings'
                 )
                 
@@ -542,7 +547,8 @@ class Command(BaseCommand):
             total_accounts = len(accounts)
 
             if not accounts:
-                self.stdout.write(self.style.WARNING(f"⚠️ No accounts found for spamcheck {spamcheck.id}"))
+                error_message = f"No accounts found for spamcheck {spamcheck.id}"
+                self.stdout.write(self.style.WARNING(f"⚠️ {error_message}"))
                 
                 # Log the error
                 await asyncio.to_thread(
@@ -551,7 +557,7 @@ class Command(BaseCommand):
                     bison_spamcheck=spamcheck,
                     error_type='validation_error',
                     provider='system',
-                    error_message=f"No accounts found for spamcheck {spamcheck.id}",
+                    error_message=error_message,
                     step='get_accounts'
                 )
                 
@@ -699,8 +705,13 @@ class Command(BaseCommand):
             processed_count = len(self.processed_accounts)
             skipped_count = len(self.skipped_accounts)
             failed_count = len(self.failed_accounts)
+            end_time = timezone.now()
+            processing_time = (end_time - start_time).total_seconds()
 
             self.stdout.write(f"\n📈 Processing Summary for spamcheck {spamcheck.id}:")
+            self.stdout.write(f"   Started at: {start_time}")
+            self.stdout.write(f"   Completed at: {end_time}")
+            self.stdout.write(f"   Total processing time: {processing_time:.2f} seconds")
             self.stdout.write(f"   ✓ Successfully processed: {processed_count}")
             self.stdout.write(f"   ⚠️ Skipped: {skipped_count}")
             self.stdout.write(f"   ❌ Failed: {failed_count}")
@@ -724,15 +735,61 @@ class Command(BaseCommand):
                 self.stdout.write(f"✅ Marking spamcheck {spamcheck.id} as completed")
                 spamcheck.status = 'completed'
                 await asyncio.to_thread(spamcheck.save)
+                
+                # Log success
+                await asyncio.to_thread(
+                    SpamcheckErrorLog.objects.create,
+                    user=spamcheck.user,
+                    bison_spamcheck=spamcheck,
+                    error_type='info',
+                    provider='system',
+                    error_message=f"Spamcheck completed successfully. Processed: {processed_count}, Skipped: {skipped_count}, Failed: {failed_count}",
+                    step='process_spamcheck_complete',
+                    error_details={
+                        'processing_time_seconds': processing_time,
+                        'processed_count': processed_count,
+                        'skipped_count': skipped_count,
+                        'failed_count': failed_count
+                    }
+                )
+                
                 return True
             else:
                 self.stdout.write(f"⚠️ No accounts processed for spamcheck {spamcheck.id}")
+                
+                # Set spamcheck status to failed if nothing processed
+                spamcheck.status = 'failed'
+                await asyncio.to_thread(spamcheck.save)
+                
+                # Log failure
+                await asyncio.to_thread(
+                    SpamcheckErrorLog.objects.create,
+                    user=spamcheck.user,
+                    bison_spamcheck=spamcheck,
+                    error_type='validation_error',
+                    provider='system',
+                    error_message=f"Spamcheck failed - no accounts were processed successfully",
+                    step='process_spamcheck_complete',
+                    error_details={
+                        'processing_time_seconds': processing_time,
+                        'skipped_count': skipped_count,
+                        'failed_count': failed_count,
+                        'skipped_accounts': self.skipped_accounts[:20],
+                        'failed_accounts': self.failed_accounts[:20]
+                    }
+                )
+                
                 return False
 
         except Exception as e:
-            self.stdout.write(self.style.ERROR(f"❌ Error processing spamcheck {spamcheck.id}: {str(e)}"))
-            import traceback
-            self.stdout.write(self.style.ERROR(traceback.format_exc()))
+            end_time = timezone.now()
+            processing_time = (end_time - start_time).total_seconds()
+            error_message = f"Error processing spamcheck {spamcheck.id}: {str(e)}"
+            self.stdout.write(self.style.ERROR(f"❌ {error_message}"))
+            
+            # Get traceback
+            tb = traceback.format_exc()
+            self.stdout.write(self.style.ERROR(tb))
             
             # Log the error
             try:
@@ -742,8 +799,12 @@ class Command(BaseCommand):
                     bison_spamcheck=spamcheck,
                     error_type='unknown_error',
                     provider='system',
-                    error_message=str(e),
-                    error_details={'full_error': str(e), 'traceback': traceback.format_exc()},
+                    error_message=error_message,
+                    error_details={
+                        'full_error': str(e), 
+                        'traceback': tb,
+                        'processing_time_seconds': processing_time
+                    },
                     step='process_spamcheck'
                 )
                 
@@ -762,7 +823,25 @@ class Command(BaseCommand):
         self.stdout.write(f"🔍 Finding spamchecks ready for report generation at {now}")
         
         try:
-            # First, get all users who already have spamchecks in 'generating_reports' status
+            # First, check how many spamchecks are currently in 'generating_reports' status
+            spamchecks_in_progress_count = await asyncio.to_thread(
+                lambda: UserSpamcheckBison.objects.filter(
+                    status='generating_reports'
+                ).count()
+            )
+            
+            self.stdout.write(f"ℹ️ Found {spamchecks_in_progress_count} spamchecks currently in generating_reports status")
+            
+            # If we already have 2 or more spamchecks in progress, don't start any new ones
+            if spamchecks_in_progress_count >= 2:
+                self.stdout.write(f"⚠️ Already have {spamchecks_in_progress_count} spamchecks in generating_reports status. Skipping new ones.")
+                return []
+            
+            # Calculate how many more we can process
+            available_slots = 2 - spamchecks_in_progress_count
+            self.stdout.write(f"ℹ️ Can process up to {available_slots} more spamchecks")
+            
+            # Get users who already have spamchecks in 'generating_reports' status
             users_with_active_reports = await asyncio.to_thread(
                 lambda: set(UserSpamcheckBison.objects.filter(
                     status='generating_reports'
@@ -794,13 +873,14 @@ class Command(BaseCommand):
                     )
                 ).exclude(
                     user_id__in=users_with_active_reports  # Exclude users who already have active report generation
-                ).select_related('user', 'user_organization'))
+                ).select_related('user', 'user_organization').order_by('updated_at')[:available_slots])
             )
             
             if spamchecks:
                 self.stdout.write(f"✅ Found {len(spamchecks)} spamchecks ready for report generation")
                 for i, spamcheck in enumerate(spamchecks):
-                    self.stdout.write(f"   {i+1}. Spamcheck ID: {spamcheck.id}, Name: {spamcheck.name}, Updated: {spamcheck.updated_at}, Waiting time: {spamcheck.reports_waiting_time}")
+                    waiting_hours = (now - spamcheck.updated_at).total_seconds() / 3600
+                    self.stdout.write(f"   {i+1}. Spamcheck ID: {spamcheck.id}, Name: {spamcheck.name}, Updated: {spamcheck.updated_at}, Waiting time: {spamcheck.reports_waiting_time}h, Has been waiting: {waiting_hours:.1f}h")
             else:
                 self.stdout.write("ℹ️ No spamchecks found that match the criteria")
                 
@@ -808,6 +888,19 @@ class Command(BaseCommand):
             
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"❌ Error finding ready spamchecks: {str(e)}"))
+            # Log the error
+            try:
+                await asyncio.to_thread(
+                    SpamcheckErrorLog.objects.create,
+                    error_type='unknown_error',
+                    provider='system',
+                    error_message=f"Error finding ready spamchecks: {str(e)}",
+                    error_details={'traceback': traceback.format_exc()},
+                    step='get_ready_spamchecks'
+                )
+            except Exception as log_error:
+                self.stdout.write(self.style.ERROR(f"❌ Error logging error: {str(log_error)}"))
+            
             import traceback
             self.stdout.write(self.style.ERROR(traceback.format_exc()))
             return []
