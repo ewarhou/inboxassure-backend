@@ -1,581 +1,170 @@
 # InboxAssure Backend API Documentation
 
-## Updated Spamcheck Endpoints
+## Webhooks
 
-### Create Spamcheck Bison
+Webhooks allow you to receive automated notifications when certain events occur in InboxAssure. Currently, webhooks are supported for spamcheck completion events.
 
-**Endpoint:** `POST /api/spamcheck/create-spamcheck-bison`
+### Webhook Payload Format
 
-**Authentication:** Bearer Token
+When a spamcheck is completed, InboxAssure will send a POST request to your configured webhook URL with the following JSON payload:
 
-**Description:** Create a new spamcheck with accounts for Bison. The spamcheck will be created with 'queued' status and will be processed according to the queueing system.
-
-**Request Body:** JSON object with the following fields:
-- `name`: Name of the spamcheck
-- `user_organization_id`: ID of the Bison organization to use
-- `account_selection_type`: Type of account selection ('specific', 'all', or 'tag_based')
-- `accounts`: List of email accounts to check (e.g. ["test1@example.com", "test2@example.com"]), required when account_selection_type is 'specific'
-- `include_tags`: List of tags to include when account_selection_type is 'tag_based' (e.g. ["important", "marketing"])
-- `exclude_tags`: List of tags to exclude when account_selection_type is 'tag_based' (e.g. ["test", "development"])
-- `campaign_copy_source_id`: Optional ID of a Bison campaign to copy email content from
-- `text_only`: Whether to send text-only emails
-- `subject`: Email subject template
-- `body`: Email body template
-- `scheduled_at`: When to run the spamcheck
-- `recurring_days`: Optional, number of days for recurring checks
-- `weekdays`: Optional, list of weekdays (0=Monday, 6=Sunday) when this spamcheck should run
-- `is_domain_based`: Whether to filter accounts by domain
-- `conditions`: Optional, conditions for sending
-- `reports_waiting_time`: Optional, reports waiting time
-- `update_sending_limit`: Optional, whether to update sending limits in Bison API based on scores
-
-**Response:** Creation result with the following fields:
-- `success`: Boolean indicating if the creation was successful
-- `message`: Status message
-- `data`: Created spamcheck details with:
-  - `id`: Spamcheck ID
-  - `name`: Spamcheck name
-  - `status`: Status (always 'queued' for new spamchecks)
-  - `account_selection_type`: Type of account selection used
-  - `accounts_count`: Number of accounts added to the spamcheck
-  - `weekdays`: List of weekdays when the spamcheck should run
-  - `update_sending_limit`: Whether to update sending limits in Bison API based on scores
-
-**Example Response:**
 ```json
 {
-  "success": true,
-  "message": "Spamcheck created successfully",
-  "data": {
+  "event": "spamcheck.completed",
+  "spamcheck": {
     "id": 123,
-    "name": "Weekly Deliverability Test",
-    "status": "queued",
-    "account_selection_type": "tag_based",
-    "accounts_count": 50,
-    "weekdays": [0, 3],
-    "update_sending_limit": true
-  }
-}
-```
-
-### Update Spamcheck Bison
-
-**Endpoint:** `PUT /api/spamcheck/update-spamcheck-bison/{spamcheck_id}`
-
-**Authentication:** Bearer Token
-
-**Description:** Update an existing Bison spamcheck's details, including name, email content, and configuration settings. Only works if the current status is queued, pending, failed, completed, paused, or waiting_for_reports.
-
-**Parameters:**
-- `spamcheck_id`: ID of the spamcheck to update
-
-**Request Body:** JSON object with the following optional fields:
-- `name`: New name for the spamcheck
-- `account_selection_type`: Type of account selection ('specific', 'all', or 'tag_based')
-- `accounts`: New list of email accounts to check (required when account_selection_type is 'specific')
-- `include_tags`: List of tags to include when account_selection_type is 'tag_based'
-- `exclude_tags`: List of tags to exclude when account_selection_type is 'tag_based'
-- `campaign_copy_source_id`: ID of a Bison campaign to copy email content from
-- `text_only`: Whether to send text-only emails
-- `subject`: New email subject template
-- `body`: New email body template
-- `scheduled_at`: New scheduled time (ISO format)
-- `recurring_days`: New recurring days setting
-- `weekdays`: List of weekdays (0=Monday, 6=Sunday) when this spamcheck should run
-- `is_domain_based`: Whether to filter accounts by domain
-- `conditions`: Conditions for sending (e.g., 'google>=0.5andoutlook>=0.5')
-- `reports_waiting_time`: Time in hours to wait before generating reports
-- `update_sending_limit`: Whether to update sending limits in Bison API based on scores
-
-**Response:** Update result with the following fields:
-- `success`: Boolean indicating if the update was successful
-- `message`: Status message
-- `data`: Updated spamcheck details with:
-  - `id`: Spamcheck ID
-  - `name`: Updated spamcheck name
-  - `status`: Current status
-  - `account_selection_type`: Type of account selection used
-  - `fields_updated`: List of fields that were updated
-
-**Example Request:**
-```json
-{
-  "name": "Updated Weekly Test",
-  "account_selection_type": "tag_based",
-  "include_tags": ["important", "marketing"],
-  "exclude_tags": ["test"],
-  "weekdays": [1, 3, 5],
-  "update_sending_limit": true
-}
-```
-
-**Example Response:**
-```json
-{
-  "success": true,
-  "message": "Spamcheck updated successfully",
-  "data": {
-    "id": 123,
-    "name": "Updated Weekly Test",
-    "status": "queued",
-    "account_selection_type": "tag_based",
-    "fields_updated": ["name", "account_selection_type", "include_tags", "exclude_tags", "weekdays", "update_sending_limit", "updated_at"]
-  }
-}
-```
-
-### Get Bison Tags
-
-**Endpoint:** `GET /api/settings/get-bison-tags/{org_id}`
-
-**Authentication:** Bearer Token
-
-**Description:** Retrieves a list of all tags from a Bison organization, excluding default tags.
-
-**Parameters:**
-- `org_id`: ID of the Bison organization
-
-**Response:** List of tags with the following fields:
-- `tags`: Array of tag names (excluding default tags)
-- `message`: Status message indicating success and count of tags retrieved
-
-**Example Response:**
-```json
-{
-  "tags": [
-    "Important",
-    "Marketing",
-    "Transactional",
-    "Weekly",
-    "Monthly"
-  ],
-  "message": "Successfully retrieved 5 tags from Bison"
-}
-```
-
-**Error Responses:**
-- `400`: Invalid request or Bison API error
-- `404`: Bison organization not found
-
-### List Accounts
-
-**Endpoint:** `POST /api/spamcheck/list-accounts`
-
-**Authentication:** Bearer Token
-
-**Description:** Retrieves a filtered list of email accounts from a Bison organization. Supports pagination, search, and tag-based filtering.
-
-**Parameters:**
-- `organization_id`: ID of the Bison organization (passed as query parameter)
-
-**Request Body:** JSON object with the following optional fields:
-- `search`: Filter accounts by content (e.g., email address)
-- `ignore_tags`: List of tag names to exclude (accounts with any of these tags will be excluded)
-- `only_tags`: List of tag names to include (only accounts with at least one of these tags will be included)
-- `is_active`: If true, only returns accounts with "Connected" status
-- `limit`: Maximum number of accounts to return (default: 10)
-
-**Response:** Account list with the following fields:
-- `success`: Boolean indicating if the request was successful
-- `message`: Status message with count of accounts found
-- `data`: Object containing:
-  - `organization_id`: ID of the Bison organization
-  - `organization_name`: Name of the Bison organization
-  - `total_accounts`: Number of accounts in the filtered list
-  - `accounts`: Array of email addresses
-
-**Example Request:**
-```json
-{
-  "search": "gmail",
-  "ignore_tags": ["test", "development"],
-  "only_tags": ["marketing", "important"],
-  "is_active": true,
-  "limit": 20
-}
-```
-
-**Example Response:**
-```json
-{
-  "success": true,
-  "message": "Found 15 accounts",
-  "data": {
-    "organization_id": 123,
-    "organization_name": "My Bison Organization",
-    "total_accounts": 15,
-    "accounts": [
-      "marketing1@gmail.com",
-      "marketing2@gmail.com",
-      "sales1@gmail.com"
-    ]
-  }
-}
-```
-
-**Error Responses:**
-- Returns a response with `success: false` and an appropriate error message in the following cases:
-  - Organization not found or not active
-  - Failed to fetch accounts from Bison API
-  - General error during account fetching or filtering
-
-### List Spamchecks
-
-**Endpoint:** `GET /api/spamcheck/list-spamchecks`
-
-**Authentication:** Bearer Token
-
-**Description:** Retrieves a paginated list of Bison spamchecks with their details, including configuration and status information.
-
-**Query Parameters:**
-- `search`: Optional search term to filter spamchecks by name
-- `status`: Optional status filter (queued, pending, in_progress, waiting_for_reports, generating_reports, completed, failed, paused)
-- `workspace`: Optional workspace ID to filter by Bison organization
-- `page`: Page number for pagination (default: 1)
-- `per_page`: Number of spamchecks per page (default: 10)
-
-**Response:** Paginated list of spamchecks with the following fields:
-- `success`: Boolean indicating if the request was successful
-- `message`: Status message with count of spamchecks found
-- `data`: Array of spamcheck objects, each containing:
-  - `id`: Spamcheck ID
-  - `name`: Spamcheck name
-  - `status`: Current status
-  - `scheduled_at`: Scheduled time in ISO format
-  - `recurring_days`: Number of days for recurring schedule
-  - `is_domain_based`: Whether the spamcheck is domain-based
-  - `conditions`: Conditions for sending
-  - `reports_waiting_time`: Time to wait before generating reports
-  - `created_at`: Creation timestamp
-  - `updated_at`: Last update timestamp
-  - `user_organization_id`: ID of the Bison organization
-  - `organization_name`: Name of the Bison organization
-  - `accounts_count`: Number of accounts in the spamcheck
-  - `campaigns_count`: Always 0 for Bison
-  - `options`: Object containing:
-    - `text_only`: Whether to send text-only emails
-    - `subject`: Email subject template
-    - `body`: Email body template
-    - `account_selection_type`: Type of account selection ('specific', 'all', or 'tag_based')
-    - `include_tags`: List of tags to include when using tag-based selection
-    - `exclude_tags`: List of tags to exclude when using tag-based selection
-    - `campaign_copy_source_id`: ID of campaign used for email content
-    - `weekdays`: List of weekdays when the spamcheck runs
-    - `update_sending_limit`: Whether to update sending limits based on scores
-  - `platform`: Always "bison"
-- `meta`: Pagination metadata:
-  - `total`: Total number of spamchecks
-  - `page`: Current page number
-  - `per_page`: Items per page
-  - `total_pages`: Total number of pages
-
-**Example Response:**
-```json
-{
-  "success": true,
-  "message": "Successfully retrieved 25 spamchecks",
-  "data": [
-    {
-      "id": 123,
-      "name": "Weekly Deliverability Test",
-      "status": "completed",
-      "scheduled_at": "2025-03-30T10:30:00Z",
-      "recurring_days": 7,
-      "is_domain_based": false,
-      "conditions": "google>=0.5andoutlook>=0.5",
-      "reports_waiting_time": 1.0,
-      "created_at": "2025-03-20T10:30:00Z",
-      "updated_at": "2025-03-23T11:45:00Z",
-      "user_organization_id": 456,
-      "organization_name": "My Bison Organization",
-      "accounts_count": 50,
-      "campaigns_count": 0,
-      "options": {
-        "text_only": true,
-        "subject": "Weekly Newsletter: {{first_name}}",
-        "body": "Hi {{first_name}},\n\nThis is our weekly newsletter.",
-        "account_selection_type": "tag_based",
-        "include_tags": ["important", "marketing"],
-        "exclude_tags": ["test"],
-        "campaign_copy_source_id": "789",
-        "weekdays": ["1", "3", "5"],
-        "update_sending_limit": true
-      },
-      "platform": "bison"
-    }
-  ],
-  "meta": {
-    "total": 25,
-    "page": 1,
-    "per_page": 10,
-    "total_pages": 3
-  }
-}
-```
-
-**Error Responses:**
-- Returns a response with `success: false` and an appropriate error message in case of errors
-- Always includes empty data array and pagination metadata in error responses
-
-### Get Bison Campaigns
-
-**Endpoint:** `GET /api/analytics/bison/campaigns`
-
-**Authentication:** Bearer Token
-
-**Description:** Retrieves all campaigns from Bison with connected emails and deliverability scores, grouped by organization. Uses cached data from the UserCampaignsBison table for improved performance.
-
-**Query Parameters:**
-- `page`: Page number for pagination (default: 1)
-- `per_page`: Number of campaigns per page (default: 10)
-- `search`: Optional search term to filter campaigns by name
-- `workspace`: Optional workspace ID to filter campaigns by workspace
-
-**Response:** Paginated list of campaigns grouped by organization:
-- `data`: Array of organizations with their campaigns:
-  - `organization_id`: Bison organization ID
-  - `organization_name`: Bison organization name
-  - `campaigns`: Array of campaign objects:
-    - `id`: Campaign ID
-    - `name`: Campaign name
-    - `connectedEmails`: Count of emails connected to this campaign
-    - `sendsPerAccount`: Number of sends per account
-    - `googleScore`: Google deliverability score (0-100)
-    - `outlookScore`: Outlook deliverability score (0-100)
-    - `maxDailySends`: Maximum daily sends
-- `meta`: Pagination metadata:
-  - `current_page`: Current page number
-  - `per_page`: Number of items per page
-  - `total`: Total number of campaigns
-  - `total_pages`: Total number of pages
-
-**Example Response:**
-```json
-{
-  "data": [
-    {
-      "organization_id": "123",
-      "organization_name": "My Bison Organization",
-      "campaigns": [
-        {
-          "id": 456,
-          "name": "Weekly Newsletter",
-          "connectedEmails": 1000,
-          "sendsPerAccount": 5,
-          "googleScore": 85.5,
-          "outlookScore": 92.3,
-          "maxDailySends": 200
-        },
-        {
-          "id": 457,
-          "name": "Promotional Campaign",
-          "connectedEmails": 500,
-          "sendsPerAccount": 3,
-          "googleScore": 78.2,
-          "outlookScore": 81.7,
-          "maxDailySends": 150
-        }
-      ]
-    }
-  ],
-  "meta": {
-    "current_page": 1,
-    "per_page": 10,
-    "total": 2,
-    "total_pages": 1
-  }
-}
-```
-
-**Error Responses:**
-- No explicit error responses, returns empty data array if no campaigns found
-
-### Fetch Campaign Copy (Bison)
-
-**Endpoint:** `GET /api/spamcheck/fetch-campaign-copy-bison/{campaign_id}`
-
-**Authentication:** Bearer Token
-
-**Description:** Fetches the email subject and body from a Bison campaign's first sequence step. Useful for creating spamchecks with the same content as an existing campaign.
-
-**Parameters:**
-- `campaign_id`: ID of the Bison campaign to fetch copy from
-
-**Response:** Campaign copy data with the following fields:
-- `success`: Boolean indicating if the operation was successful
-- `message`: Status message
-- `data`: Campaign copy details:
-  - `subject`: Email subject from the campaign
-  - `body`: Email body from the campaign (converted from HTML to plain text)
-  - `campaign_id`: ID of the campaign
-
-**Example Response:**
-```json
-{
-  "success": true,
-  "message": "Campaign copy fetched successfully",
-  "data": {
-    "subject": "Weekly Newsletter: {{first_name}}",
-    "body": "Hi {{first_name}},\n\nThis is our weekly newsletter with important updates.\n\nBest regards,\nThe Team",
-    "campaign_id": "456"
-  }
-}
-```
-
-**Error Responses:**
-- Returns a response with `success: false` and an appropriate error message in the following cases:
-  - User has no active Bison organization
-  - API error when fetching campaign data
-  - No sequence steps found for the campaign
-  - Error converting HTML to text
-
-### Content Spam Check
-
-**Endpoint:** `POST /api/spamcheck/content-spam-check`
-
-**Authentication:** Bearer Token
-
-**Description:** Submits content to check for spam using the EmailGuard API. This endpoint allows you to check email content for spam words and get a spam score without actually sending an email.
-
-**Request Body:** JSON object with the following fields:
-- `content`: The email content (subject and/or body) to check for spam
-
-**Response:** Content spam check result with the following fields:
-- `success`: Boolean indicating if the check was successful
-- `message`: Status message
-- `data`: Object containing the spam check result:
-  - `message`: Spam check details:
-    - `is_spam`: Boolean indicating if the content is considered spam
-    - `spam_score`: Float value representing the spam score (higher values indicate more spam-like content)
-    - `number_of_spam_words`: Number of spam words found in the content
-    - `spam_words`: Array of spam words found in the content
-    - `comma_separated_spam_words`: Comma-separated string of spam words found
-
-**Example Request:**
-```json
-{
-  "content": "Get rich quick with this amazing opportunity! Limited time free money, act now!"
-}
-```
-
-**Example Response:**
-```json
-{
-  "success": true,
-  "message": "Content spam check completed successfully",
-  "data": {
-    "message": {
-      "is_spam": true,
-      "spam_score": 0.75,
-      "number_of_spam_words": 5,
-      "spam_words": [
-        "rich quick",
-        "amazing opportunity",
-        "limited time",
-        "free money",
-        "act now"
-      ],
-      "comma_separated_spam_words": "rich quick, amazing opportunity, limited time, free money, act now"
-    }
-  }
-}
-```
-
-**Error Responses:**
-- `400`: Missing or invalid content
-- `401`: Authentication error - missing or invalid token
-- `500`: Server error or EmailGuard API unavailable
-- Returns `success: false` if EmailGuard API key is not configured for the user
-
-### Get Spamcheck Details
-
-**Endpoint:** `GET /api/spamcheck/get-spamcheck/{spamcheck_id}`
-
-**Authentication:** Bearer Token
-
-**Description:** Retrieves detailed information about a specific Bison spamcheck, including configuration, email content, and results summary.
-
-**Parameters:**
-- `spamcheck_id`: ID of the spamcheck to retrieve
-
-**Response:** Detailed spamcheck information with the following fields:
-- `success`: Boolean indicating if the request was successful
-- `message`: Status message
-- `data`: Spamcheck details object:
-  - `id`: Spamcheck ID as string
-  - `name`: Spamcheck name
-  - `createdAt`: Creation timestamp in ISO format
-  - `lastRunDate`: Date when the spamcheck was last run in ISO format
-  - `status`: Current status of the spamcheck
-  - `scheduled_at`: Scheduled time in ISO format (or null if not scheduled)
-  - `recurring_days`: Number of days for recurring schedule (or null if not recurring)
-  - `account_selection_type`: Type of account selection used ('specific', 'all', or 'tag_based')
-  - `include_tags`: List of tags to include when account_selection_type is 'tag_based' (or null if not applicable)
-  - `exclude_tags`: List of tags to exclude when account_selection_type is 'tag_based' (or null if not applicable)
-  - `campaign_copy_source_id`: ID of the Bison campaign used as source for email content (or null if not used)
-  - `organization_id`: ID of the Bison organization this spamcheck belongs to
-  - `configuration`: Object containing configuration details:
-    - `domainBased`: Whether the spamcheck is domain-based
-    - `trackOpens`: Whether open tracking is enabled (always false for Bison)
-    - `trackClicks`: Whether click tracking is enabled (always false for Bison)
-    - `waitingTime`: Time to wait before generating reports (e.g., "1.0 hours")
-    - `googleInboxCriteria`: Formatted Google inbox criteria from conditions
-    - `outlookInboxCriteria`: Formatted Outlook inbox criteria from conditions
-    - `updateSendingLimit`: Whether to update sending limits in Bison API based on scores
-    - `weekdays`: List of weekdays when the spamcheck runs (or null if not set)
-    - `text_only`: Whether text-only emails are used
-    - `conditions`: Raw conditions string (or null if not set)
-  - `emailContent`: Object containing email template details:
-    - `subject`: Email subject template
-    - `body`: Email body template
-  - `results`: Object containing results summary:
-    - `googleScore`: Average Google deliverability score (0-100)
-    - `outlookScore`: Average Outlook deliverability score (0-100)
-    - `totalAccounts`: Total number of accounts in the spamcheck
-    - `inboxedAccounts`: Number of accounts that passed the inbox criteria
-    - `spamAccounts`: Number of accounts that failed the inbox criteria
-
-**Example Response:**
-```json
-{
-  "success": true,
-  "message": "Spam check details retrieved successfully",
-  "data": {
-    "id": "123",
-    "name": "Weekly Deliverability Test",
-    "createdAt": "2025-03-20T10:30:00Z",
-    "lastRunDate": "2025-03-23T11:45:00Z",
+    "name": "Test Campaign",
     "status": "completed",
-    "scheduled_at": "2025-03-30T10:30:00Z",
-    "recurring_days": 7,
-    "account_selection_type": "tag_based",
-    "include_tags": ["important", "marketing"],
-    "exclude_tags": ["test"],
-    "campaign_copy_source_id": "456",
-    "organization_id": "123",
-    "configuration": {
-      "domainBased": false,
-      "trackOpens": false,
-      "trackClicks": false,
-      "waitingTime": "1.0 hours",
-      "googleInboxCriteria": "50% or higher",
-      "outlookInboxCriteria": "50% or higher",
-      "updateSendingLimit": true,
-      "weekdays": ["1", "3", "5"],
-      "text_only": true,
-      "conditions": "google>=0.5andoutlook>=0.5"
+    "created_at": "2024-03-27T15:30:00Z",
+    "updated_at": "2024-03-27T16:30:00Z", 
+    "is_domain_based": true,
+    "subject": "Test Subject",
+    "body": "Test Email Body",
+    "conditions": "google>=0.5 and outlook>=0.5 sending=25/3"
+  },
+  "overall_results": {
+    "total_accounts": 100,
+    "good_accounts": 75,
+    "bad_accounts": 25,
+    "good_accounts_percentage": 75.0,
+    "bad_accounts_percentage": 25.0,
+    "average_google_score": 0.85,
+    "average_outlook_score": 0.78,
+    "total_bounced": 5,
+    "total_unique_replies": 20,
+    "total_emails_sent": 1000
+  },
+  "reports": [
+    {
+      "id": "uuid-1",
+      "email_account": "test@example.com",
+      "google_pro_score": 0.9,
+      "outlook_pro_score": 0.8,
+      "report_link": "https://app.emailguard.io/inbox-placement-tests/...",
+      "is_good": true,
+      "sending_limit": 25,
+      "tags_list": "tag1,tag2",
+      "workspace_name": "Workspace 1",
+      "bounced_count": 0,
+      "unique_replied_count": 2,
+      "emails_sent_count": 10,
+      "created_at": "2024-03-27T16:30:00Z",
+      "updated_at": "2024-03-27T16:30:00Z"
     },
-    "emailContent": {
-      "subject": "Weekly Newsletter: {{first_name}}",
-      "body": "Hi {{first_name}},\n\nThis is our weekly newsletter with important updates.\n\nBest regards,\nThe Team"
-    },
-    "results": {
-      "googleScore": 78.5,
-      "outlookScore": 82.3,
-      "totalAccounts": 50,
-      "inboxedAccounts": 45,
-      "spamAccounts": 5
-    }
-  }
+    // Additional accounts...
+  ]
+}
+```
+
+### Setting Up Webhooks
+
+To receive webhook notifications, you need to configure a webhook URL in your InboxAssure account. Your webhook endpoint should:
+
+1. Accept POST requests
+2. Return a 200 HTTP status code to acknowledge receipt
+3. Process the webhook asynchronously if the processing is time-consuming
+4. Verify the webhook payload format before processing
+5. Implement proper error handling
+
+### Webhook Management API Endpoints
+
+#### Get Webhook URL
+
+```
+GET /api/settings/webhook
+```
+
+Returns the currently configured webhook URL for the authenticated user.
+
+**Response:**
+```json
+{
+  "success": true,
+  "webhook_url": "https://your-webhook-endpoint.com/inboxassure-webhook"
+}
+```
+
+#### Create/Update Webhook URL
+
+```
+POST /api/settings/webhook
+```
+
+**Request Body:**
+```json
+{
+  "webhook_url": "https://your-webhook-endpoint.com/inboxassure-webhook"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Webhook URL created successfully",
+  "webhook_url": "https://your-webhook-endpoint.com/inboxassure-webhook"
+}
+```
+
+#### Update Webhook URL
+
+```
+PUT /api/settings/webhook
+```
+
+**Request Body:**
+```json
+{
+  "webhook_url": "https://your-new-webhook-endpoint.com/inboxassure-webhook"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Webhook URL updated successfully",
+  "webhook_url": "https://your-new-webhook-endpoint.com/inboxassure-webhook"
+}
+```
+
+#### Delete Webhook URL
+
+```
+DELETE /api/settings/webhook
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Webhook URL deleted successfully"
+}
+```
+
+#### Test Webhook
+
+```
+POST /api/settings/test-webhook
+```
+
+Sends a test webhook payload to verify your webhook endpoint is correctly set up.
+
+**Request Body:**
+```json
+{
+  "webhook_url": "https://your-webhook-endpoint.com/inboxassure-webhook",
+  "save_to_settings": true  // Optional, defaults to false
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "status_code": 200,
+  "message": "Webhook test sent successfully and received 200 OK response.",
+  "webhook_url": "https://your-webhook-endpoint.com/inboxassure-webhook",
+  "saved_to_settings": true
 }
 ```

@@ -115,7 +115,4 @@ class BisonWorkspacesResponseSchema(Schema):
 
 class BisonTagsResponseSchema(Schema):
     tags: List[str]
-    message: str
-
-class TestWebhookSchema(Schema):
-    webhook_url: str 
+    message: str 

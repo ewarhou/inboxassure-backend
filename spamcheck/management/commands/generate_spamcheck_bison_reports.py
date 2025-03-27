@@ -51,7 +51,13 @@ from collections import defaultdict
 import requests
 import logging
 import traceback
+import os
+from typing import Dict, List, Any, Optional, Tuple
+from decimal import Decimal
 from settings.utils import send_webhook
+from settings.api import log_to_terminal
+from django.db.models import Window
+from django.db.models.functions import RowNumber
 
 logger = logging.getLogger(__name__)
 
@@ -835,21 +841,6 @@ class Command(BaseCommand):
                 spamcheck.status = 'completed'
                 await asyncio.to_thread(spamcheck.save)
                 
-                # Get all reports for this spamcheck
-                reports = await asyncio.to_thread(
-                    lambda: list(UserSpamcheckBisonReport.objects.filter(
-                        spamcheck_bison=spamcheck
-                    ).values(
-                        'id', 'email_account', 'google_pro_score', 'outlook_pro_score',
-                        'report_link', 'is_good', 'sending_limit', 'tags_list',
-                        'workspace_name', 'bounced_count', 'unique_replied_count',
-                        'emails_sent_count', 'created_at', 'updated_at'
-                    ))
-                )
-                
-                # Send webhook if URL is configured
-                await send_webhook(user_settings, spamcheck, reports)
-                
                 # Log success
                 await asyncio.to_thread(
                     SpamcheckErrorLog.objects.create,
@@ -866,6 +857,34 @@ class Command(BaseCommand):
                         'failed_count': failed_count
                     }
                 )
+                
+                # Send webhook notification
+                try:
+                    # Get reports using the safe get_reports helper function
+                    self.stdout.write(f"📋 Retrieving reports for webhook notification (spamcheck {spamcheck.id})")
+                    reports_data = await self.get_reports(spamcheck)
+                    if not reports_data:
+                        self.stdout.write(self.style.WARNING(f"⚠️ No reports found for webhook notification (spamcheck {spamcheck.id})"))
+                    
+                    self.stdout.write(f"🔍 Checking webhook URL in user settings: {getattr(user_settings, 'webhook_url', None)}")
+                    if user_settings and user_settings.webhook_url and reports_data:
+                        self.stdout.write(f"📤 Sending webhook notification to {user_settings.webhook_url} for spamcheck {spamcheck.id}")
+                        try:
+                            await send_webhook(user_settings, spamcheck, reports_data)
+                            self.stdout.write(f"🚀 Webhook notification initiated for spamcheck {spamcheck.id}")
+                        except Exception as webhook_error:
+                            self.stdout.write(self.style.ERROR(f"❌ Error during webhook send: {str(webhook_error)}"))
+                    else:
+                        if not user_settings:
+                            self.stdout.write(self.style.WARNING(f"⚠️ No user settings found for webhook notification"))
+                        elif not user_settings.webhook_url:
+                            self.stdout.write(self.style.WARNING(f"⚠️ No webhook URL configured in user settings"))
+                        elif not reports_data:
+                            self.stdout.write(self.style.WARNING(f"⚠️ No reports data available for webhook"))
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(f"❌ Error preparing webhook notification: {str(e)}"))
+                    self.stdout.write(self.style.ERROR(traceback.format_exc()))
+                    # Don't fail the entire process for webhook errors
                 
                 return True
             else:
@@ -1053,4 +1072,96 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         """Entry point for the command"""
-        asyncio.run(self.handle_async(*args, **options)) 
+        asyncio.run(self.handle_async(*args, **options))
+
+    @sync_to_async
+    def get_reports(self, spamcheck):
+        """Get reports for a spamcheck without using updated_at field, returning only the latest report for each unique email account"""
+        try:
+            self.stdout.write(f"⏱️ Starting report retrieval for webhook")
+            start_time = timezone.now()
+            
+            # Get total count first to avoid loading everything in memory
+            total_reports = UserSpamcheckBisonReport.objects.filter(
+                spamcheck_bison=spamcheck
+            ).count()
+            
+            self.stdout.write(f"📊 Found {total_reports} total reports (potentially includes duplicates)")
+            
+            # Get unique email accounts with their latest reports
+            # This approach gets the latest report for each email account in the most efficient way
+            # by using window functions in the database
+            
+            # First, annotate each report with a row number within its email_account group, ordered by created_at desc
+            latest_reports = UserSpamcheckBisonReport.objects.filter(
+                spamcheck_bison=spamcheck
+            ).annotate(
+                row_num=Window(
+                    expression=RowNumber(),
+                    partition_by=F('email_account'),
+                    order_by=F('created_at').desc()
+                )
+            ).filter(
+                # Then only keep the most recent report (row_num = 1) for each email
+                row_num=1
+            ).values(
+                'id', 'email_account', 'google_pro_score', 'outlook_pro_score', 'is_good', 
+                'sending_limit', 'tags_list', 'workspace_name', 'bounced_count', 
+                'unique_replied_count', 'emails_sent_count', 'created_at'
+            )
+            
+            # Convert to list for JSON serialization
+            unique_reports = list(latest_reports)
+            
+            # Limit the number of reports if needed
+            if len(unique_reports) > 250:
+                self.stdout.write(f"⚠️ Large number of unique reports, limiting to first 250")
+                unique_reports = unique_reports[:250]
+            
+            end_time = timezone.now()
+            duration = (end_time - start_time).total_seconds()
+            self.stdout.write(f"⏱️ Report retrieval completed in {duration:.2f} seconds with {len(unique_reports)} unique email reports")
+            self.stdout.write(f"🔍 Removed {total_reports - len(unique_reports)} duplicate email reports")
+            
+            return unique_reports
+            
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f"❌ Error retrieving reports: {str(e)}"))
+            self.stdout.write(self.style.ERROR(f"❌ Error details: {str(type(e))}: {str(e)}"))
+            
+            # Fallback to simpler approach if window functions are not supported
+            try:
+                self.stdout.write(f"🔄 Trying fallback approach to get unique email reports")
+                
+                # Get all reports sorted by created_at desc
+                all_reports = list(UserSpamcheckBisonReport.objects.filter(
+                    spamcheck_bison=spamcheck
+                ).order_by('-created_at').values(
+                    'id', 'email_account', 'google_pro_score', 'outlook_pro_score', 'is_good', 
+                    'sending_limit', 'tags_list', 'workspace_name', 'bounced_count', 
+                    'unique_replied_count', 'emails_sent_count', 'created_at'
+                ))
+                
+                # Use Python to filter for unique email accounts
+                # by keeping track of emails we've seen
+                seen_emails = set()
+                unique_reports = []
+                
+                for report in all_reports:
+                    email = report['email_account']
+                    if email not in seen_emails:
+                        seen_emails.add(email)
+                        unique_reports.append(report)
+                
+                if len(unique_reports) > 250:
+                    self.stdout.write(f"⚠️ Large number of unique reports, limiting to first 250")
+                    unique_reports = unique_reports[:250]
+                
+                end_time = timezone.now()
+                duration = (end_time - start_time).total_seconds()
+                self.stdout.write(f"⏱️ Fallback report retrieval completed in {duration:.2f} seconds with {len(unique_reports)} unique email reports")
+                return unique_reports
+                
+            except Exception as fallback_e:
+                self.stdout.write(self.style.ERROR(f"❌ Fallback also failed: {str(fallback_e)}"))
+                return [] 
