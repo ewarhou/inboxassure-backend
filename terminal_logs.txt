@@ -3021,3 +3021,5 @@
 [2025-03-23 22:24:13] [Spamcheck] [Update Bison] Spamcheck saved successfully
 [2025-03-23 22:24:13] [Spamcheck] [Update Bison] Update completed successfully
 [2025-03-23 22:58:36] [BisonCampaigns] [Signal] Spamcheck status is queued, not triggering API calls
+[2025-03-26 23:43:38] [BisonCampaigns] [Signal] Spamcheck status is queued, not triggering API calls
+[2025-03-26 23:43:38] [BisonCampaigns] [Signal] Spamcheck status is queued, not triggering API calls
