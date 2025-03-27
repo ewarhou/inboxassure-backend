@@ -1138,7 +1138,7 @@ def list_spamchecks(
     
     Parameters:
         - search: Optional search term to filter spamchecks by name
-        - status: Optional status filter (queued, pending, in_progress, generating_reports, completed, failed, paused)
+        - status: Optional status filter (queued, pending, in_progress, waiting_for_reports, generating_reports, completed, failed, paused)
         - workspace: Optional workspace ID to filter by Bison organization
         - page: Page number (default: 1)
         - per_page: Items per page (default: 10)
