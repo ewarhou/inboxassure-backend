@@ -1129,44 +1129,23 @@ def list_spamchecks(
     request,
     search: Optional[str] = None,
     status: Optional[str] = None,
-    platform: Optional[str] = None,
+    workspace: Optional[int] = None,
     page: int = 1,
     per_page: int = 10
 ):
     """
-    Get all spamchecks (both Instantly and Bison) with their details
+    Get all Bison spamchecks with their details
     
     Parameters:
         - search: Optional search term to filter spamchecks by name
         - status: Optional status filter (queued, pending, in_progress, generating_reports, completed, failed, paused)
-        - platform: Optional platform filter (instantly, bison)
+        - workspace: Optional workspace ID to filter by Bison organization
         - page: Page number (default: 1)
         - per_page: Items per page (default: 10)
     """
     user = request.auth
     
     try:
-        # Get all Instantly spamchecks for the user with related data
-        instantly_spamchecks = UserSpamcheck.objects.select_related(
-            'user_organization',
-            'options'
-        ).prefetch_related(
-            'accounts',
-            'campaigns'
-        ).filter(user=user)
-        
-        # Apply search filter if provided
-        if search:
-            instantly_spamchecks = instantly_spamchecks.filter(name__icontains=search)
-            
-        # Apply status filter if provided
-        if status:
-            instantly_spamchecks = instantly_spamchecks.filter(status=status)
-            
-        # Apply platform filter if provided
-        if platform and platform.lower() == 'bison':
-            instantly_spamchecks = UserSpamcheck.objects.none()  # Empty queryset
-        
         # Get all Bison spamchecks for the user with related data
         bison_spamchecks = UserSpamcheckBison.objects.select_related(
             'user_organization'
@@ -1182,43 +1161,11 @@ def list_spamchecks(
         if status:
             bison_spamchecks = bison_spamchecks.filter(status=status)
             
-        # Apply platform filter if provided
-        if platform and platform.lower() == 'instantly':
-            bison_spamchecks = UserSpamcheckBison.objects.none()  # Empty queryset
+        # Apply workspace filter if provided
+        if workspace:
+            bison_spamchecks = bison_spamchecks.filter(user_organization_id=workspace)
         
         spamcheck_list = []
-        
-        # Process Instantly spamchecks
-        for spamcheck in instantly_spamchecks:
-            # Get options as dict
-            options_dict = {
-                'open_tracking': spamcheck.options.open_tracking,
-                'link_tracking': spamcheck.options.link_tracking,
-                'text_only': spamcheck.options.text_only,
-                'subject': spamcheck.options.subject,
-                'body': spamcheck.options.body
-            } if spamcheck.options else {}
-            
-            # Create spamcheck details
-            spamcheck_details = {
-                'id': spamcheck.id,
-                'name': spamcheck.name,
-                'status': spamcheck.status,
-                'scheduled_at': spamcheck.scheduled_at,
-                'recurring_days': spamcheck.recurring_days,
-                'is_domain_based': spamcheck.is_domain_based,
-                'conditions': spamcheck.conditions,
-                'reports_waiting_time': spamcheck.reports_waiting_time,
-                'created_at': spamcheck.created_at,
-                'updated_at': spamcheck.updated_at,
-                'user_organization_id': spamcheck.user_organization.id,
-                'organization_name': spamcheck.user_organization.instantly_organization_name,
-                'accounts_count': spamcheck.accounts.count(),
-                'campaigns_count': spamcheck.campaigns.count(),
-                'options': options_dict,
-                'platform': 'instantly'  # Explicitly mark as Instantly platform
-            }
-            spamcheck_list.append(spamcheck_details)
         
         # Process Bison spamchecks
         for spamcheck in bison_spamchecks:
@@ -1239,17 +1186,21 @@ def list_spamchecks(
                 'accounts_count': spamcheck.accounts.count(),
                 'campaigns_count': 0,  # Bison doesn't use campaigns
                 'options': {
-                    'open_tracking': None,  # Bison doesn't support these
-                    'link_tracking': None,  # Bison doesn't support these
                     'text_only': spamcheck.plain_text,
                     'subject': spamcheck.subject,
-                    'body': spamcheck.body
+                    'body': spamcheck.body,
+                    'account_selection_type': spamcheck.account_selection_type,
+                    'include_tags': spamcheck.include_tags,
+                    'exclude_tags': spamcheck.exclude_tags,
+                    'campaign_copy_source_id': spamcheck.campaign_copy_source_id,
+                    'weekdays': spamcheck.weekdays.split(',') if spamcheck.weekdays else None,
+                    'update_sending_limit': spamcheck.update_sending_limit
                 },
-                'platform': 'bison'  # Explicitly mark as Bison platform
+                'platform': 'bison'  # Always Bison
             }
             spamcheck_list.append(spamcheck_details)
         
-        # Sort combined list by creation date (newest first)
+        # Sort by creation date (newest first)
         spamcheck_list.sort(key=lambda x: x['created_at'], reverse=True)
         
         # Calculate pagination
