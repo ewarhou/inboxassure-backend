@@ -27,12 +27,16 @@ from settings.schema import (
     BisonWorkspaceRequestSchema,
     BisonWorkspaceResponseSchema,
     BisonWorkspacesResponseSchema,
-    BisonTagsResponseSchema
+    BisonTagsResponseSchema,
+    TestWebhookSchema
 )
 import requests
 import pytz
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
+import aiohttp
+import asyncio
+from decimal import Decimal
 
 router = Router(tags=['Settings'])
 profile_router = Router(tags=['Profile'])
@@ -1122,4 +1126,118 @@ def get_bison_tags(request: HttpRequest, org_id: int):
         return 400, {"detail": f"Invalid input: {str(e)}"}
     except Exception as e:
         log_to_terminal("BisonTags", "API", f"Error in get_bison_tags: {str(e)}")
-        return 400, {"detail": f"An unexpected error occurred while fetching tags: {str(e)}"} 
+        return 400, {"detail": f"An unexpected error occurred while fetching tags: {str(e)}"}
+
+@router.post("/test-webhook", auth=AuthBearer())
+async def test_webhook(request, payload: TestWebhookSchema):
+    """Test webhook endpoint by sending mock data"""
+    try:
+        # Create mock spamcheck data
+        mock_data = {
+            "event": "spamcheck.completed",
+            "spamcheck": {
+                "id": 12345,
+                "name": "Test Spamcheck",
+                "status": "completed",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "is_domain_based": True,
+                "subject": "Test Subject {{firstname}}",
+                "body": "Hello {{firstname}}, this is a test email.",
+                "conditions": "google>=0.5 and outlook>=0.5 sending=25/3",
+            },
+            "overall_results": {
+                "total_accounts": 3,
+                "good_accounts": 2,
+                "bad_accounts": 1,
+                "good_accounts_percentage": 66.67,
+                "bad_accounts_percentage": 33.33,
+                "average_google_score": 0.75,
+                "average_outlook_score": 0.70,
+                "total_bounced": 1,
+                "total_unique_replies": 5,
+                "total_emails_sent": 100,
+            },
+            "reports": [
+                {
+                    "id": "test-uuid-1",
+                    "email_account": "test1@gmail.com",
+                    "google_pro_score": Decimal("0.90"),
+                    "outlook_pro_score": Decimal("0.85"),
+                    "report_link": "https://app.emailguard.io/test-report-1",
+                    "is_good": True,
+                    "sending_limit": 25,
+                    "tags_list": "warm,active",
+                    "workspace_name": "Test Workspace 1",
+                    "bounced_count": 0,
+                    "unique_replied_count": 3,
+                    "emails_sent_count": 45
+                },
+                {
+                    "id": "test-uuid-2",
+                    "email_account": "test2@outlook.com",
+                    "google_pro_score": Decimal("0.80"),
+                    "outlook_pro_score": Decimal("0.75"),
+                    "report_link": "https://app.emailguard.io/test-report-2",
+                    "is_good": True,
+                    "sending_limit": 25,
+                    "tags_list": "warm,active",
+                    "workspace_name": "Test Workspace 1",
+                    "bounced_count": 0,
+                    "unique_replied_count": 2,
+                    "emails_sent_count": 35
+                },
+                {
+                    "id": "test-uuid-3",
+                    "email_account": "test3@yahoo.com",
+                    "google_pro_score": Decimal("0.45"),
+                    "outlook_pro_score": Decimal("0.40"),
+                    "report_link": "https://app.emailguard.io/test-report-3",
+                    "is_good": False,
+                    "sending_limit": 3,
+                    "tags_list": "warm,inactive",
+                    "workspace_name": "Test Workspace 1",
+                    "bounced_count": 1,
+                    "unique_replied_count": 0,
+                    "emails_sent_count": 20
+                }
+            ]
+        }
+
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "InboxAssure-Webhook/1.0"
+        }
+
+        # Fire and forget - don't wait for response
+        async def fire_test_webhook():
+            try:
+                async with aiohttp.ClientSession() as session:
+                    await session.post(
+                        payload.webhook_url,
+                        json=mock_data,
+                        headers=headers,
+                        timeout=10
+                    )
+            except:
+                pass
+
+        # Schedule the webhook without waiting
+        asyncio.create_task(fire_test_webhook())
+        log_to_terminal("Webhook", "Test", f"Test webhook fired to {payload.webhook_url}")
+
+        return {
+            "success": True,
+            "message": "Test webhook sent successfully",
+            "data": {
+                "webhook_url": payload.webhook_url,
+                "mock_data": mock_data
+            }
+        }
+
+    except Exception as e:
+        log_to_terminal("Webhook", "Error", f"Error sending test webhook: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Error sending test webhook: {str(e)}"
+        } 

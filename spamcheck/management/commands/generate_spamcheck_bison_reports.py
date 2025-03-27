@@ -51,6 +51,7 @@ from collections import defaultdict
 import requests
 import logging
 import traceback
+from settings.utils import send_webhook
 
 logger = logging.getLogger(__name__)
 
@@ -833,6 +834,21 @@ class Command(BaseCommand):
                 self.stdout.write(f"✅ Marking spamcheck {spamcheck.id} as completed")
                 spamcheck.status = 'completed'
                 await asyncio.to_thread(spamcheck.save)
+                
+                # Get all reports for this spamcheck
+                reports = await asyncio.to_thread(
+                    lambda: list(UserSpamcheckBisonReport.objects.filter(
+                        spamcheck_bison=spamcheck
+                    ).values(
+                        'id', 'email_account', 'google_pro_score', 'outlook_pro_score',
+                        'report_link', 'is_good', 'sending_limit', 'tags_list',
+                        'workspace_name', 'bounced_count', 'unique_replied_count',
+                        'emails_sent_count', 'created_at', 'updated_at'
+                    ))
+                )
+                
+                # Send webhook if URL is configured
+                await send_webhook(user_settings, spamcheck, reports)
                 
                 # Log success
                 await asyncio.to_thread(
