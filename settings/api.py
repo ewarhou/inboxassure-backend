@@ -33,6 +33,8 @@ import requests
 import pytz
 from datetime import datetime
 from pathlib import Path
+import validators
+from asgiref.sync import sync_to_async
 
 router = Router(tags=['Settings'])
 profile_router = Router(tags=['Profile'])
@@ -1122,4 +1124,174 @@ def get_bison_tags(request: HttpRequest, org_id: int):
         return 400, {"detail": f"Invalid input: {str(e)}"}
     except Exception as e:
         log_to_terminal("BisonTags", "API", f"Error in get_bison_tags: {str(e)}")
-        return 400, {"detail": f"An unexpected error occurred while fetching tags: {str(e)}"} 
+        return 400, {"detail": f"An unexpected error occurred while fetching tags: {str(e)}"}
+
+class WebhookTestSchema(Schema):
+    webhook_url: str
+    save_to_settings: bool = False
+
+@router.post("/test-webhook", auth=AuthBearer())
+def test_webhook(request, data: WebhookTestSchema):
+    """
+    Test a webhook URL by sending sample spamcheck data
+    
+    - **webhook_url**: URL to receive webhook data
+    - **save_to_settings**: Whether to save the webhook URL to user settings
+    """
+    webhook_url = data.webhook_url
+    
+    # Validate webhook URL
+    if not validators.url(webhook_url):
+        return {"success": False, "message": "Invalid webhook URL format"}
+    
+    # Save to user settings if requested
+    if data.save_to_settings:
+        try:
+            user_settings = UserSettings.objects.get(user=request.auth)
+            user_settings.webhook_url = webhook_url
+            user_settings.save()
+            log_to_terminal("Webhook", "Settings", f"Saved webhook URL {webhook_url} to user settings")
+        except UserSettings.DoesNotExist:
+            return {"success": False, "message": "User settings not found"}
+        except Exception as e:
+            return {"success": False, "message": f"Error saving webhook URL: {str(e)}"}
+    
+    # Send test webhook using synchronous function
+    from settings.utils import send_test_webhook_sync
+    result = send_test_webhook_sync(webhook_url)
+    
+    # Add URL to response for reference
+    result["webhook_url"] = webhook_url
+    if data.save_to_settings:
+        result["saved_to_settings"] = True
+    
+    return result
+
+# Add these webhook management endpoints
+
+class WebhookUrlSchema(Schema):
+    webhook_url: str = None
+
+class WebhookResponse(Schema):
+    success: bool
+    message: str = None
+    webhook_url: str = None
+
+@router.get("/webhook", auth=AuthBearer(), response=WebhookResponse)
+def get_webhook_url(request):
+    """
+    Get the current webhook URL for the user
+    
+    Returns the currently configured webhook URL for the authenticated user.
+    """
+    try:
+        user_settings = UserSettings.objects.get(user=request.auth)
+        return {
+            "success": True,
+            "webhook_url": user_settings.webhook_url
+        }
+    except UserSettings.DoesNotExist:
+        return {
+            "success": False,
+            "message": "User settings not found"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error retrieving webhook URL: {str(e)}"
+        }
+
+@router.post("/webhook", auth=AuthBearer(), response=WebhookResponse)
+def create_webhook_url(request, data: WebhookUrlSchema):
+    """
+    Create or update the webhook URL for the user
+    
+    Sets a URL that will receive webhook notifications when spamchecks are completed.
+    """
+    try:
+        webhook_url = data.webhook_url
+        
+        # Validate webhook URL if provided
+        if webhook_url and not validators.url(webhook_url):
+            return {"success": False, "message": "Invalid webhook URL format"}
+        
+        user_settings, created = UserSettings.objects.get_or_create(user=request.auth)
+        user_settings.webhook_url = webhook_url
+        user_settings.save()
+        
+        log_to_terminal("Webhook", "Settings", f"{'Created' if created else 'Updated'} webhook URL: {webhook_url}")
+        
+        return {
+            "success": True,
+            "message": f"Webhook URL {'created' if created else 'updated'} successfully",
+            "webhook_url": webhook_url
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error saving webhook URL: {str(e)}"
+        }
+
+@router.put("/webhook", auth=AuthBearer(), response=WebhookResponse)
+def update_webhook_url(request, data: WebhookUrlSchema):
+    """
+    Update the webhook URL for the user
+    
+    Updates the URL that will receive webhook notifications when spamchecks are completed.
+    """
+    try:
+        webhook_url = data.webhook_url
+        
+        # Validate webhook URL if provided
+        if webhook_url and not validators.url(webhook_url):
+            return {"success": False, "message": "Invalid webhook URL format"}
+        
+        try:
+            user_settings = UserSettings.objects.get(user=request.auth)
+        except UserSettings.DoesNotExist:
+            return {"success": False, "message": "User settings not found"}
+        
+        user_settings.webhook_url = webhook_url
+        user_settings.save()
+        
+        log_to_terminal("Webhook", "Settings", f"Updated webhook URL: {webhook_url}")
+        
+        return {
+            "success": True,
+            "message": "Webhook URL updated successfully",
+            "webhook_url": webhook_url
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error updating webhook URL: {str(e)}"
+        }
+
+@router.delete("/webhook", auth=AuthBearer(), response=WebhookResponse)
+def delete_webhook_url(request):
+    """
+    Delete the webhook URL for the user
+    
+    Removes the configured webhook URL for the authenticated user.
+    """
+    try:
+        try:
+            user_settings = UserSettings.objects.get(user=request.auth)
+        except UserSettings.DoesNotExist:
+            return {"success": False, "message": "User settings not found"}
+        
+        old_url = user_settings.webhook_url
+        user_settings.webhook_url = None
+        user_settings.save()
+        
+        log_to_terminal("Webhook", "Settings", f"Deleted webhook URL: {old_url}")
+        
+        return {
+            "success": True,
+            "message": "Webhook URL deleted successfully"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error deleting webhook URL: {str(e)}"
+        } 

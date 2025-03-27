@@ -15,6 +15,7 @@ class UserSettings(models.Model):
     instantly_status = models.BooleanField(null=True, blank=True, default=False)
     emailguard_status = models.BooleanField(null=True, blank=True, default=False)
     last_token_refresh = models.DateTimeField(null=True, blank=True)
+    webhook_url = models.URLField(max_length=500, null=True, blank=True, help_text="URL to receive webhook notifications for completed spamchecks")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
