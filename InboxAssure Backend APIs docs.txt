@@ -157,6 +157,68 @@
 - `400`: Invalid request or Bison API error
 - `404`: Bison organization not found
 
+### List Accounts
+
+**Endpoint:** `POST /api/spamcheck/list-accounts`
+
+**Authentication:** Bearer Token
+
+**Description:** Retrieves a filtered list of email accounts from a Bison organization. Supports pagination, search, and tag-based filtering.
+
+**Parameters:**
+- `organization_id`: ID of the Bison organization (passed as query parameter)
+
+**Request Body:** JSON object with the following optional fields:
+- `search`: Filter accounts by content (e.g., email address)
+- `ignore_tags`: List of tag names to exclude (accounts with any of these tags will be excluded)
+- `only_tags`: List of tag names to include (only accounts with at least one of these tags will be included)
+- `is_active`: If true, only returns accounts with "Connected" status
+- `limit`: Maximum number of accounts to return (default: 10)
+
+**Response:** Account list with the following fields:
+- `success`: Boolean indicating if the request was successful
+- `message`: Status message with count of accounts found
+- `data`: Object containing:
+  - `organization_id`: ID of the Bison organization
+  - `organization_name`: Name of the Bison organization
+  - `total_accounts`: Number of accounts in the filtered list
+  - `accounts`: Array of email addresses
+
+**Example Request:**
+```json
+{
+  "search": "gmail",
+  "ignore_tags": ["test", "development"],
+  "only_tags": ["marketing", "important"],
+  "is_active": true,
+  "limit": 20
+}
+```
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "message": "Found 15 accounts",
+  "data": {
+    "organization_id": 123,
+    "organization_name": "My Bison Organization",
+    "total_accounts": 15,
+    "accounts": [
+      "marketing1@gmail.com",
+      "marketing2@gmail.com",
+      "sales1@gmail.com"
+    ]
+  }
+}
+```
+
+**Error Responses:**
+- Returns a response with `success: false` and an appropriate error message in the following cases:
+  - Organization not found or not active
+  - Failed to fetch accounts from Bison API
+  - General error during account fetching or filtering
+
 ### Get Bison Campaigns
 
 **Endpoint:** `GET /api/analytics/bison/campaigns`

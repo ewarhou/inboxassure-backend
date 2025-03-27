@@ -973,13 +973,12 @@ def list_accounts(
     payload: ListAccountsRequestSchema
 ):
     """
-    List accounts from specified platform (Instantly or Bison) with filtering options
+    List accounts from Bison with filtering options
     """
     user = request.auth
     print("\n=== DEBUG: List Accounts Start ===")
     print(f"Parameters received:")
     print(f"- organization_id: {organization_id}")
-    print(f"- platform: {payload.platform}")
     print(f"- search: {payload.search}")
     print(f"- ignore_tags: {payload.ignore_tags}")
     print(f"- only_tags: {payload.only_tags}")
@@ -999,232 +998,130 @@ def list_accounts(
     }
     
     try:
-        # Get user settings first
-        user_settings = UserSettings.objects.get(user=user)
+        # Get user's Bison organization
+        try:
+            user_bison = UserBison.objects.get(
+                id=organization_id,
+                user_id=user.id,
+                bison_organization_status=True  # Make sure organization is active
+            )
+            empty_response["data"]["organization_name"] = user_bison.bison_organization_name
+        except UserBison.DoesNotExist:
+            empty_response["message"] = "Bison organization not found or is not active. Please check if the organization ID is correct and belongs to your account."
+            return empty_response
 
-        if payload.platform.lower() == "instantly":
-            # Get the organization and verify ownership for Instantly
-            try:
-                organization = UserInstantly.objects.get(id=organization_id, user=user)
-                if not organization.instantly_organization_status:
-                    empty_response["message"] = f"Organization with ID {organization_id} exists but is not active. Please activate it first."
-                    return empty_response
-            except UserInstantly.DoesNotExist:
-                empty_response["message"] = f"Instantly organization with ID {organization_id} not found. Please check if the organization ID is correct and belongs to your account."
-                return empty_response
-
-            empty_response["data"]["organization_name"] = organization.instantly_organization_name
-
-            # Prepare request data for Instantly API
-            request_data = {
-                "limit": payload.limit,
-                "include_tags": True  # We need tags for filtering
+        # Get accounts from Bison API
+        print("\nStep 2: Fetching accounts from Bison API...")
+        print(f"Using Bison organization: {user_bison.bison_organization_name}")
+        
+        # Initialize variables for pagination
+        all_accounts = []
+        page = 1
+        has_more = True
+        
+        while has_more:
+            params = {
+                "page": page
             }
-            
             if payload.search:
-                request_data["search"] = payload.search
-                
-            if payload.is_active:
-                request_data["filter"] = {"status": 1}  # 1 for active accounts in Instantly
+                params["search"] = payload.search
             
-            # Get accounts from Instantly API
-            print("\nStep 2: Fetching accounts from Instantly API...")
-            print(f"Request data: {request_data}")
+            # Use base URL from Bison organization
+            api_url = f"{user_bison.base_url.rstrip('/')}/api/sender-emails"
+            print(f"Calling Bison API: {api_url} (Page {page})")
             
-            response = requests.post(
-                "https://app.instantly.ai/backend/api/v1/account/list",
+            response = requests.get(
+                api_url,
                 headers={
-                    "Cookie": f"__session={user_settings.instantly_user_token}",
-                    "X-Org-Auth": organization.instantly_organization_token,
+                    "Authorization": f"Bearer {user_bison.bison_organization_api_key}",
                     "Content-Type": "application/json"
                 },
-                json=request_data,
+                params=params,
                 timeout=30
             )
             
             if response.status_code != 200:
                 print(f"✗ API Error: {response.text}")
-                empty_response["message"] = "Failed to fetch accounts from Instantly API"
+                empty_response["message"] = "Failed to fetch accounts from Bison API"
                 return empty_response
-                
+            
             response_data = response.json()
-            accounts = response_data.get("accounts", [])
+            current_page_accounts = response_data.get("data", [])
             
-            # For Instantly platform
-            # Extract just the emails and apply filters
-            email_list = []
-            for account in accounts:
-                email = account.get("email")
-                if not email:
+            # Check if we have more pages
+            has_more = (
+                response_data and 
+                response_data.get("data") and 
+                isinstance(response_data.get("data"), list) and 
+                len(response_data.get("data")) > 0
+            )
+            
+            if current_page_accounts:
+                all_accounts.extend(current_page_accounts)
+                print(f"✓ Found {len(current_page_accounts)} accounts on page {page}")
+                page += 1
+            else:
+                print(f"No more accounts found on page {page}")
+                break
+        
+        print(f"Total accounts fetched: {len(all_accounts)}")
+        
+        # Extract just the emails and apply filters
+        email_list = []
+        for account in all_accounts:
+            email = account.get("email")
+            if not email:
+                continue
+            
+            # Skip if account is not active
+            if payload.is_active and account.get("status") != "Connected":
+                continue
+                
+            # Get account tags
+            account_tags = [tag.get("name", "").lower() for tag in account.get("tags", [])] if account.get("tags") else []
+            
+            # Skip if has any ignored tag
+            if payload.ignore_tags and account_tags:
+                should_skip = False
+                for ignore_tag in payload.ignore_tags:
+                    ignore_tag_lower = ignore_tag.lower()
+                    if any(ignore_tag_lower == tag for tag in account_tags):
+                        should_skip = True
+                        break
+                if should_skip:
+                    continue
+            
+            # Skip if doesn't have any of the required tags
+            if payload.only_tags and account_tags:
+                has_required_tag = False
+                for only_tag in payload.only_tags:
+                    only_tag_lower = only_tag.lower()
+                    if any(only_tag_lower == tag for tag in account_tags):
+                        has_required_tag = True
+                        break
+                if not has_required_tag:
                     continue
                     
-                # Skip if account is not active (status != 1)
-                if payload.is_active and account.get("status") != 1:
-                    continue
-                    
-                # Get account tags
-                account_tags = [tag.get("label", "").lower() for tag in account.get("tags", [])] if account.get("tags") else []
-                
-                # Skip if has any ignored tag
-                if payload.ignore_tags and account_tags:
-                    should_skip = False
-                    for ignore_tag in payload.ignore_tags:
-                        ignore_tag_lower = ignore_tag.lower()
-                        if any(ignore_tag_lower == tag for tag in account_tags):
-                            should_skip = True
-                            break
-                    if should_skip:
-                        continue
-                
-                # Skip if doesn't have any of the required tags
-                if payload.only_tags and account_tags:
-                    has_required_tag = False
-                    for only_tag in payload.only_tags:
-                        only_tag_lower = only_tag.lower()
-                        if any(only_tag_lower == tag for tag in account_tags):
-                            has_required_tag = True
-                            break
-                    if not has_required_tag:
-                        continue
-                        
-                email_list.append(email)
+            email_list.append(email)
 
-        else:  # Bison platform
-            # Get user's Bison organization
-            try:
-                user_bison = UserBison.objects.get(
-                    id=organization_id,
-                    user_id=user.id,
-                    bison_organization_status=True  # Make sure organization is active
-                )
-                empty_response["data"]["organization_name"] = user_bison.bison_organization_name
-            except UserBison.DoesNotExist:
-                empty_response["message"] = "Bison organization not found or is not active. Please check if the organization ID is correct and belongs to your account."
-                return empty_response
+        # Apply limit if specified
+        if payload.limit and len(email_list) > payload.limit:
+            email_list = email_list[:payload.limit]
 
-            # Get accounts from Bison API
-            print("\nStep 2: Fetching accounts from Bison API...")
-            print(f"Using Bison organization: {user_bison.bison_organization_name}")
-            
-            # Initialize variables for pagination
-            all_accounts = []
-            page = 1
-            has_more = True
-            
-            while has_more:
-                params = {
-                    "page": page
-                }
-                if payload.search:
-                    params["search"] = payload.search
-                
-                # Use base URL from Bison organization
-                api_url = f"{user_bison.base_url.rstrip('/')}/api/sender-emails"
-                print(f"Calling Bison API: {api_url} (Page {page})")
-                
-                response = requests.get(
-                    api_url,
-                    headers={
-                        "Authorization": f"Bearer {user_bison.bison_organization_api_key}",
-                        "Content-Type": "application/json"
-                    },
-                    params=params,
-                    timeout=30
-                )
-                
-                if response.status_code != 200:
-                    print(f"✗ API Error: {response.text}")
-                    empty_response["message"] = "Failed to fetch accounts from Bison API"
-                    return empty_response
-                
-                response_data = response.json()
-                current_page_accounts = response_data.get("data", [])
-                
-                # Check if we have more pages
-                has_more = (
-                    response_data and 
-                    response_data.get("data") and 
-                    isinstance(response_data.get("data"), list) and 
-                    len(response_data.get("data")) > 0
-                )
-                
-                if current_page_accounts:
-                    all_accounts.extend(current_page_accounts)
-                    print(f"✓ Found {len(current_page_accounts)} accounts on page {page}")
-                    page += 1
-                else:
-                    print(f"No more accounts found on page {page}")
-                    break
-            
-            print(f"Total accounts fetched: {len(all_accounts)}")
-            
-            # For Bison platform
-            # Extract just the emails and apply filters
-            email_list = []
-            for account in all_accounts:
-                email = account.get("email")
-                if not email:
-                    continue
-                
-                # Skip if account is not active
-                if payload.is_active and account.get("status") != "Connected":
-                    continue
-                
-                # Get account tags
-                account_tags = [tag.get("name", "").lower() for tag in account.get("tags", [])] if account.get("tags") else []
-                
-                # Skip if has any ignored tag
-                if payload.ignore_tags and account_tags:
-                    should_skip = False
-                    for ignore_tag in payload.ignore_tags:
-                        ignore_tag_lower = ignore_tag.lower()
-                        if any(ignore_tag_lower == tag for tag in account_tags):
-                            should_skip = True
-                            break
-                    if should_skip:
-                        continue
-                
-                # Skip if doesn't have any of the required tags
-                if payload.only_tags and account_tags:
-                    has_required_tag = False
-                    for only_tag in payload.only_tags:
-                        only_tag_lower = only_tag.lower()
-                        if any(only_tag_lower == tag for tag in account_tags):
-                            has_required_tag = True
-                            break
-                    if not has_required_tag:
-                        continue
-                
-                email_list.append(email)
-            
-            # Apply limit after filtering all accounts
-            if payload.limit:
-                email_list = email_list[:payload.limit]
-            
-            print(f"Final filtered email count: {len(email_list)}")
-        
-        # Use the correct organization name based on platform
-        org_name = organization.instantly_organization_name if payload.platform.lower() == "instantly" else user_bison.bison_organization_name
-        
         return {
             "success": True,
-            "message": "Accounts retrieved successfully",
+            "message": f"Found {len(email_list)} accounts",
             "data": {
                 "organization_id": organization_id,
-                "organization_name": org_name,
+                "organization_name": user_bison.bison_organization_name,
                 "total_accounts": len(email_list),
                 "accounts": email_list
             }
         }
-        
-    except UserInstantly.DoesNotExist:
-        print("✗ Error: Organization not found")
-        empty_response["message"] = f"Organization with ID {organization_id} not found or you don't have permission to access it."
-        return empty_response
-        
+
     except Exception as e:
-        print(f"✗ Error: {str(e)}")
-        empty_response["message"] = f"Error listing accounts: {str(e)}. Please try again or contact support if the issue persists."
+        print(f"Error in list_accounts: {str(e)}")
+        empty_response["message"] = f"Error fetching accounts: {str(e)}"
         return empty_response
 
 @router.get("/list-spamchecks", auth=AuthBearer(), response=ListSpamchecksResponseSchema)
