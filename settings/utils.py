@@ -220,7 +220,8 @@ async def _send_webhook_task(user_settings, spamcheck, reports_data):
             """Send webhook using synchronous requests"""
             try:
                 post_start = datetime.now()
-                print(f"⏱️ Starting synchronous POST to {user_settings.webhook_url}")
+                print(f"[Webhook Send] Attempting POST to: {user_settings.webhook_url}")
+                log_to_terminal("Webhook", "Debug", f"Attempting synchronous POST to {user_settings.webhook_url}")
                 
                 response = requests.post(
                     user_settings.webhook_url,
@@ -230,44 +231,63 @@ async def _send_webhook_task(user_settings, spamcheck, reports_data):
                 )
                 
                 post_time = (datetime.now() - post_start).total_seconds()
-                print(f"⏱️ POST completed in {post_time:.2f} seconds with status {response.status_code}")
+                print(f"[Webhook Send] Received status code: {response.status_code} after {post_time:.2f}s")
+                log_to_terminal("Webhook", "Debug", f"Received status code {response.status_code} after {post_time:.2f}s")
                 
-                if response.status_code == 200:
-                    print(f"✅ Webhook successfully sent with status 200")
-                    log_to_terminal("Webhook", "Success", f"Webhook sent successfully with status 200")
+                if 200 <= response.status_code < 300: # Accept any 2xx status as success
+                    print(f"✅ Webhook successfully sent with status {response.status_code}")
+                    log_to_terminal("Webhook", "Success", f"Webhook sent successfully with status {response.status_code}")
                     return True
                 else:
-                    print(f"⚠️ Webhook received non-200 response: {response.status_code}")
+                    print(f"⚠️ Webhook received non-success response: {response.status_code}")
+                    log_to_terminal("Webhook", "Warning", f"Webhook received non-success status: {response.status_code}")
                     try:
-                        print(f"📄 Response: {response.text[:200]}")
-                    except:
-                        print("Could not read response")
+                        response_text = response.text
+                        print(f"📄 Response Body (first 500 chars): {response_text[:500]}")
+                        log_to_terminal("Webhook", "Warning", f"Response Body: {response_text[:500]}")
+                    except Exception as read_err:
+                        print(f"Could not read response body: {read_err}")
+                        log_to_terminal("Webhook", "Warning", f"Could not read response body: {read_err}")
                     return False
+            except requests.exceptions.Timeout:
+                print(f"❌ Synchronous webhook failed: Timeout after {timeout} seconds for URL {user_settings.webhook_url}")
+                log_to_terminal("Webhook", "Error", f"Synchronous webhook failed: Timeout after {timeout} seconds for URL {user_settings.webhook_url}")
+                return False
+            except requests.exceptions.ConnectionError as conn_err:
+                print(f"❌ Synchronous webhook failed: Connection Error for URL {user_settings.webhook_url}. Error: {conn_err}")
+                log_to_terminal("Webhook", "Error", f"Synchronous webhook failed: Connection Error for URL {user_settings.webhook_url}. Error: {conn_err}")
+                return False
+            except requests.exceptions.RequestException as req_err:
+                # Catch other requests-related errors (e.g., Invalid URL, TooManyRedirects)
+                print(f"❌ Synchronous webhook failed: Request Exception for URL {user_settings.webhook_url}. Error: {req_err}")
+                log_to_terminal("Webhook", "Error", f"Synchronous webhook failed: Request Exception for URL {user_settings.webhook_url}. Error: {req_err}")
+                return False
             except Exception as e:
-                print(f"❌ Synchronous webhook failed: {str(e)}")
-                log_to_terminal("Webhook", "Error", f"Synchronous webhook failed: {str(e)}")
+                # Catch any other unexpected errors
+                print(f"❌ Synchronous webhook failed with unexpected error: {str(e)}")
+                log_to_terminal("Webhook", "Error", f"Synchronous webhook failed with unexpected error: {str(e)}")
+                # ADDED: Print traceback for unexpected errors
+                import traceback
+                print(traceback.format_exc())
                 return False
                 
-        # Use the executor to run the synchronous function without blocking
-        loop = asyncio.get_event_loop()
-        success = await loop.run_in_executor(None, send_sync_webhook)
+        # Call the synchronous function
+        send_success = send_sync_webhook()
         
-        # Log final result
-        if success:
-            print(f"🚀 Webhook for spamcheck {spamcheck.id} completed successfully")
-            log_to_terminal("Webhook", "Success", f"Webhook for spamcheck {spamcheck.id} completed successfully")
-        else:
-            print(f"❌ Webhook for spamcheck {spamcheck.id} failed")
-            log_to_terminal("Webhook", "Error", f"Webhook for spamcheck {spamcheck.id} failed")
-            
-    except Exception as outer_error:
-        print(f"❌ Outer error in webhook process: {str(outer_error)}")
-        log_to_terminal("Webhook", "Error", f"Outer error in webhook process: {str(outer_error)}")
-    
-    # Total execution time
-    total_time = (timezone.now() - start_time).total_seconds()
-    print(f"⏱️ Total webhook process took {total_time:.2f} seconds")
-    log_to_terminal("Webhook", "Info", f"Total webhook process took {total_time:.2f} seconds")
+        end_time = timezone.now()
+        total_task_time = (end_time - start_time).total_seconds()
+        print(f"🏁 Webhook task finished. Success: {send_success}. Total task time: {total_task_time:.2f} seconds.")
+        log_to_terminal("Webhook", "Info", f"Webhook task finished. Success: {send_success}. Total task time: {total_task_time:.2f}s")
+        
+    except Exception as e:
+        # Log errors happening within _send_webhook_task itself (e.g., during data prep)
+        end_time = timezone.now()
+        total_task_time = (end_time - start_time).total_seconds()
+        print(f"❌ Error during _send_webhook_task execution: {str(e)}")
+        log_to_terminal("Webhook", "Error", f"Error during _send_webhook_task execution: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        print(f"🏁 Webhook task finished with error. Total task time: {total_task_time:.2f} seconds.")
 
 def send_test_webhook_sync(webhook_url):
     """
