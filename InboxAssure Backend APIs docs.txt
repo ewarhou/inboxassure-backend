@@ -168,3 +168,94 @@ Sends a test webhook payload to verify your webhook endpoint is correctly set up
   "saved_to_settings": true
 }
 ```
+
+## Error Logs
+
+The Error Logs API allows you to retrieve and filter spamcheck error logs, especially for accounts that failed to send emails during spamcheck execution.
+
+### Get Error Logs
+
+```
+GET /api/spamcheck/error-logs
+```
+
+Returns a paginated list of error logs with various filtering options.
+
+**Query Parameters:**
+- `spamcheck_id` (optional): Filter by spamcheck ID
+- `account_email` (optional): Filter by account email
+- `provider` (optional): Filter by provider (bison, instantly, emailguard, system)
+- `error_type` (optional): Filter by error type
+- `workspace` (optional): Filter by workspace/organization ID
+- `search` (optional): Search term for spamcheck name or error message
+- `start_date` (optional): Filter by created_at >= start_date (format: 'YYYY-MM-DD')
+- `end_date` (optional): Filter by created_at <= end_date (format: 'YYYY-MM-DD')
+- `latest_per_account` (optional, default=true): If true, return only the most recent error for each account
+- `fetch_account_details` (optional, default=true): If true, fetch workspace and tags from Bison API
+- `page` (optional, default=1): Page number
+- `per_page` (optional, default=25): Results per page
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Error logs retrieved successfully",
+  "error_logs": [
+    {
+      "id": 1,
+      "error_type": "server_error",
+      "provider": "bison",
+      "error_message": "Failed to send email due to server error",
+      "error_details": {"status": 500, "details": "Internal Server Error"},
+      "account_email": "test@example.com",
+      "step": "send_email",
+      "api_endpoint": "/api/v1/send",
+      "status_code": 500,
+      "workspace_id": "12345",
+      "tags": ["important", "marketing"],
+      "created_at": "2023-08-15T12:34:56Z",
+      "bison_spamcheck_id": 123,
+      "spamcheck_id": null,
+      "spamcheck_name": "My Spamcheck Campaign",
+      "user_id": 1
+    }
+  ],
+  "pagination": {
+    "current_page": 1,
+    "total_pages": 5,
+    "total_items": 120,
+    "per_page": 25
+  }
+}
+```
+
+### Error Types
+
+The error logs can include the following error types:
+
+- `api_error`: Errors returned by external APIs
+- `server_error`: Server-side errors from external services
+- `validation_error`: Data validation errors
+- `connection_error`: Network connection issues
+- `authentication_error`: Authentication failures
+- `timeout_error`: Request timeout issues
+- `unknown_error`: Unclassified errors
+
+### Error Log Fields
+
+- `id`: Unique identifier for the error log
+- `error_type`: Type of error (see above)
+- `provider`: Service provider where the error occurred (bison, instantly, emailguard, system)
+- `error_message`: Human-readable error message
+- `error_details`: Additional details about the error in JSON format
+- `account_email`: The email account being processed when the error occurred
+- `step`: The step in the process where the error occurred
+- `api_endpoint`: The API endpoint that returned the error
+- `status_code`: The HTTP status code returned by the API
+- `workspace_id`: The ID of the workspace this account belongs to
+- `tags`: Array of tags associated with the account
+- `created_at`: When the error was logged
+- `bison_spamcheck_id`: ID of the Bison spamcheck (if applicable)
+- `spamcheck_id`: ID of the regular spamcheck (if applicable)
+- `spamcheck_name`: Name of the spamcheck
+- `user_id`: User ID who owns the spamcheck

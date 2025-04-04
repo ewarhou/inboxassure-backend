@@ -3123,6 +3123,8 @@ def get_spamcheck_error_logs(
     error_type: Optional[str] = None,
     workspace: Optional[int] = None,
     search: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     latest_per_account: bool = True,
     fetch_account_details: bool = True,
     page: int = 1,
@@ -3138,6 +3140,8 @@ def get_spamcheck_error_logs(
         - error_type: Optional, filter by error type
         - workspace: Optional, filter by workspace/organization ID
         - search: Optional, search term for spamcheck name or error message
+        - start_date: Optional, filter by created_at >= start_date (format: 'YYYY-MM-DD')
+        - end_date: Optional, filter by created_at <= end_date (format: 'YYYY-MM-DD')
         - latest_per_account: If True, return only the most recent error for each account (default=True)
         - fetch_account_details: If True, fetch workspace and tags from Bison API for accounts
         - page: Page number (default=1)
@@ -3167,6 +3171,27 @@ def get_spamcheck_error_logs(
             
         if error_type:
             error_logs_query = error_logs_query.filter(error_type=error_type)
+            
+        # Apply date range filters if provided
+        if start_date:
+            try:
+                # Parse the date string and set to the beginning of the day
+                start_datetime = datetime.strptime(start_date, '%Y-%m-%d').replace(hour=0, minute=0, second=0)
+                error_logs_query = error_logs_query.filter(created_at__gte=start_datetime)
+                log_to_terminal("SpamcheckErrorLog", "Filter", f"Filtering logs from {start_date}")
+            except ValueError:
+                # Log but don't fail if date format is incorrect
+                log_to_terminal("SpamcheckErrorLog", "Error", f"Invalid start_date format: {start_date}, expected YYYY-MM-DD")
+        
+        if end_date:
+            try:
+                # Parse the date string and set to the end of the day
+                end_datetime = datetime.strptime(end_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+                error_logs_query = error_logs_query.filter(created_at__lte=end_datetime)
+                log_to_terminal("SpamcheckErrorLog", "Filter", f"Filtering logs until {end_date}")
+            except ValueError:
+                # Log but don't fail if date format is incorrect
+                log_to_terminal("SpamcheckErrorLog", "Error", f"Invalid end_date format: {end_date}, expected YYYY-MM-DD")
             
         if workspace:
             # For workspace filtering, we need to check both Bison and Instantly spamchecks
