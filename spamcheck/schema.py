@@ -371,4 +371,30 @@ class CampaignCopyResponse(Schema):
     """Schema for campaign copy response"""
     success: bool
     message: str
-    data: Optional[CampaignCopyData] = None 
+    data: Optional[CampaignCopyData] = None
+
+class SpamcheckErrorLogSchema(Schema):
+    """Schema for spamcheck error log"""
+    id: int
+    error_type: str
+    provider: str
+    error_message: str
+    error_details: Optional[Dict[str, Any]] = None
+    account_email: Optional[str] = None
+    step: Optional[str] = None
+    api_endpoint: Optional[str] = None
+    status_code: Optional[int] = None
+    workspace_id: Optional[str] = None
+    tags: Optional[List[str]] = None
+    created_at: datetime
+    bison_spamcheck_id: Optional[int] = None
+    spamcheck_id: Optional[int] = None
+    spamcheck_name: Optional[str] = None
+    user_id: int
+
+class SpamcheckErrorLogResponseSchema(Schema):
+    """Schema for spamcheck error log response"""
+    success: bool
+    message: str
+    data: List[SpamcheckErrorLogSchema]
+    meta: Dict[str, Any] 

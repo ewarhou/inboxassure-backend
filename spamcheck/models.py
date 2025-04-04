@@ -344,6 +344,8 @@ class SpamcheckErrorLog(models.Model):
     step = models.CharField(max_length=255, null=True, blank=True, help_text='The step in the process where the error occurred')
     api_endpoint = models.CharField(max_length=255, null=True, blank=True, help_text='The API endpoint that returned the error')
     status_code = models.IntegerField(null=True, blank=True, help_text='The HTTP status code returned by the API')
+    workspace_id = models.CharField(max_length=255, null=True, blank=True, help_text='The workspace ID this account belongs to')
+    tags = models.JSONField(null=True, blank=True, help_text='The tags associated with this account')
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:

@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404
 from django.db import transaction, IntegrityError, connection
 from django.core.exceptions import ObjectDoesNotExist
 from authentication.authorization import AuthBearer
-from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema, ListAccountsRequestSchema, ListAccountsResponseSchema, ListSpamchecksResponseSchema, CreateSpamcheckBisonSchema, UpdateSpamcheckBisonSchema, SpamcheckBisonDetailsResponseSchema, BisonAccountsReportsResponseSchema, CampaignCopyResponse, BisonAccountDetailsResponseSchema
+from .schema import CreateSpamcheckSchema, UpdateSpamcheckSchema, LaunchSpamcheckSchema, ListAccountsRequestSchema, ListAccountsResponseSchema, ListSpamchecksResponseSchema, CreateSpamcheckBisonSchema, UpdateSpamcheckBisonSchema, SpamcheckBisonDetailsResponseSchema, BisonAccountsReportsResponseSchema, CampaignCopyResponse, BisonAccountDetailsResponseSchema, SpamcheckErrorLogResponseSchema
 from .models import UserSpamcheck, UserSpamcheckAccounts, UserSpamcheckCampaignOptions, UserSpamcheckCampaigns, UserSpamcheckReport, UserSpamcheckBison, UserSpamcheckAccountsBison, UserSpamcheckBisonReport, SpamcheckErrorLog
 from settings.models import UserInstantly, UserSettings, UserBison
 import requests
@@ -3107,3 +3107,279 @@ def html_to_text(html):
     html = html.replace('&#39;', "'")
     
     return html.strip() 
+
+@router.get(
+    "/error-logs",
+    auth=AuthBearer(),
+    response=SpamcheckErrorLogResponseSchema,
+    summary="Get Spamcheck Error Logs",
+    description="Get a paginated list of spamcheck error logs with filtering options"
+)
+def get_spamcheck_error_logs(
+    request,
+    spamcheck_id: Optional[int] = None,
+    account_email: Optional[str] = None,
+    provider: Optional[str] = None,
+    error_type: Optional[str] = None,
+    workspace: Optional[int] = None,
+    search: Optional[str] = None,
+    latest_per_account: bool = True,
+    fetch_account_details: bool = True,
+    page: int = 1,
+    per_page: int = 25
+):
+    """
+    Get a paginated list of spamcheck error logs with filtering options
+    
+    Parameters:
+        - spamcheck_id: Optional, filter by spamcheck ID
+        - account_email: Optional, filter by account email
+        - provider: Optional, filter by provider (bison, instantly, emailguard, system)
+        - error_type: Optional, filter by error type
+        - workspace: Optional, filter by workspace/organization ID
+        - search: Optional, search term for spamcheck name or error message
+        - latest_per_account: If True, return only the most recent error for each account (default=True)
+        - fetch_account_details: If True, fetch workspace and tags from Bison API for accounts
+        - page: Page number (default=1)
+        - per_page: Results per page (default=25)
+    """
+    try:
+        user = request.auth
+        log_to_terminal("SpamcheckErrorLog", "List", f"User {user.username} fetching error logs")
+        
+        # Initialize query for SpamcheckErrorLog
+        error_logs_query = SpamcheckErrorLog.objects.filter(user=user)
+        
+        # Apply filters if provided
+        if spamcheck_id:
+            # Check if it's a Bison spamcheck or regular spamcheck
+            error_logs_query = error_logs_query.filter(
+                bison_spamcheck_id=spamcheck_id
+            ) | error_logs_query.filter(
+                spamcheck_id=spamcheck_id
+            )
+        
+        if account_email:
+            error_logs_query = error_logs_query.filter(account_email__icontains=account_email)
+            
+        if provider:
+            error_logs_query = error_logs_query.filter(provider=provider)
+            
+        if error_type:
+            error_logs_query = error_logs_query.filter(error_type=error_type)
+            
+        if workspace:
+            # For workspace filtering, we need to check both Bison and Instantly spamchecks
+            bison_spamchecks = UserSpamcheckBison.objects.filter(
+                user=user, 
+                user_organization_id=workspace
+            ).values_list('id', flat=True)
+            
+            instantly_spamchecks = UserSpamcheck.objects.filter(
+                user=user,
+                user_organization_id=workspace
+            ).values_list('id', flat=True)
+            
+            error_logs_query = error_logs_query.filter(
+                bison_spamcheck_id__in=list(bison_spamchecks)
+            ) | error_logs_query.filter(
+                spamcheck_id__in=list(instantly_spamchecks)
+            )
+            
+        if search:
+            # Search in error message and try to find matching spamcheck names
+            bison_spamchecks = UserSpamcheckBison.objects.filter(
+                user=user, 
+                name__icontains=search
+            ).values_list('id', flat=True)
+            
+            instantly_spamchecks = UserSpamcheck.objects.filter(
+                user=user,
+                name__icontains=search
+            ).values_list('id', flat=True)
+            
+            error_logs_query = error_logs_query.filter(
+                error_message__icontains=search
+            ) | error_logs_query.filter(
+                bison_spamcheck_id__in=list(bison_spamchecks)
+            ) | error_logs_query.filter(
+                spamcheck_id__in=list(instantly_spamchecks)
+            )
+        
+        # MySQL-compatible approach without using LIMIT in subquery
+        if latest_per_account and not account_email:
+            # MySQL-compatible approach without using LIMIT in subquery
+            # First, get all matching error logs
+            all_logs = list(error_logs_query.order_by('-created_at'))
+            
+            # Track the most recent log ID for each unique account+spamcheck combination
+            unique_account_spamcheck_logs = {}
+            
+            # For each log, keep only the most recent one for each account+spamcheck pair
+            for log in all_logs:
+                key = f"{log.account_email}:{log.bison_spamcheck_id or 0}"
+                if key not in unique_account_spamcheck_logs:
+                    unique_account_spamcheck_logs[key] = log.id
+            
+            # If not filtering by spamcheck_id, further reduce to only most recent per account
+            if not spamcheck_id:
+                account_to_log = {}
+                # Sort logs by created_at (newest first)
+                sorted_logs = sorted(
+                    [(k, v) for k, v in unique_account_spamcheck_logs.items()],
+                    key=lambda x: next((log for log in all_logs if log.id == x[1])).created_at,
+                    reverse=True
+                )
+                
+                # For each account, keep only the most recent log across all spamchecks
+                for key, log_id in sorted_logs:
+                    account = key.split(':')[0]
+                    if account not in account_to_log:
+                        account_to_log[account] = log_id
+                
+                # Use only these log IDs
+                selected_log_ids = list(account_to_log.values())
+            else:
+                # Use the account+spamcheck log IDs
+                selected_log_ids = list(unique_account_spamcheck_logs.values())
+            
+            # Update our query to only include these log IDs
+            error_logs_query = error_logs_query.filter(id__in=selected_log_ids)
+        
+        # Count total records before pagination
+        total_count = error_logs_query.count()
+        total_pages = (total_count + per_page - 1) // per_page if total_count > 0 else 1
+        
+        # Apply pagination
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        error_logs = error_logs_query.order_by('-created_at')[start_idx:end_idx]
+        
+        # Prepare workspace API keys dictionary for fetching account details
+        workspace_api_keys = {}
+        workspace_base_urls = {}
+        
+        if fetch_account_details and provider == 'bison':
+            # Collect unique Bison workspaces from the spamchecks
+            spamcheck_ids = set()
+            for log in error_logs:
+                if log.bison_spamcheck_id:
+                    spamcheck_ids.add(log.bison_spamcheck_id)
+            
+            if spamcheck_ids:
+                # Get the organizations for these spamchecks
+                spamcheck_orgs = UserSpamcheckBison.objects.filter(
+                    id__in=spamcheck_ids
+                ).select_related('user_organization').values_list(
+                    'user_organization_id', 'user_organization__bison_organization_api_key', 'user_organization__base_url'
+                )
+                
+                for org_id, api_key, base_url in spamcheck_orgs:
+                    if org_id and api_key:
+                        workspace_api_keys[org_id] = api_key
+                        workspace_base_urls[org_id] = base_url
+        
+        # Convert error logs to response format
+        error_logs_data = []
+        for log in error_logs:
+            spamcheck_name = None
+            workspace_id = log.workspace_id
+            if log.bison_spamcheck:
+                spamcheck_name = log.bison_spamcheck.name
+                if not workspace_id and log.bison_spamcheck.user_organization_id:
+                    workspace_id = log.bison_spamcheck.user_organization_id
+            elif log.spamcheck:
+                spamcheck_name = log.spamcheck.name
+                if not workspace_id and log.spamcheck.user_organization_id:
+                    workspace_id = log.spamcheck.user_organization_id
+            
+            # Fetch workspace and tags from Bison API if needed
+            tags = log.tags
+            if fetch_account_details and log.account_email and log.provider == 'bison' and log.bison_spamcheck:
+                # Try to fetch account details from Bison API if we have the right credentials
+                org_id = log.bison_spamcheck.user_organization_id
+                if org_id in workspace_api_keys and log.account_email:
+                    api_key = workspace_api_keys[org_id]
+                    base_url = workspace_base_urls[org_id]
+                    
+                    # Only make API call if we don't already have this data
+                    if not log.workspace_id or not log.tags:
+                        try:
+                            # Fetch account details from Bison API
+                            url = f"{base_url.rstrip('/')}/api/sender-emails/{log.account_email}"
+                            headers = {
+                                "Authorization": f"Bearer {api_key}",
+                                "Content-Type": "application/json"
+                            }
+                            
+                            response = requests.get(url, headers=headers, timeout=10)
+                            if response.status_code == 200:
+                                account_data = response.json().get('data', {})
+                                
+                                # Debug log the account data
+                                log_to_terminal("SpamcheckErrorLog", "API Response", f"Bison account details for {log.account_email}: {account_data}")
+                                
+                                # The workspace_id is not directly available in this response
+                                # We'll need to use other IDs from the response
+                                if account_data.get('id'):
+                                    workspace_id = str(account_data.get('id'))
+                                    if workspace_id and not log.workspace_id:
+                                        # Save back to the database
+                                        log.workspace_id = workspace_id
+                                        log.save(update_fields=['workspace_id'])
+                                
+                                # Update tags if we find them
+                                if 'tags' in account_data and isinstance(account_data['tags'], list):
+                                    tags = [tag.get('name') for tag in account_data['tags'] if tag.get('name')]
+                                    if tags and not log.tags:
+                                        # Save back to the database
+                                        log.tags = tags
+                                        log.save(update_fields=['tags'])
+                        except Exception as e:
+                            # Just log the error and continue - we don't want to fail the whole request
+                            log_to_terminal("SpamcheckErrorLog", "Error", f"Error fetching account details: {str(e)}")
+            
+            error_logs_data.append({
+                "id": log.id,
+                "error_type": log.error_type,
+                "provider": log.provider,
+                "error_message": log.error_message,
+                "error_details": log.error_details,
+                "account_email": log.account_email,
+                "step": log.step,
+                "api_endpoint": log.api_endpoint,
+                "status_code": log.status_code,
+                "workspace_id": str(workspace_id) if workspace_id is not None else None,
+                "tags": tags,
+                "created_at": log.created_at,
+                "bison_spamcheck_id": log.bison_spamcheck_id,
+                "spamcheck_id": log.spamcheck_id,
+                "spamcheck_name": spamcheck_name,
+                "user_id": log.user_id
+            })
+        
+        return {
+            "success": True,
+            "message": f"Successfully retrieved {total_count} error logs",
+            "data": error_logs_data,
+            "meta": {
+                "total": total_count,
+                "page": page,
+                "per_page": per_page,
+                "total_pages": total_pages
+            }
+        }
+        
+    except Exception as e:
+        log_to_terminal("SpamcheckErrorLog", "Error", f"Error fetching error logs: {str(e)}")
+        return {
+            "success": False,
+            "message": f"Error fetching error logs: {str(e)}",
+            "data": [],
+            "meta": {
+                "total": 0,
+                "page": page,
+                "per_page": per_page,
+                "total_pages": 0
+            }
+        }

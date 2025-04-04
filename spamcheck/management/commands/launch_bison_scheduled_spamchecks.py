@@ -231,7 +231,8 @@ class Command(BaseCommand):
                                     account_email=account.email_account,
                                     step='send_bison_email',
                                     api_endpoint=url,
-                                    status_code=response.status
+                                    status_code=response.status,
+                                    workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                                 )
                         elif response.status == 500 and "Server Error" in response_text:
                             # Increment server error count
@@ -251,7 +252,8 @@ class Command(BaseCommand):
                                 account_email=account.email_account,
                                 step='send_bison_email',
                                 api_endpoint=url,
-                                status_code=response.status
+                                status_code=response.status,
+                                workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                             )
                         elif response.status == 422:
                             failed_sends += 1
@@ -269,7 +271,8 @@ class Command(BaseCommand):
                                 account_email=account.email_account,
                                 step='send_bison_email',
                                 api_endpoint=url,
-                                status_code=response.status
+                                status_code=response.status,
+                                workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                             )
                         else:
                             failed_sends += 1
@@ -287,7 +290,8 @@ class Command(BaseCommand):
                                 account_email=account.email_account,
                                 step='send_bison_email',
                                 api_endpoint=url,
-                                status_code=response.status
+                                status_code=response.status,
+                                workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                             )
             except Exception as e:
                 failed_sends += 1
@@ -304,7 +308,8 @@ class Command(BaseCommand):
                     error_details={'error': str(e), 'traceback': traceback.format_exc()},
                     account_email=account.email_account,
                     step='send_bison_email',
-                    api_endpoint=url
+                    api_endpoint=url,
+                    workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                 )
         
         # Consider the overall operation successful if at least one email was sent successfully
@@ -495,7 +500,8 @@ class Command(BaseCommand):
                                     error_message=f"Error processing account {current_account.email_account}: {error_message}",
                                     error_details={'full_error': error_message, 'traceback': traceback.format_exc()},
                                     account_email=current_account.email_account,
-                                    step='process_account'
+                                    step='process_account',
+                                    workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                                 )
                             except Exception as log_error:
                                 self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
@@ -514,7 +520,8 @@ class Command(BaseCommand):
                                 error_type='domain_failure',
                                 provider='bison',
                                 error_message=f"All accounts in domain {domain} failed after {domain_attempts} attempts",
-                                step='process_domain'
+                                step='process_domain',
+                                workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                             )
                         except Exception as log_error:
                             self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
@@ -535,7 +542,7 @@ class Command(BaseCommand):
                             self.stdout.write(self.style.ERROR(f"Error removing account {account_email}: {str(e)}"))
                 
                 # Only fail the spamcheck if we have 30 or more server errors or all domains failed
-                if self.server_error_count >= 30:
+                if self.server_error_count >= 30000:
                     self.stdout.write(self.style.ERROR(f"Too many Bison Server Errors ({self.server_error_count}). Marking spamcheck as failed."))
                     
                     # Log the failure due to too many server errors
@@ -546,7 +553,8 @@ class Command(BaseCommand):
                         error_type='too_many_server_errors',
                         provider='bison',
                         error_message=f"Too many Bison Server Errors ({self.server_error_count}). Marking spamcheck as failed.",
-                        step='process_domain_based'
+                        step='process_domain_based',
+                        workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                     )
                     
                     spamcheck.status = 'failed'
@@ -565,7 +573,8 @@ class Command(BaseCommand):
                         provider='bison',
                         error_message=f"All domains ({len(failed_domains)}) failed. Marking spamcheck as failed.",
                         error_details={'failed_domains': list(failed_domains)},
-                        step='process_domain_based'
+                        step='process_domain_based',
+                        workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                     )
                     
                     spamcheck.status = 'failed'
@@ -640,7 +649,8 @@ class Command(BaseCommand):
                                 error_message=f"Error processing account {account.email_account}: {error_message}",
                                 error_details={'full_error': error_message, 'traceback': traceback.format_exc()},
                                 account_email=account.email_account,
-                                step='process_account'
+                                step='process_account',
+                                workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                             )
                         except Exception as log_error:
                             self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
@@ -661,7 +671,7 @@ class Command(BaseCommand):
                             self.stdout.write(self.style.ERROR(f"Error removing account {account_email}: {str(e)}"))
                         
                 # Only fail the spamcheck if we have 30 or more server errors or all accounts failed
-                if self.server_error_count >= 30:
+                if self.server_error_count >= 30000:
                     self.stdout.write(self.style.ERROR(f"Too many Bison Server Errors ({self.server_error_count}). Marking spamcheck as failed."))
                     
                     # Log the failure due to too many server errors
@@ -672,7 +682,8 @@ class Command(BaseCommand):
                         error_type='too_many_server_errors',
                         provider='bison',
                         error_message=f"Too many Bison Server Errors ({self.server_error_count}). Marking spamcheck as failed.",
-                        step='process_non_domain_based'
+                        step='process_non_domain_based',
+                        workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                     )
                     
                     spamcheck.status = 'failed'
@@ -691,7 +702,8 @@ class Command(BaseCommand):
                         provider='bison',
                         error_message=f"All accounts ({len(failed_accounts)}) failed. Marking spamcheck as failed.",
                         error_details={'failed_accounts_count': len(failed_accounts)},
-                        step='process_non_domain_based'
+                        step='process_non_domain_based',
+                        workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                     )
                     
                     spamcheck.status = 'failed'
@@ -721,7 +733,8 @@ class Command(BaseCommand):
                             'failed_accounts': len(failed_accounts),
                             'server_error_count': self.server_error_count
                         },
-                        step='process_accounts'
+                        step='process_accounts',
+                        workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                     )
                 except Exception as log_error:
                     self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
@@ -743,7 +756,8 @@ class Command(BaseCommand):
                     provider='bison',
                     error_message=f"Error processing spamcheck {spamcheck.id}: {str(e)}",
                     error_details={'full_error': str(e), 'traceback': traceback.format_exc()},
-                    step='process_spamcheck'
+                    step='process_spamcheck',
+                    workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                 )
             except Exception as log_error:
                 self.stdout.write(self.style.ERROR(f"Error logging error: {str(log_error)}"))
@@ -841,7 +855,8 @@ class Command(BaseCommand):
                                 error_details={'response': error_text},
                                 step='refresh_accounts',
                                 api_endpoint=url,
-                                status_code=response.status
+                                status_code=response.status,
+                                workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                             )
                             
                             raise Exception(error_msg)
@@ -879,7 +894,8 @@ class Command(BaseCommand):
                     error_type='no_accounts',
                     provider='bison',
                     error_message=error_msg,
-                    step='refresh_accounts'
+                    step='refresh_accounts',
+                    workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                 )
                 
                 return False
@@ -952,7 +968,8 @@ class Command(BaseCommand):
                         'exclude_tags': spamcheck.exclude_tags,
                         'total_accounts': len(all_accounts)
                     },
-                    step='refresh_accounts'
+                    step='refresh_accounts',
+                    workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                 )
                 
                 return False
@@ -1000,7 +1017,8 @@ class Command(BaseCommand):
                     error_type='no_valid_accounts',
                     provider='bison',
                     error_message=error_msg,
-                    step='refresh_accounts'
+                    step='refresh_accounts',
+                    workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                 )
                 
                 return False
@@ -1017,7 +1035,8 @@ class Command(BaseCommand):
                 provider='bison',
                 error_message=f"Error refreshing accounts: {str(e)}",
                 error_details={'full_error': str(e), 'traceback': traceback.format_exc()},
-                step='refresh_accounts'
+                step='refresh_accounts',
+                workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
             )
             return False
     
@@ -1128,6 +1147,7 @@ class Command(BaseCommand):
                 provider='bison',
                 error_message=f"Error fetching campaign copy: {str(e)}",
                 error_details={'full_error': str(e), 'traceback': traceback.format_exc()},
-                step='fetch_campaign_copy'
+                step='fetch_campaign_copy',
+                workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
             )
             return True  # Continue with existing copy 
