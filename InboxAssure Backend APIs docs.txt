@@ -259,3 +259,66 @@ The error logs can include the following error types:
 - `spamcheck_id`: ID of the regular spamcheck (if applicable)
 - `spamcheck_name`: Name of the spamcheck
 - `user_id`: User ID who owns the spamcheck
+
+## Bison Campaigns (Direct Fetch)
+
+This API allows you to retrieve campaign data directly from the linked Bison organizations, bypassing the local cache.
+
+### Get Bison Campaigns (Direct)
+
+```
+GET /api/analytics/bison/campaigns-bison
+```
+
+Returns a list of responses, one for each active Bison organization linked to the user. Each response contains the raw, paginated campaign data directly from that organization's Bison API `/api/campaigns` endpoint.
+
+**Authentication:** Required (Bearer Token)
+
+**Query Parameters:**
+- `page` (optional, integer, default=1): Page number to request from the Bison API.
+- `per_page` (optional, integer, default=10): Number of campaigns per page to request from the Bison API.
+- `search` (optional, string): Search term passed directly to the Bison API's `query` parameter.
+- `workspace` (optional, integer): Filter results to a specific InboxAssure workspace ID (linked Bison organization).
+
+**Response:**
+
+A list containing objects for each targeted Bison organization:
+```json
+[
+  {
+    "organization_id": "1", // InboxAssure's ID for the UserBison record
+    "organization_name": "Bison Org Alpha",
+    "bison_response": { // Raw response from Bison API
+      "data": [
+        {
+          "id": 101,
+          "name": "Q1 Outreach Campaign",
+          "status": "active",
+          "created_at": "2024-01-15T10:00:00Z",
+          "updated_at": "2024-03-01T11:20:30Z",
+          "max_emails_per_day": 50,
+          // ... other fields provided by Bison's /api/campaigns
+        },
+        // ... more campaigns
+      ],
+      "meta": { // Bison's pagination metadata
+        "current_page": 1,
+        "from": 1,
+        "last_page": 5,
+        "path": "https://bison.example.com/api/campaigns",
+        "per_page": 10,
+        "to": 10,
+        "total": 45
+      }
+    },
+    "error": null // Populated if fetching failed for this org
+  },
+  {
+    "organization_id": "2",
+    "organization_name": "Bison Org Beta",
+    "bison_response": null,
+    "error": "Failed to connect to Bison API: Connection timed out (Status: None)" // Example error
+  }
+  // ... more organizations
+]
+```
