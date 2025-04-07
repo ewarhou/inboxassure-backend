@@ -32,6 +32,9 @@ class BisonCampaignResponse(BaseModel):
     googleScore: float = Field(..., description="Google deliverability score (0-100)")
     outlookScore: float = Field(..., description="Outlook deliverability score (0-100)")
     maxDailySends: int = Field(..., description="Maximum daily sends")
+    status: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 class BisonOrganizationSummaryResponse(Schema):
     """Response model for Bison organization dashboard summary metrics"""
@@ -811,8 +814,8 @@ class PaginatedBisonCampaignsResponse(BaseModel):
     "/bison/campaigns",
     response=PaginatedBisonCampaignsResponse,
     auth=AuthBearer(),
-    summary="Get Bison Campaigns",
-    description="Get all campaigns from Bison with connected emails and deliverability scores, grouped by organization"
+    summary="Get Bison Campaigns (Cached)",
+    description="Get all campaigns from Bison with connected emails and deliverability scores, grouped by organization. Uses locally cached data for performance."
 )
 def get_bison_campaigns(request, page: int = 1, per_page: int = 10, search: Optional[str] = None, workspace: Optional[int] = None):
     """
@@ -943,6 +946,127 @@ def get_bison_campaigns(request, page: int = 1, per_page: int = 10, search: Opti
             "total_pages": total_pages
         }
     }
+
+class BisonDirectCampaignData(BaseModel):
+    # Structure mirroring Bison API response for /api/campaigns
+    data: List[Dict[str, Any]] # List of raw campaign objects from Bison API
+    meta: Dict[str, Any]       # Raw meta object from Bison API (pagination, etc.)
+
+class BisonDirectOrganizationCampaignsResponse(BaseModel):
+    organization_id: str
+    organization_name: str
+    bison_response: Optional[BisonDirectCampaignData] = None # Raw response for this org
+    error: Optional[str] = None # To indicate if fetching failed for this org
+
+@router.get(
+    "/bison/campaigns-bison",
+    response=List[BisonDirectOrganizationCampaignsResponse], # New endpoint returns a list
+    auth=AuthBearer(),
+    summary="Get Bison Campaigns (Direct)",
+    description="Get campaigns directly from the Bison API for each organization, returning the raw paginated response per organization. Fetches all campaign statuses."
+)
+def get_bison_campaigns_direct(request, page: int = 1, per_page: int = 10, search: Optional[str] = None, workspace: Optional[int] = None):
+    """
+    Fetches campaigns directly from the Bison API for the user's organizations.
+
+    Args:
+        page: Page number to request from Bison API (default: 1)
+        per_page: Number of campaigns per page to request from Bison API (default: 10)
+        search: Search term to pass to Bison API (optional, uses 'query' parameter)
+        workspace: Filter campaigns by a specific workspace ID (optional)
+    """
+    start_time = time.time()
+    user = request.auth
+    log_to_terminal("BisonDirect", "Campaigns", f"User {user.email} requested direct Bison campaigns (page {page}, per_page {per_page}, search: {search or 'None'}, workspace: {workspace or 'None'})")
+
+    # Get active Bison organizations for the user
+    bison_orgs = UserBison.objects.filter(
+        user=user,
+        bison_organization_status=True
+    )
+
+    # Filter by workspace if provided
+    if workspace:
+        bison_orgs = bison_orgs.filter(id=workspace)
+        log_to_terminal("BisonDirect", "Campaigns", f"Filtering by workspace ID: {workspace}")
+
+    if not bison_orgs.exists():
+        log_to_terminal("BisonDirect", "Campaigns", f"No active Bison organizations found for user {user.email} matching criteria.")
+        # Return empty list instead of 404, consistent with the cached endpoint
+        return []
+
+    results = []
+    api_call_count = 0
+
+    for org in bison_orgs:
+        org_response = BisonDirectOrganizationCampaignsResponse(
+            organization_id=str(org.id),
+            organization_name=org.bison_organization_name
+        )
+        
+        api_url = f"{org.base_url.rstrip('/')}/api/campaigns"
+        headers = {
+            "Authorization": f"Bearer {org.bison_organization_api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+        params = {
+            "page": page,
+            "per_page": per_page,
+        }
+        # Assuming Bison uses 'query' for search based on common practices
+        if search:
+            params["query"] = search
+            
+        log_to_terminal("BisonDirect", "Campaigns", f"Fetching from Bison for org '{org.bison_organization_name}': {api_url} with params: {params}")
+        
+        try:
+            api_start_time = time.time()
+            response = requests.get(api_url, headers=headers, params=params, timeout=30) # Added timeout
+            api_call_count += 1
+            api_duration = time.time() - api_start_time
+            log_to_terminal("BisonDirect", "Campaigns", f"Bison API call for org '{org.bison_organization_name}' took {api_duration:.2f}s, Status: {response.status_code}")
+
+            response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
+            
+            # Attempt to parse JSON, handle potential errors
+            try:
+                bison_data = response.json()
+                # Validate structure slightly - check for 'data' and 'meta' keys
+                if isinstance(bison_data, dict) and 'data' in bison_data and 'meta' in bison_data:
+                     org_response.bison_response = BisonDirectCampaignData(
+                         data=bison_data.get('data', []),
+                         meta=bison_data.get('meta', {})
+                     )
+                else:
+                    log_to_terminal("BisonDirect", "Error", f"Unexpected JSON structure from Bison for org '{org.bison_organization_name}'. Response: {bison_data}")
+                    org_response.error = "Received unexpected data structure from Bison API."
+                    
+            except json.JSONDecodeError:
+                log_to_terminal("BisonDirect", "Error", f"Failed to decode JSON response from Bison for org '{org.bison_organization_name}'. Status: {response.status_code}, Response text: {response.text[:200]}")
+                org_response.error = f"Failed to decode Bison API response (Status: {response.status_code})."
+                
+        except requests.exceptions.RequestException as e:
+            log_to_terminal("BisonDirect", "Error", f"Error fetching campaigns from Bison API for org '{org.bison_organization_name}': {e}")
+            org_response.error = f"Failed to connect to Bison API: {e}"
+            # Optionally include status code if available in the exception
+            if hasattr(e, 'response') and e.response is not None:
+                 org_response.error += f" (Status: {e.response.status_code})"
+
+        except Exception as e:
+            # Catch any other unexpected errors during processing
+            log_to_terminal("BisonDirect", "Error", f"Unexpected error processing org '{org.bison_organization_name}': {e}")
+            import traceback
+            log_to_terminal("BisonDirect", "Error", f"Traceback: {traceback.format_exc()}")
+            org_response.error = f"An unexpected error occurred: {e}"
+
+        results.append(org_response)
+
+    total_time = time.time() - start_time
+    log_to_terminal("BisonDirect", "Campaigns", f"Finished request for user {user.email} in {total_time:.2f}s. Made {api_call_count} Bison API calls.")
+    
+    # Return the list of organization responses
+    return results
 
 # Analytics schemas
 class InstantlyAccountsResponse(Schema):
