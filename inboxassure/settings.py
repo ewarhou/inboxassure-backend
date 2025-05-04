@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'analytics',
     'settings',
     'spamcheck',
+    'webhook',
 ]
 
 MIDDLEWARE = [
