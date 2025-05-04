@@ -17,7 +17,10 @@ from authentication.authorization import AuthBearer # Import the correct AuthBea
 
 router = Router(tags=['Webhook'])
 
-BASE_URL = f"http://{ALLOWED_HOSTS[0]}" # Use the first allowed host, adjust if needed
+# Use https and determine the domain dynamically or use a specific one
+# Let's assume the first ALLOWED_HOST is the correct one for production/dev
+# Adjust if necessary, e.g., read from an environment variable
+BASE_URL = f"https://{ALLOWED_HOSTS[0]}"
 
 @router.post("/generate", response=WebhookUrlSchema, auth=AuthBearer()) # Use AuthBearer
 def generate_webhook(request: HttpRequest):
