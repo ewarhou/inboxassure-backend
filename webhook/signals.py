@@ -275,6 +275,20 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
             if not classified_bucket:
                  logger.info(f"Assigning fallback bounce bucket: {bounce_bucket_to_save} for webhook data ID: {instance.id}")
 
+            # --- Construct bounce_reply_url ---
+            bounce_reply_url_to_save = None
+            if bison_base_url and bounce_reply_uuid:
+                try:
+                    # Ensure base_url ends with / and construct the full URL
+                    clean_base_url = bison_base_url.rstrip('/')
+                    # Assuming the URL structure is /bounce-replies/{uuid} - adjust if needed
+                    bounce_reply_url_to_save = f"{clean_base_url}/bounce-replies/{bounce_reply_uuid}" 
+                except Exception as e:
+                     logger.error(f"Error constructing bounce_reply_url for webhook data ID {instance.id}: {e}")
+            else:
+                logger.warning(f"Cannot construct bounce_reply_url: missing base_url ({bool(bison_base_url)}) or bounce_reply_uuid ({bool(bounce_reply_uuid)}) for webhook data ID {instance.id}")
+            # ------------------------------------
+
             # Create the BisonBounces record
             BisonBounces.objects.create(
                 user=user_instance,
@@ -292,7 +306,7 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
                 tags=sender_tags,
                 bounce_reply=bounce_reply_text, # Save the potentially truncated text
                 bounce_bucket=bounce_bucket_to_save,
-                bounce_reply_uuid=bounce_reply_uuid
+                bounce_reply_url=bounce_reply_url_to_save # Use the constructed URL
             )
             logger.info(f"Successfully created BisonBounces record for webhook data ID: {instance.id} using org name '{workspace_name}'")
 
