@@ -10,6 +10,7 @@ from django.shortcuts import get_object_or_404
 
 from .models import BisonWebhookData, BisonBounces, BisonWebhook
 from settings.models import UserBison # Import UserBison
+from call_openrouter import call_openrouter # Import the AI function
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -21,7 +22,8 @@ BOUNCE_BUCKETS = [
     'auth_failure',
     'policy_reject',
     'temp_deferral',
-    'infra_other'
+    'infra_other',
+    'unknown'
 ]
 
 # Modified to accept base_url and api_token and handle pagination
@@ -209,6 +211,52 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
             else:
                 logger.warning(f"Missing campaign_id or scheduled_email_id in payload for webhook data ID: {instance.id}")
 
+            # --- Classify Bounce Bucket using OpenRouter ---            
+            classified_bucket = None
+            if bounce_reply_text:
+                logger.info(f"Attempting bounce classification for webhook data ID: {instance.id}")
+                classification_prompt = f"""
+                    You are an email-deliverability classifier.
+
+                    Return **exactly one** of the following bucket names
+                    (in lower-case snake_case, no extra characters and no extra explanations or additional text):
+
+                    • invalid_address      – recipient doesn't exist / user unknown  
+                    • reputation_block     – sender blocked for spam / bad reputation  
+                    • auth_failure         – SPF, DKIM or DMARC failed  
+                    • policy_reject        – content or attachment policy violation  
+                    • temp_deferral        – temporary delay, rate-limit, mailbox full  
+                    • infra_other          – DNS, TLS or generic infrastructure error  
+
+                    Here is the bounce message : 
+                    {bounce_reply_text}
+                """
+                
+                # Choose model - using the free tier as per call_openrouter.py default
+                # Or specify another like "openai/gpt-4o"
+                model_to_use = "meta-llama/llama-4-scout:free" 
+                
+                ai_response = call_openrouter(classification_prompt, model=model_to_use)
+                
+                if ai_response:
+                    cleaned_response = ai_response.strip().lower()
+                    # Check against all buckets EXCEPT unknown
+                    valid_buckets_for_ai = [b for b in BOUNCE_BUCKETS if b != 'unknown'] 
+                    if cleaned_response in valid_buckets_for_ai:
+                        classified_bucket = cleaned_response
+                        logger.info(f"Successfully classified bounce bucket as: {classified_bucket} for webhook data ID: {instance.id}")
+                    else:
+                        logger.warning(f"AI response '{cleaned_response}' is not a valid bucket name. Falling back to 'unknown' for webhook data ID: {instance.id}")
+                else:
+                    logger.warning(f"Failed to get classification from AI. Falling back to 'unknown' for webhook data ID: {instance.id}")
+            else:
+                logger.warning(f"No bounce reply text found. Cannot classify bucket. Falling back to 'unknown' for webhook data ID: {instance.id}")
+
+            # Determine final bucket (use classified if available, else 'unknown')
+            bounce_bucket_to_save = classified_bucket if classified_bucket else 'unknown'
+            if not classified_bucket:
+                 logger.info(f"Assigning fallback bounce bucket: {bounce_bucket_to_save} for webhook data ID: {instance.id}")
+
             # Create the BisonBounces record
             BisonBounces.objects.create(
                 user=user_instance,
@@ -222,10 +270,10 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
                 campaign_name=campaign.get('name'),
                 sender_bison_id=sender_email_info.get('id'),
                 sender_email=sender_email,
-                domain=domain, # Save extracted domain
-                tags=sender_tags, # Save fetched tags
+                domain=domain,
+                tags=sender_tags,
                 bounce_reply=bounce_reply_text,
-                bounce_bucket=random.choice(BOUNCE_BUCKETS)
+                bounce_bucket=bounce_bucket_to_save # Use determined bucket ('unknown' if failed)
             )
             logger.info(f"Successfully created BisonBounces record for webhook data ID: {instance.id} using org name '{workspace_name}'")
 
