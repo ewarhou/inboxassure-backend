@@ -13,13 +13,14 @@ from settings.models import UserBison # Import UserBison
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
+# Updated bounce bucket names
 BOUNCE_BUCKETS = [
-    'Invalid Address',
-    'Reputation Block',
-    'Auth Failure',
-    'Policy Reject',
-    'Temp Deferral',
-    'Infra Other'
+    'invalid_address',
+    'reputation_block',
+    'auth_failure',
+    'policy_reject',
+    'temp_deferral',
+    'infra_other'
 ]
 
 # Modified to accept base_url and api_token
@@ -74,26 +75,37 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
             webhook_instance = instance.webhook
             user_instance = webhook_instance.user
 
-            # Extract workspace_id to find the correct UserBison record
-            workspace_id = payload.get('event', {}).get('workspace_id')
-            if not workspace_id:
-                logger.error(f"Missing workspace_id in payload for webhook data ID: {instance.id}. Cannot fetch API key.")
-                return
+            # Extract workspace_id (to be saved directly) and workspace_name (for lookup)
+            event_data = payload.get('event', {})
+            workspace_id_from_payload = event_data.get('workspace_id') # The ID from Bison to store
+            workspace_name = event_data.get('workspace_name') # The name to use for lookup
 
-            # Get the specific UserBison instance for this workspace/user
+            if not workspace_name:
+                logger.error(f"Missing workspace_name in payload for webhook data ID: {instance.id}. Cannot fetch API key.")
+                return
+            if workspace_id_from_payload is None: # Check if it exists, even if null
+                 logger.warning(f"Missing workspace_id in payload for webhook data ID: {instance.id}. Will store null if bounce record is created.")
+
+            # Get the specific UserBison instance using the workspace_name
             try:
-                user_bison_org = UserBison.objects.get(user=user_instance, id=workspace_id, bison_organization_status=True)
+                user_bison_org = UserBison.objects.get(
+                    user=user_instance, 
+                    bison_organization_name=workspace_name, 
+                    bison_organization_status=True
+                )
                 bison_api_token = user_bison_org.bison_organization_api_key
                 bison_base_url = user_bison_org.base_url
             except UserBison.DoesNotExist:
-                logger.error(f"Active UserBison organization with ID {workspace_id} not found for user {user_instance.username}. Cannot process bounce.")
+                logger.error(f"Active UserBison organization with name '{workspace_name}' not found for user {user_instance.username}. Cannot process bounce.")
                 return
+            except UserBison.MultipleObjectsReturned:
+                 logger.error(f"Multiple active UserBison organizations found with name '{workspace_name}' for user {user_instance.username}. Ambiguous lookup.")
+                 return # Or handle ambiguity differently
             except Exception as e:
-                 logger.error(f"Error fetching UserBison organization {workspace_id} for user {user_instance.username}: {e}")
+                 logger.error(f"Error fetching UserBison organization '{workspace_name}' for user {user_instance.username}: {e}")
                  return
 
             # Extract other data safely
-            workspace_name = payload.get('event', {}).get('workspace_name')
             scheduled_email = data.get('scheduled_email', {})
             lead = data.get('lead', {})
             campaign = data.get('campaign', {})
@@ -113,7 +125,7 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
             BisonBounces.objects.create(
                 user=user_instance,
                 webhook=webhook_instance,
-                workspace_bison_id=workspace_id,
+                workspace_bison_id=workspace_id_from_payload, # Store the ID from payload directly
                 workspace_name=workspace_name,
                 email_subject=scheduled_email.get('email_subject'),
                 email_body=scheduled_email.get('email_body'),
@@ -125,7 +137,7 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
                 bounce_reply=bounce_reply_text,
                 bounce_bucket=random.choice(BOUNCE_BUCKETS)
             )
-            logger.info(f"Successfully created BisonBounces record for webhook data ID: {instance.id} using org {workspace_id}")
+            logger.info(f"Successfully created BisonBounces record for webhook data ID: {instance.id} using org name '{workspace_name}'")
 
     except KeyError as e:
         logger.error(f"Missing key in webhook payload for BisonWebhookData ID {instance.id}: {e}")
