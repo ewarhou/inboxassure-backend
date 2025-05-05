@@ -220,23 +220,23 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
                  logger.warning(f"Missing sender_email in payload for webhook data ID: {instance.id}. Cannot fetch tags.")
 
             # Fetch bounce reply from Bison API using the user's token and base URL
-            bounce_reply_text, bounce_reply_uuid = None, None
+            original_bounce_reply_text, bounce_reply_uuid = None, None # Variable for original text
             if campaign_id and scheduled_email_id:
-                bounce_reply_text, bounce_reply_uuid = get_bison_bounce_reply(bison_base_url, bison_api_token, campaign_id, scheduled_email_id)
-                # --- Truncate the bounce reply text --- 
-                if bounce_reply_text:
-                    original_length = len(bounce_reply_text)
-                    bounce_reply_text = truncate_bounce_reply(bounce_reply_text)
-                    truncated_length = len(bounce_reply_text)
-                    if original_length != truncated_length:
-                         logger.info(f"Truncated bounce reply for webhook data ID: {instance.id} (original: {original_length}, truncated: {truncated_length})")
-                # ---------------------------------------
-            else:
-                logger.warning(f"Missing campaign_id or scheduled_email_id in payload for webhook data ID: {instance.id}")
-
-            # --- Classify Bounce Bucket using OpenRouter ---
+                original_bounce_reply_text, bounce_reply_uuid = get_bison_bounce_reply(bison_base_url, bison_api_token, campaign_id, scheduled_email_id)
+            
+            # --- Truncate the bounce reply text for AI and storage --- 
+            bounce_reply_text_to_save = original_bounce_reply_text # Start with original
+            if original_bounce_reply_text:
+                original_length = len(original_bounce_reply_text)
+                bounce_reply_text_to_save = truncate_bounce_reply(original_bounce_reply_text) # Truncate for saving
+                truncated_length = len(bounce_reply_text_to_save)
+                if original_length != truncated_length:
+                     logger.info(f"Truncated bounce reply for webhook data ID: {instance.id} (original: {original_length}, truncated: {truncated_length})")
+            # ------------------------------------------------------
+            
+            # --- Classify Bounce Bucket using OpenRouter --- 
             classified_bucket = None
-            if bounce_reply_text: # Use the (potentially truncated) text for classification
+            if bounce_reply_text_to_save: # Use the TRUNCATED text for classification
                 logger.info(f"Attempting bounce classification for webhook data ID: {instance.id}")
                 classification_prompt = f"""
                     You are an email-deliverability classifier.
@@ -252,7 +252,7 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
                     • infra_other          – DNS, TLS or generic infrastructure error  
 
                     Here is the bounce message : 
-                    {bounce_reply_text}
+                    {bounce_reply_text_to_save}
                 """
                 
                 model_to_use = "meta-llama/llama-4-scout:free" 
@@ -292,8 +292,8 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
 
             # --- Extract SMTP Bounce Code ---
             smtp_code = None
-            if bounce_reply_text:
-                smtp_code = extract_smtp_code(bounce_reply_text)
+            if original_bounce_reply_text: # Use the ORIGINAL text here
+                smtp_code = extract_smtp_code(original_bounce_reply_text)
                 if smtp_code:
                     logger.info(f"Extracted SMTP code: {smtp_code} for webhook data ID {instance.id}")
                 else:
@@ -316,7 +316,7 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
                 sender_email=sender_email,
                 domain=domain,
                 tags=sender_tags,
-                bounce_reply=bounce_reply_text, # Save the potentially truncated text
+                bounce_reply=bounce_reply_text_to_save, # Save the potentially truncated text
                 bounce_bucket=bounce_bucket_to_save,
                 bounce_code=smtp_code_to_save, # Add the extracted code
                 bounce_reply_url=bounce_reply_url_to_save # Use the constructed URL
