@@ -5,9 +5,11 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 # from django.contrib.auth.models import User # No longer needed directly here
 from django.views.decorators.csrf import csrf_exempt
 import json
+from django.utils.dateparse import parse_date # For parsing date strings
+from typing import List, Optional
 
-from .models import BisonWebhook, BisonWebhookData
-from .schemas import WebhookUrlSchema
+from .models import BisonWebhook, BisonWebhookData, BisonBounces # Add BisonBounces
+from .schemas import WebhookUrlSchema, BisonBounceSchema # Add BisonBounceSchema
 from inboxassure.settings import ALLOWED_HOSTS # To construct the full URL
 from authentication.authorization import AuthBearer # Import the correct AuthBearer
 
@@ -40,6 +42,48 @@ def get_webhook(request: HttpRequest):
     webhook = get_object_or_404(BisonWebhook, user=user)
     webhook_url = f"{BASE_URL}/api/webhook/receive/{webhook.webhook_id}/"
     return {"webhook_url": webhook_url}
+
+@router.get("/bounces", response=List[BisonBounceSchema], auth=AuthBearer())
+def get_bounces(request: HttpRequest, 
+                start_date: Optional[str] = None,
+                end_date: Optional[str] = None,
+                workspace_name: Optional[str] = None,
+                sender_email: Optional[str] = None,
+                tag: Optional[str] = None, # Single tag for contains filter
+                bucket_name: Optional[str] = None,
+                campaign_name: Optional[str] = None,
+                domain: Optional[str] = None):
+    """Retrieves a list of bounce records for the authenticated user, with optional filters."""
+    user = request.auth
+    queryset = BisonBounces.objects.filter(user=user)
+
+    # Apply filters
+    if start_date:
+        parsed_start_date = parse_date(start_date)
+        if parsed_start_date:
+            queryset = queryset.filter(created_at__date__gte=parsed_start_date)
+    if end_date:
+        parsed_end_date = parse_date(end_date)
+        if parsed_end_date:
+            queryset = queryset.filter(created_at__date__lte=parsed_end_date)
+    if workspace_name:
+        queryset = queryset.filter(workspace_name__icontains=workspace_name) # Use icontains for flexibility
+    if sender_email:
+        queryset = queryset.filter(sender_email__iexact=sender_email)
+    if tag:
+        # Assumes tags are stored as a JSON list of strings
+        queryset = queryset.filter(tags__contains=tag)
+    if bucket_name:
+        queryset = queryset.filter(bounce_bucket__iexact=bucket_name)
+    if campaign_name:
+        queryset = queryset.filter(campaign_name__icontains=campaign_name)
+    if domain:
+        queryset = queryset.filter(domain__iexact=domain)
+        
+    # Order by creation date
+    queryset = queryset.order_by('-created_at')
+
+    return list(queryset)
 
 # This is the actual endpoint that listens for incoming webhook data
 @csrf_exempt # Important for webhooks which won't have CSRF tokens

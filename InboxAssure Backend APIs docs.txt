@@ -1,324 +1,48 @@
-# InboxAssure Backend API Documentation
+# InboxAssure Backend APIs Documentation
 
-## Webhooks
+## Webhook Endpoints
 
-Webhooks allow you to receive automated notifications when certain events occur in InboxAssure. Currently, webhooks are supported for spamcheck completion events.
+### Get Bounce Records
 
-### Webhook Payload Format
+*   **Method:** `GET`
+*   **URL:** `/api/webhook/bounces/`
+*   **Authentication:** Required (Bearer Token)
+*   **Description:** Retrieves a list of bounce records logged from Bison webhooks for the authenticated user.
+*   **Query Parameters (Optional):**
+    *   `start_date` (string, `YYYY-MM-DD`): Filter bounces created on or after this date.
+    *   `end_date` (string, `YYYY-MM-DD`): Filter bounces created on or before this date.
+    *   `workspace_name` (string): Filter by workspace name (case-insensitive contains match).
+    *   `sender_email` (string): Filter by sender email address (case-insensitive exact match).
+    *   `tag` (string): Filter by a specific tag present in the bounce record's tags list.
+    *   `bucket_name` (string): Filter by bounce bucket name (case-insensitive exact match). Valid values: `invalid_address`, `reputation_block`, `auth_failure`, `policy_reject`, `temp_deferral`, `infra_other`, `unknown`.
+    *   `campaign_name` (string): Filter by campaign name (case-insensitive contains match).
+    *   `domain` (string): Filter by sender domain (case-insensitive exact match).
+*   **Success Response:**
+    *   **Code:** 200 OK
+    *   **Content:** `List[BisonBounceSchema]`
+        ```json
+        [
+          {
+            "id": 1,
+            "workspace_bison_id": 3,
+            "workspace_name": "Karpos",
+            "email_subject": "2025 plan for Dazos",
+            "email_body": "<p>Hi Cameron...</p>",
+            "lead_email": "cameron@dazos.com",
+            "campaign_bison_id": 94,
+            "campaign_name": "2nd Jason Pulliam...",
+            "sender_bison_id": 1889,
+            "sender_email": "Pat@exitstrategyconsulting.info",
+            "domain": "exitstrategyconsulting.info",
+            "tags": ["Google Good", "Outlook Good"],
+            "bounce_reply": "Delivery has failed...",
+            "bounce_bucket": "reputation_block",
+            "created_at": "2025-05-07T10:30:00Z"
+          }
+          // ... more bounce records
+        ]
+        ```
+*   **Error Response:**
+    *   **Code:** 401 Unauthorized (If token is missing or invalid)
 
-When a spamcheck is completed, InboxAssure will send a POST request to your configured webhook URL with the following JSON payload:
-
-```json
-{
-  "event": "spamcheck.completed",
-  "spamcheck": {
-    "id": 123,
-    "name": "Test Campaign",
-    "status": "completed",
-    "created_at": "2024-03-27T15:30:00Z",
-    "updated_at": "2024-03-27T16:30:00Z", 
-    "is_domain_based": true,
-    "subject": "Test Subject",
-    "body": "Test Email Body",
-    "conditions": "google>=0.5 and outlook>=0.5 sending=25/3"
-  },
-  "overall_results": {
-    "total_accounts": 100,
-    "good_accounts": 75,
-    "bad_accounts": 25,
-    "good_accounts_percentage": 75.0,
-    "bad_accounts_percentage": 25.0,
-    "average_google_score": 0.85,
-    "average_outlook_score": 0.78,
-    "total_bounced": 5,
-    "total_unique_replies": 20,
-    "total_emails_sent": 1000
-  },
-  "reports": [
-    {
-      "id": "uuid-1",
-      "email_account": "test@example.com",
-      "google_pro_score": 0.9,
-      "outlook_pro_score": 0.8,
-      "report_link": "https://app.emailguard.io/inbox-placement-tests/...",
-      "is_good": true,
-      "sending_limit": 25,
-      "tags_list": "tag1,tag2",
-      "workspace_name": "Workspace 1",
-      "bounced_count": 0,
-      "unique_replied_count": 2,
-      "emails_sent_count": 10,
-      "created_at": "2024-03-27T16:30:00Z",
-      "updated_at": "2024-03-27T16:30:00Z"
-    },
-    // Additional accounts...
-  ]
-}
-```
-
-### Setting Up Webhooks
-
-To receive webhook notifications, you need to configure a webhook URL in your InboxAssure account. Your webhook endpoint should:
-
-1. Accept POST requests
-2. Return a 200 HTTP status code to acknowledge receipt
-3. Process the webhook asynchronously if the processing is time-consuming
-4. Verify the webhook payload format before processing
-5. Implement proper error handling
-
-### Webhook Management API Endpoints
-
-#### Get Webhook URL
-
-```
-GET /api/settings/webhook
-```
-
-Returns the currently configured webhook URL for the authenticated user.
-
-**Response:**
-```json
-{
-  "success": true,
-  "webhook_url": "https://your-webhook-endpoint.com/inboxassure-webhook"
-}
-```
-
-#### Create/Update Webhook URL
-
-```
-POST /api/settings/webhook
-```
-
-**Request Body:**
-```json
-{
-  "webhook_url": "https://your-webhook-endpoint.com/inboxassure-webhook"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Webhook URL created successfully",
-  "webhook_url": "https://your-webhook-endpoint.com/inboxassure-webhook"
-}
-```
-
-#### Update Webhook URL
-
-```
-PUT /api/settings/webhook
-```
-
-**Request Body:**
-```json
-{
-  "webhook_url": "https://your-new-webhook-endpoint.com/inboxassure-webhook"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Webhook URL updated successfully",
-  "webhook_url": "https://your-new-webhook-endpoint.com/inboxassure-webhook"
-}
-```
-
-#### Delete Webhook URL
-
-```
-DELETE /api/settings/webhook
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Webhook URL deleted successfully"
-}
-```
-
-#### Test Webhook
-
-```
-POST /api/settings/test-webhook
-```
-
-Sends a test webhook payload to verify your webhook endpoint is correctly set up.
-
-**Request Body:**
-```json
-{
-  "webhook_url": "https://your-webhook-endpoint.com/inboxassure-webhook",
-  "save_to_settings": true  // Optional, defaults to false
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "status_code": 200,
-  "message": "Webhook test sent successfully and received 200 OK response.",
-  "webhook_url": "https://your-webhook-endpoint.com/inboxassure-webhook",
-  "saved_to_settings": true
-}
-```
-
-## Error Logs
-
-The Error Logs API allows you to retrieve and filter spamcheck error logs, especially for accounts that failed to send emails during spamcheck execution.
-
-### Get Error Logs
-
-```
-GET /api/spamcheck/error-logs
-```
-
-Returns a paginated list of error logs with various filtering options.
-
-**Query Parameters:**
-- `spamcheck_id` (optional): Filter by spamcheck ID
-- `account_email` (optional): Filter by account email
-- `provider` (optional): Filter by provider (bison, instantly, emailguard, system)
-- `error_type` (optional): Filter by error type
-- `workspace` (optional): Filter by workspace/organization ID
-- `search` (optional): Search term for spamcheck name or error message
-- `start_date` (optional): Filter by created_at >= start_date (format: 'YYYY-MM-DD')
-- `end_date` (optional): Filter by created_at <= end_date (format: 'YYYY-MM-DD')
-- `latest_per_account` (optional, default=true): If true, return only the most recent error for each account
-- `fetch_account_details` (optional, default=true): If true, fetch workspace and tags from Bison API
-- `page` (optional, default=1): Page number
-- `per_page` (optional, default=25): Results per page
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Error logs retrieved successfully",
-  "error_logs": [
-    {
-      "id": 1,
-      "error_type": "server_error",
-      "provider": "bison",
-      "error_message": "Failed to send email due to server error",
-      "error_details": {"status": 500, "details": "Internal Server Error"},
-      "account_email": "test@example.com",
-      "step": "send_email",
-      "api_endpoint": "/api/v1/send",
-      "status_code": 500,
-      "workspace_id": "12345",
-      "tags": ["important", "marketing"],
-      "created_at": "2023-08-15T12:34:56Z",
-      "bison_spamcheck_id": 123,
-      "spamcheck_id": null,
-      "spamcheck_name": "My Spamcheck Campaign",
-      "user_id": 1
-    }
-  ],
-  "pagination": {
-    "current_page": 1,
-    "total_pages": 5,
-    "total_items": 120,
-    "per_page": 25
-  }
-}
-```
-
-### Error Types
-
-The error logs can include the following error types:
-
-- `api_error`: Errors returned by external APIs
-- `server_error`: Server-side errors from external services
-- `validation_error`: Data validation errors
-- `connection_error`: Network connection issues
-- `authentication_error`: Authentication failures
-- `timeout_error`: Request timeout issues
-- `unknown_error`: Unclassified errors
-
-### Error Log Fields
-
-- `id`: Unique identifier for the error log
-- `error_type`: Type of error (see above)
-- `provider`: Service provider where the error occurred (bison, instantly, emailguard, system)
-- `error_message`: Human-readable error message
-- `error_details`: Additional details about the error in JSON format
-- `account_email`: The email account being processed when the error occurred
-- `step`: The step in the process where the error occurred
-- `api_endpoint`: The API endpoint that returned the error
-- `status_code`: The HTTP status code returned by the API
-- `workspace_id`: The ID of the workspace this account belongs to
-- `tags`: Array of tags associated with the account
-- `created_at`: When the error was logged
-- `bison_spamcheck_id`: ID of the Bison spamcheck (if applicable)
-- `spamcheck_id`: ID of the regular spamcheck (if applicable)
-- `spamcheck_name`: Name of the spamcheck
-- `user_id`: User ID who owns the spamcheck
-
-## Bison Campaigns (Direct Fetch)
-
-This API allows you to retrieve campaign data directly from the linked Bison organizations, bypassing the local cache.
-
-### Get Bison Campaigns (Direct)
-
-```
-GET /api/analytics/bison/campaigns-bison
-```
-
-Returns a list of responses, one for each active Bison organization linked to the user. Each response contains the raw, paginated campaign data directly from that organization's Bison API `/api/campaigns` endpoint.
-
-**Authentication:** Required (Bearer Token)
-
-**Query Parameters:**
-- `page` (optional, integer, default=1): Page number to request from the Bison API.
-- `per_page` (optional, integer, default=10): Number of campaigns per page to request from the Bison API.
-- `search` (optional, string): Search term passed directly to the Bison API's `query` parameter.
-- `workspace` (optional, integer): Filter results to a specific InboxAssure workspace ID (linked Bison organization).
-
-**Response:**
-
-A list containing objects for each targeted Bison organization:
-```json
-[
-  {
-    "organization_id": "1", // InboxAssure's ID for the UserBison record
-    "organization_name": "Bison Org Alpha",
-    "bison_response": { // Raw response from Bison API
-      "data": [
-        {
-          "id": 101,
-          "name": "Q1 Outreach Campaign",
-          "status": "active",
-          "created_at": "2024-01-15T10:00:00Z",
-          "updated_at": "2024-03-01T11:20:30Z",
-          "max_emails_per_day": 50,
-          // ... other fields provided by Bison's /api/campaigns
-        },
-        // ... more campaigns
-      ],
-      "meta": { // Bison's pagination metadata
-        "current_page": 1,
-        "from": 1,
-        "last_page": 5,
-        "path": "https://bison.example.com/api/campaigns",
-        "per_page": 10,
-        "to": 10,
-        "total": 45
-      }
-    },
-    "error": null // Populated if fetching failed for this org
-  },
-  {
-    "organization_id": "2",
-    "organization_name": "Bison Org Beta",
-    "bison_response": null,
-    "error": "Failed to connect to Bison API: Connection timed out (Status: None)" // Example error
-  }
-  // ... more organizations
-]
-```
+---

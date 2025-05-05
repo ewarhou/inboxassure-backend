@@ -7,6 +7,7 @@ from django.dispatch import receiver
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
+from typing import Optional
 
 from .models import BisonWebhookData, BisonBounces, BisonWebhook
 from settings.models import UserBison # Import UserBison
@@ -25,6 +26,17 @@ BOUNCE_BUCKETS = [
     'infra_other',
     'unknown'
 ]
+
+def truncate_bounce_reply(text: Optional[str]) -> Optional[str]:
+    """Truncates bounce reply text, keeping only content before >= 6 consecutive newlines."""
+    if not text:
+        return text
+
+    separator = '\n' * 6
+    parts = text.split(separator, 1) # Split only on the first occurrence
+    
+    # Return the first part, stripped of leading/trailing whitespace
+    return parts[0].strip()
 
 # Modified to accept base_url and api_token and handle pagination
 def get_bison_bounce_reply(base_url, api_token, campaign_id, scheduled_email_id):
@@ -208,12 +220,20 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
             bounce_reply_text = None
             if campaign_id and scheduled_email_id:
                 bounce_reply_text = get_bison_bounce_reply(bison_base_url, bison_api_token, campaign_id, scheduled_email_id)
+                # --- Truncate the bounce reply text --- 
+                if bounce_reply_text:
+                    original_length = len(bounce_reply_text)
+                    bounce_reply_text = truncate_bounce_reply(bounce_reply_text)
+                    truncated_length = len(bounce_reply_text)
+                    if original_length != truncated_length:
+                         logger.info(f"Truncated bounce reply for webhook data ID: {instance.id} (original: {original_length}, truncated: {truncated_length})")
+                # ---------------------------------------
             else:
                 logger.warning(f"Missing campaign_id or scheduled_email_id in payload for webhook data ID: {instance.id}")
 
-            # --- Classify Bounce Bucket using OpenRouter ---            
+            # --- Classify Bounce Bucket using OpenRouter ---
             classified_bucket = None
-            if bounce_reply_text:
+            if bounce_reply_text: # Use the (potentially truncated) text for classification
                 logger.info(f"Attempting bounce classification for webhook data ID: {instance.id}")
                 classification_prompt = f"""
                     You are an email-deliverability classifier.
@@ -232,15 +252,11 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
                     {bounce_reply_text}
                 """
                 
-                # Choose model - using the free tier as per call_openrouter.py default
-                # Or specify another like "openai/gpt-4o"
                 model_to_use = "meta-llama/llama-4-scout:free" 
-                
                 ai_response = call_openrouter(classification_prompt, model=model_to_use)
                 
                 if ai_response:
                     cleaned_response = ai_response.strip().lower()
-                    # Check against all buckets EXCEPT unknown
                     valid_buckets_for_ai = [b for b in BOUNCE_BUCKETS if b != 'unknown'] 
                     if cleaned_response in valid_buckets_for_ai:
                         classified_bucket = cleaned_response
@@ -251,7 +267,7 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
                     logger.warning(f"Failed to get classification from AI. Falling back to 'unknown' for webhook data ID: {instance.id}")
             else:
                 logger.warning(f"No bounce reply text found. Cannot classify bucket. Falling back to 'unknown' for webhook data ID: {instance.id}")
-
+            
             # Determine final bucket (use classified if available, else 'unknown')
             bounce_bucket_to_save = classified_bucket if classified_bucket else 'unknown'
             if not classified_bucket:
@@ -272,8 +288,8 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
                 sender_email=sender_email,
                 domain=domain,
                 tags=sender_tags,
-                bounce_reply=bounce_reply_text,
-                bounce_bucket=bounce_bucket_to_save # Use determined bucket ('unknown' if failed)
+                bounce_reply=bounce_reply_text, # Save the potentially truncated text
+                bounce_bucket=bounce_bucket_to_save 
             )
             logger.info(f"Successfully created BisonBounces record for webhook data ID: {instance.id} using org name '{workspace_name}'")
 
