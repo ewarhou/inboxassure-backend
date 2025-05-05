@@ -20,24 +20,20 @@ client = OpenAI(
 
 def call_openrouter(prompt: str, model: str = "meta-llama/llama-4-scout:free") -> str | None:
     """Calls the OpenRouter API with a given prompt and model."""
-    try:
-        completion = client.chat.completions.create(
-            extra_headers={
-                "HTTP-Referer": YOUR_SITE_URL, 
-                "X-Title": YOUR_SITE_NAME, 
-            },
-            model=model,
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
-        )
-        return completion.choices[0].message.content
-    except Exception as e:
-        print(f"Error calling OpenRouter API: {e}")
-        return None
+    completion = client.chat.completions.create(
+        extra_headers={
+            "HTTP-Referer": YOUR_SITE_URL, 
+            "X-Title": YOUR_SITE_NAME, 
+        },
+        model=model,
+        messages=[
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+    )
+    return completion.choices[0].message.content
 
 # Example usage:
 if __name__ == "__main__":
