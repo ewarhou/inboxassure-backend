@@ -12,6 +12,7 @@ from typing import Optional
 from .models import BisonWebhookData, BisonBounces, BisonWebhook
 from settings.models import UserBison # Import UserBison
 from call_openrouter import call_openrouter # Import the AI function
+from .utils.extract_smtp_code import extract_smtp_code # Import the extractor
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -289,6 +290,17 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
                 logger.warning(f"Cannot construct bounce_reply_url: missing base_url ({bool(bison_base_url)}) or bounce_reply_uuid ({bool(bounce_reply_uuid)}) for webhook data ID {instance.id}")
             # ------------------------------------
 
+            # --- Extract SMTP Bounce Code ---
+            smtp_code = None
+            if bounce_reply_text:
+                smtp_code = extract_smtp_code(bounce_reply_text)
+                if smtp_code:
+                    logger.info(f"Extracted SMTP code: {smtp_code} for webhook data ID {instance.id}")
+                else:
+                    logger.warning(f"Could not extract SMTP code for webhook data ID {instance.id}")
+            smtp_code_to_save = smtp_code if smtp_code else 'unknown'
+            # ------------------------------------
+
             # Create the BisonBounces record
             BisonBounces.objects.create(
                 user=user_instance,
@@ -306,6 +318,7 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
                 tags=sender_tags,
                 bounce_reply=bounce_reply_text, # Save the potentially truncated text
                 bounce_bucket=bounce_bucket_to_save,
+                bounce_code=smtp_code_to_save, # Add the extracted code
                 bounce_reply_url=bounce_reply_url_to_save # Use the constructed URL
             )
             logger.info(f"Successfully created BisonBounces record for webhook data ID: {instance.id} using org name '{workspace_name}'")

@@ -170,6 +170,7 @@ These endpoints manage user profile information, often used for navigation bars 
             "tags": ["Google Good", "Outlook Good"],
             "bounce_reply": "Delivery has failed...",
             "bounce_bucket": "reputation_block",
+            "bounce_code": "550 5.1.1",
             "bounce_reply_url": "https://example.com/bounce_reply_url",
             "created_at": "2025-05-07T10:30:00Z"
           }
