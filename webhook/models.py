@@ -34,6 +34,8 @@ class BisonBounces(models.Model):
     campaign_name = models.CharField(max_length=255, null=True, blank=True)
     sender_bison_id = models.IntegerField(null=True, blank=True) # Assuming ID is integer
     sender_email = models.EmailField()
+    domain = models.CharField(max_length=255, null=True, blank=True, db_index=True) # Added domain field
+    tags = models.JSONField(null=True, blank=True) # Added tags field
     bounce_reply = models.TextField(null=True, blank=True)
     bounce_bucket = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
