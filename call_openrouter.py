@@ -12,23 +12,22 @@ YOUR_SITE_URL = "https://inboxassure.app"
 YOUR_SITE_NAME = "InboxAssure"
 # -----------------------------------------
 
-# Initialize the client
+# Initialize the client WITH the api_key argument
 client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
-    api_key=OPENROUTER_API_KEY,
+    api_key=OPENROUTER_API_KEY, # Standard way to provide the key
 )
 
 def call_openrouter(prompt: str, model: str = "meta-llama/llama-4-scout:free") -> str | None:
     """Calls the OpenRouter API with a given prompt and model."""
-    # Attempting explicit Authorization header
-    explicit_headers = {
+    # No explicit Authorization header needed here
+    headers_to_send = {
         "HTTP-Referer": YOUR_SITE_URL, 
         "X-Title": YOUR_SITE_NAME, 
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}" # Explicitly add header
     }
     
     completion = client.chat.completions.create(
-        extra_headers=explicit_headers, # Use modified headers
+        extra_headers=headers_to_send, # Only send optional headers
         model=model,
         messages=[
             {
