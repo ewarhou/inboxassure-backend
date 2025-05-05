@@ -66,6 +66,7 @@ class AccountData(Schema):
     bounce_count: Optional[int] = None  # Added bounce count field
     reply_count: Optional[int] = None  # Added reply count field
     emails_sent: Optional[int] = None  # Added total emails sent field
+    tags_list: Optional[List[str]] = None # Added tags list field
 
 class PaginationMeta(Schema):
     """Schema for pagination metadata"""
@@ -1426,6 +1427,7 @@ def get_accounts(
 @router.get(
     "/accounts-bison",
     response=AccountsResponse,
+    exclude_none=False,  # Add this line
     auth=AuthBearer(),
     summary="Get Bison Accounts List",
     description="Get a paginated list of Bison email accounts with their latest check results"
@@ -1437,6 +1439,7 @@ def get_bison_accounts(
     status: Optional[str] = None,
     workspace: Optional[str] = None,
     filter: Optional[str] = None,
+    tag: Optional[str] = None, # Add tag filter
     page: int = 1,
     per_page: int = 25
 ):
@@ -1449,6 +1452,7 @@ def get_bison_accounts(
         status: Optional status filter (all, Inboxing, Resting)
         workspace: Optional workspace filter
         filter: Optional special filter (at-risk, protected)
+        tag: Optional tag to filter accounts by
         page: Page number (default: 1)
         per_page: Items per page (default: 25)
     """
@@ -1540,6 +1544,7 @@ def get_bison_accounts(
             COALESCE(lc.bounced_count, 0) as bounce_count,
             COALESCE(lc.unique_replied_count, 0) as reply_count,
             COALESCE(lc.emails_sent_count, 0) as emails_sent,
+            lc.tags_list, # Select tags_list (removed redundant alias)
             COUNT(*) OVER() as total_count
         FROM latest_checks lc
         LEFT JOIN account_stats ast ON lc.email_account = ast.email_account
@@ -1557,6 +1562,11 @@ def get_bison_accounts(
             query += " AND lc.is_good = FALSE"
         elif filter.lower() == 'protected':
             query += " AND lc.is_good = TRUE"
+    
+    # Add tag filter
+    if tag:
+        query += " AND FIND_IN_SET(%s, lc.tags_list)"
+        params.append(tag)
     
     # Add pagination
     query += " ORDER BY lc.created_at DESC LIMIT %s OFFSET %s"
@@ -1588,8 +1598,11 @@ def get_bison_accounts(
             (email, domain, sends_per_day, google_score, outlook_score, 
              status, workspace_name, check_id, check_date, reports_link, 
              total_checks, good_checks, bad_checks, bounce_count, reply_count, 
-             emails_sent, _) = row
+             emails_sent, tags_string, _) = row # Renamed to tags_string
             
+            # Split the comma-separated tags_string into a list
+            tags_list_out = [t.strip() for t in tags_string.split(',')] if tags_string else []
+
             data.append({
                 "email": email,
                 "domain": domain,
@@ -1610,7 +1623,8 @@ def get_bison_accounts(
                 },
                 "bounce_count": bounce_count,
                 "reply_count": reply_count,
-                "emails_sent": emails_sent
+                "emails_sent": emails_sent,
+                "tags_list": tags_list_out # Use the processed list
             })
         
         return {
@@ -2443,6 +2457,7 @@ def get_bison_account_details(
                 SELECT 
                     usbr.*,
                     ub.bison_organization_name,
+                    usb.update_sending_limit,
                     ROW_NUMBER() OVER (
                         PARTITION BY usbr.email_account 
                         ORDER BY usbr.created_at DESC
@@ -2450,8 +2465,7 @@ def get_bison_account_details(
                 FROM user_spamcheck_bison_reports usbr
                 JOIN user_bison ub ON usbr.bison_organization_id = ub.id
                 JOIN user_spamcheck_bison usb ON usbr.spamcheck_bison_id = usb.id
-                WHERE ub.user_id = %s AND usbr.email_account = %s
-                AND usb.update_sending_limit = TRUE
+                WHERE ub.user_id = %s
             ),
             account_stats AS (
                 SELECT 
