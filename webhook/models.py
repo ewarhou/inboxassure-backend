@@ -38,6 +38,7 @@ class BisonBounces(models.Model):
     tags = models.JSONField(null=True, blank=True) # Added tags field
     bounce_reply = models.TextField(null=True, blank=True)
     bounce_bucket = models.TextField(null=True, blank=True)
+    bounce_reply_url = models.URLField(max_length=1024, null=True, blank=True) # Added field
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

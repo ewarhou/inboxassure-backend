@@ -1,6 +1,139 @@
 # InboxAssure Backend APIs Documentation
 
+## Profile Endpoints (Authentication Required)
+
+These endpoints manage user profile information, often used for navigation bars and settings pages.
+
+### Get User Profile
+
+*   **Method:** `GET`
+*   **URL:** `/api/profile/`
+*   **Authentication:** Required (Bearer Token)
+*   **Description:** Retrieves the profile information (name, email, picture URL, timezone) for the authenticated user.
+*   **Success Response:**
+    *   **Code:** 200 OK
+    *   **Content:** `ProfileResponseSchema`
+        ```json
+        {
+          "first_name": "John",
+          "last_name": "Doe",
+          "email": "john.doe@example.com",
+          "profile_picture": "https://inboxassure-backend.imnodev.com/media/profile_pictures/1/some-uuid.jpg", // Or null
+          "timezone": "America/New_York" // Or null
+        }
+        ```
+*   **Error Response:**
+    *   **Code:** 401 Unauthorized
+    *   **Code:** 400 Bad Request (If profile cannot be retrieved)
+
+---
+
+### Update User Profile
+
+*   **Method:** `PUT`
+*   **URL:** `/api/profile/`
+*   **Authentication:** Required (Bearer Token)
+*   **Description:** Updates the authenticated user's first name, last name, and/or timezone.
+*   **Request Body:**
+    *   **Content-Type:** `application/json`
+    *   **Schema:** `UpdateProfileSchema`
+        ```json
+        {
+          "first_name": "Jonathan", // Optional
+          "last_name": "Doer",    // Optional
+          "timezone": "Europe/London" // Optional, must be valid pytz timezone
+        }
+        ```
+*   **Success Response:**
+    *   **Code:** 200 OK
+    *   **Content:** `ProfileResponseSchema` (Updated profile)
+*   **Error Response:**
+    *   **Code:** 401 Unauthorized
+    *   **Code:** 400 Bad Request (e.g., invalid timezone)
+    *   **Code:** 500 Internal Server Error
+
+---
+
+### Update Profile Picture
+
+*   **Method:** `PUT`
+*   **URL:** `/api/profile/picture`
+*   **Authentication:** Required (Bearer Token)
+*   **Description:** Uploads a new profile picture for the authenticated user. Replaces the existing one if present. Accepts JPG, JPEG, PNG, or GIF files up to 2.5MB.
+*   **Request Body:**
+    *   **Content-Type:** `multipart/form-data`
+    *   **Form Field:** `file` (The image file to upload)
+*   **Success Response:**
+    *   **Code:** 200 OK
+    *   **Content:** `ProfileResponseSchema` (Updated profile with new picture URL)
+*   **Error Response:**
+    *   **Code:** 401 Unauthorized
+    *   **Code:** 400 Bad Request (e.g., no file, invalid file type/extension, file too large)
+    *   **Code:** 500 Internal Server Error (e.g., error saving file)
+
+---
+
 ## Webhook Endpoints
+
+### Generate Webhook URL
+
+*   **Method:** `POST`
+*   **URL:** `/api/webhook/generate`
+*   **Authentication:** Required (Bearer Token)
+*   **Description:** Generates a new unique webhook URL for the authenticated user. If a webhook URL already exists for the user, it will be deleted and replaced with the new one. The generated URL points to the `/api/webhook/receive/{webhook_id}/` endpoint.
+*   **Request Body:** None
+*   **Success Response:**
+    *   **Code:** 200 OK
+    *   **Content:** `WebhookUrlSchema`
+        ```json
+        {
+          "webhook_url": "https://inboxassure-backend.imnodev.com/api/webhook/receive/some-unique-uuid/"
+        }
+        ```
+*   **Error Response:**
+    *   **Code:** 401 Unauthorized (If token is missing or invalid)
+
+---
+
+### Get Webhook URL
+
+*   **Method:** `GET`
+*   **URL:** `/api/webhook/`
+*   **Authentication:** Required (Bearer Token)
+*   **Description:** Retrieves the currently active webhook URL for the authenticated user.
+*   **Success Response:**
+    *   **Code:** 200 OK
+    *   **Content:** `WebhookUrlSchema`
+        ```json
+        {
+          "webhook_url": "https://inboxassure-backend.imnodev.com/api/webhook/receive/some-unique-uuid/"
+        }
+        ```
+*   **Error Response:**
+    *   **Code:** 401 Unauthorized (If token is missing or invalid)
+    *   **Code:** 404 Not Found (If no webhook URL exists for the user)
+
+---
+
+### Receive Webhook Data
+
+*   **Method:** `POST`
+*   **URL:** `/api/webhook/receive/{webhook_id}/`
+*   **Authentication:** None (URL uses a unique, unguessable ID)
+*   **Description:** This is the public endpoint where third-party services (like Bison) should send webhook POST requests. It receives the JSON payload, finds the associated user via the `webhook_id`, and stores the payload in the `BisonWebhookData` table. It also triggers the signal to process the data (e.g., create `BisonBounces` records).
+*   **URL Parameters:**
+    *   `webhook_id` (string, UUID format): The unique identifier for the webhook.
+*   **Request Body:**
+    *   **Content-Type:** `application/json`
+    *   **Example:** (See payload example in `webhook/signals.py` or actual Bison webhook format)
+*   **Success Response:**
+    *   **Code:** 200 OK
+    *   **Content:** Plain text `Webhook data received successfully.`
+*   **Error Response:**
+    *   **Code:** 404 Not Found (If the `webhook_id` does not exist)
+    *   **Code:** 400 Bad Request (If the request body is not valid JSON)
+
+---
 
 ### Get Bounce Records
 

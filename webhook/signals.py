@@ -38,12 +38,12 @@ def truncate_bounce_reply(text: Optional[str]) -> Optional[str]:
     # Return the first part, stripped of leading/trailing whitespace
     return parts[0].strip()
 
-# Modified to accept base_url and api_token and handle pagination
+# Modified to accept base_url/api_token, handle pagination, and return (text_body, uuid)
 def get_bison_bounce_reply(base_url, api_token, campaign_id, scheduled_email_id):
-    """Fetches bounce reply text from the Bison API using provided credentials, handling pagination."""
+    """Fetches bounce reply text and UUID from the Bison API, handling pagination."""
     if not base_url or not api_token:
         logger.error("Bison base_url or api_token not provided.")
-        return None
+        return None, None # Return tuple
 
     api_url = f"{base_url.rstrip('/')}/api/replies"
     headers = {
@@ -68,7 +68,7 @@ def get_bison_bounce_reply(base_url, api_token, campaign_id, scheduled_email_id)
                 response_data = response.json()
             except json.JSONDecodeError:
                  logger.error(f"Failed to decode JSON response from {api_url} page {params['page']}. Body: {response.text}")
-                 return None # Cannot proceed without valid JSON
+                 return None, None
 
             replies = response_data.get('data', [])
             meta = response_data.get('meta', {})
@@ -77,33 +77,35 @@ def get_bison_bounce_reply(base_url, api_token, campaign_id, scheduled_email_id)
 
             if not replies and params['page'] == 1:
                 logger.warning(f"No bounce replies found on first page for campaign {campaign_id} in {base_url}")
-                return None # No bounces found at all
+                return None, None # Return tuple
 
             for reply in replies:
                 if reply.get('scheduled_email_id') == scheduled_email_id:
-                    logger.info(f"Found matching bounce reply on page {current_page} for scheduled_email {scheduled_email_id}")
-                    return reply.get('text_body') # Return the text body of the matched reply
+                    reply_uuid = reply.get('uuid')
+                    reply_text = reply.get('text_body')
+                    logger.info(f"Found matching bounce reply on page {current_page} (UUID: {reply_uuid}) for scheduled_email {scheduled_email_id}")
+                    return reply_text, reply_uuid # Return both
 
             # If not found on this page, check if we should fetch the next page
             if current_page >= last_page:
                 logger.warning(f"Checked all pages ({last_page}) - No matching bounce reply found for campaign {campaign_id}, scheduled_email {scheduled_email_id} in {base_url}")
-                return None # Reached the last page
+                return None, None # Return tuple
 
             # Prepare for the next page
             params['page'] += 1
 
         except requests.exceptions.Timeout:
             logger.error(f"Timeout calling Bison API ({api_url}, page {params['page']})")
-            return None # Stop processing on timeout
+            return None, None # Stop processing on timeout
         except requests.exceptions.RequestException as e:
             logger.error(f"Error calling Bison API ({api_url}, page {params['page']}): {e}")
-            return None # Stop processing on request error
+            return None, None # Stop processing on request error
         except Exception as e:
             logger.error(f"Error processing Bison API response from {api_url}, page {params['page']}: {e}")
-            return None # Stop processing on unexpected error
+            return None, None # Stop processing on unexpected error
             
     logger.error(f"Reached max page limit ({max_pages_to_check}) while searching for bounce reply. Aborting search.")
-    return None # Reached safety limit
+    return None, None # Reached safety limit
 
 # --- New function to get sender tags ---
 def get_bison_sender_tags(base_url, api_token, sender_email):
@@ -217,9 +219,9 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
                  logger.warning(f"Missing sender_email in payload for webhook data ID: {instance.id}. Cannot fetch tags.")
 
             # Fetch bounce reply from Bison API using the user's token and base URL
-            bounce_reply_text = None
+            bounce_reply_text, bounce_reply_uuid = None, None
             if campaign_id and scheduled_email_id:
-                bounce_reply_text = get_bison_bounce_reply(bison_base_url, bison_api_token, campaign_id, scheduled_email_id)
+                bounce_reply_text, bounce_reply_uuid = get_bison_bounce_reply(bison_base_url, bison_api_token, campaign_id, scheduled_email_id)
                 # --- Truncate the bounce reply text --- 
                 if bounce_reply_text:
                     original_length = len(bounce_reply_text)
@@ -289,7 +291,8 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
                 domain=domain,
                 tags=sender_tags,
                 bounce_reply=bounce_reply_text, # Save the potentially truncated text
-                bounce_bucket=bounce_bucket_to_save 
+                bounce_bucket=bounce_bucket_to_save,
+                bounce_reply_uuid=bounce_reply_uuid
             )
             logger.info(f"Successfully created BisonBounces record for webhook data ID: {instance.id} using org name '{workspace_name}'")
 
