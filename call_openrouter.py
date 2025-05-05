@@ -20,11 +20,15 @@ client = OpenAI(
 
 def call_openrouter(prompt: str, model: str = "meta-llama/llama-4-scout:free") -> str | None:
     """Calls the OpenRouter API with a given prompt and model."""
+    # Attempting explicit Authorization header
+    explicit_headers = {
+        "HTTP-Referer": YOUR_SITE_URL, 
+        "X-Title": YOUR_SITE_NAME, 
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}" # Explicitly add header
+    }
+    
     completion = client.chat.completions.create(
-        extra_headers={
-            "HTTP-Referer": YOUR_SITE_URL, 
-            "X-Title": YOUR_SITE_NAME, 
-        },
+        extra_headers=explicit_headers, # Use modified headers
         model=model,
         messages=[
             {
