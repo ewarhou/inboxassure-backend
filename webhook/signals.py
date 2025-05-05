@@ -281,8 +281,8 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
                 try:
                     # Ensure base_url ends with / and construct the full URL
                     clean_base_url = bison_base_url.rstrip('/')
-                    # Assuming the URL structure is /bounce-replies/{uuid} - adjust if needed
-                    bounce_reply_url_to_save = f"{clean_base_url}/bounce-replies/{bounce_reply_uuid}" 
+                    # Correct URL structure: {BASEURL}/inbox?folder=4&reply_uuid={UUID}
+                    bounce_reply_url_to_save = f"{clean_base_url}/inbox?folder=4&reply_uuid={bounce_reply_uuid}"
                 except Exception as e:
                      logger.error(f"Error constructing bounce_reply_url for webhook data ID {instance.id}: {e}")
             else:
