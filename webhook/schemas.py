@@ -22,4 +22,5 @@ class BisonBounceSchema(Schema):
     tags: Optional[List[str]]
     bounce_reply: Optional[str]
     bounce_bucket: Optional[str]
+    bounce_reply_url: Optional[str]
     created_at: datetime 
