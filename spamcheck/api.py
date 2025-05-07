@@ -246,6 +246,10 @@ def update_spamcheck_instantly(request, spamcheck_id: int, payload: UpdateSpamch
                     spamcheck.scheduled_at = payload.scheduled_at
                 if payload.recurring_days is not None:
                     spamcheck.recurring_days = payload.recurring_days
+                if payload.conditions is not None:
+                    spamcheck.conditions = payload.conditions
+                if payload.reports_waiting_time is not None:
+                    spamcheck.reports_waiting_time = payload.reports_waiting_time
                 spamcheck.save()
                 
                 # Update options if any option field is provided

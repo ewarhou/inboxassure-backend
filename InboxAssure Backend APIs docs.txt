@@ -181,3 +181,66 @@ These endpoints manage user profile information, often used for navigation bars 
     *   **Code:** 401 Unauthorized (If token is missing or invalid)
 
 ---
+
+## Spamcheck Endpoints
+
+Endpoints related to managing and viewing spamcheck results.
+
+### Get Bison Accounts List
+
+*   **Method:** `GET`
+*   **URL:** `/api/spamcheck/accounts-bison`
+*   **Authentication:** Required (Bearer Token)
+*   **Description:** Retrieves a paginated list of Bison email accounts associated with the user, showing details from their latest spam check report.
+*   **Query Parameters (Optional):**
+    *   `spamcheck_id` (integer): Filter by a specific Bison spam check run ID.
+    *   `search` (string): Filter accounts by email address (partial match).
+    *   `status` (string): Filter by the latest check status (`all`, `Inboxing`, `Resting`).
+    *   `workspace` (string): Filter by the Bison organization name.
+    *   `filter` (string): Special filters: `at-risk` (equivalent to status=Resting), `protected` (equivalent to status=Inboxing).
+    *   `tag` (string): Filter accounts where the latest report includes this specific tag.
+    *   `page` (integer, default: 1): Page number for pagination.
+    *   `per_page` (integer, default: 25): Number of accounts per page.
+*   **Success Response:**
+    *   **Code:** 200 OK
+    *   **Content:** `AccountsResponseSchema`
+        ```json
+        {
+          "data": [
+            {
+              "email": "eric@procoachedge.com",
+              "domain": "procoachedge.com",
+              "sends_per_day": 25,
+              "google_score": 1.0,
+              "outlook_score": 1.0,
+              "status": "Inboxing",
+              "workspace": "CoachPro",
+              "last_check": {
+                "id": "10a565ec1a6d44f7ba9a71afb7112e5f",
+                "date": "2025-05-05T09:48:21.211216Z"
+              },
+              "reports_link": "https://app.emailguard.io/inbox-placement-tests/9ed5ac2a-e3c0-44a9-8990-f68e8170e444",
+              "history": {
+                "total_checks": 70,
+                "good_checks": 68,
+                "bad_checks": 2
+              },
+              "bounce_count": 8,
+              "reply_count": 2,
+              "emails_sent": 681,
+              "tags_list": ["p.Maildoso", "Google Good", "Outlook Good"] // Example, will be [] if no tags on latest report
+            }
+            // ... more account data objects
+          ],
+          "meta": {
+            "total": 150,
+            "page": 1,
+            "per_page": 25,
+            "total_pages": 6
+          }
+        }
+        ```
+*   **Error Response:**
+    *   **Code:** 401 Unauthorized (If token is missing or invalid)
+
+---
