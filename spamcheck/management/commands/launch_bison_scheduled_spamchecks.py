@@ -788,8 +788,17 @@ class Command(BaseCommand):
 
         self.stdout.write(f"Found {len(spamchecks)} spamchecks to launch")
 
+        # Create a TCP connector with a custom DNS resolver to help with DNS resolution issues
+        tcp_connector = aiohttp.TCPConnector(
+            family=0,  # Allow both IPv4 and IPv6
+            ssl=True,  # Properly verify SSL certificates
+            use_dns_cache=True,  # Enable DNS caching
+            ttl_dns_cache=300,  # Cache DNS results for 5 minutes
+            limit=100  # Allow more connections
+        )
+
         # Process all spamchecks
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(connector=tcp_connector) as session:
             results = await asyncio.gather(*[
                 self.process_spamcheck(session, spamcheck)
                 for spamcheck in spamchecks
@@ -819,8 +828,18 @@ class Command(BaseCommand):
             self.stdout.write("Using specific accounts, no refresh needed")
             return True
             
+        # Get URL with base URL cleanup to handle potential variations
+        base_url = user_bison.base_url.rstrip('/')
+        # Check for API hostname DNS resolution issues and provide fallback
+        hostname = base_url.split('://')[1].split('/')[0]
+        self.stdout.write(f"Using API hostname: {hostname}")
+        
+        # If hostname is 'send.savedby.io', warn about potential DNS issues
+        if hostname == 'send.savedby.io':
+            self.stdout.write(self.style.WARNING("Note: Using send.savedby.io which may have DNS resolution issues"))
+            
         # Fetch accounts from Bison API
-        url = f"{user_bison.base_url.rstrip('/')}/api/sender-emails"
+        url = f"{base_url}/api/sender-emails"
         headers = {
             "Authorization": f"Bearer {user_bison.bison_organization_api_key}",
             "Content-Type": "application/json"
@@ -837,48 +856,76 @@ class Command(BaseCommand):
             while has_more:
                 params = {"page": page}
                 
-                async with self.rate_limit:
-                    async with session.get(url, headers=headers, params=params) as response:
-                        if response.status != 200:
-                            error_text = await response.text()
-                            error_msg = f"Failed to fetch accounts: {response.status} - {error_text}"
-                            self.stdout.write(self.style.ERROR(error_msg))
+                try:
+                    async with self.rate_limit:
+                        async with session.get(url, headers=headers, params=params) as response:
+                            if response.status != 200:
+                                error_text = await response.text()
+                                error_msg = f"Failed to fetch accounts: {response.status} - {error_text}"
+                                self.stdout.write(self.style.ERROR(error_msg))
+                                
+                                # Log API error
+                                await asyncio.to_thread(
+                                    SpamcheckErrorLog.objects.create,
+                                    user=spamcheck.user,
+                                    bison_spamcheck=spamcheck,
+                                    error_type='api_error',
+                                    provider='bison',
+                                    error_message=error_msg,
+                                    error_details={'response': error_text},
+                                    step='refresh_accounts',
+                                    api_endpoint=url,
+                                    status_code=response.status,
+                                    workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
+                                )
+                                
+                                raise Exception(error_msg)
                             
-                            # Log API error
-                            await asyncio.to_thread(
-                                SpamcheckErrorLog.objects.create,
-                                user=spamcheck.user,
-                                bison_spamcheck=spamcheck,
-                                error_type='api_error',
-                                provider='bison',
-                                error_message=error_msg,
-                                error_details={'response': error_text},
-                                step='refresh_accounts',
-                                api_endpoint=url,
-                                status_code=response.status,
-                                workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
+                            data = await response.json()
+                            current_page_accounts = data.get("data", [])
+                            
+                            # Check if we have more pages
+                            has_more = (
+                                data and 
+                                data.get("data") and 
+                                isinstance(data.get("data"), list) and 
+                                len(data.get("data")) > 0
                             )
                             
-                            raise Exception(error_msg)
+                            if current_page_accounts:
+                                all_accounts.extend(current_page_accounts)
+                                self.stdout.write(f"Found {len(current_page_accounts)} accounts on page {page}")
+                                page += 1
+                            else:
+                                self.stdout.write(f"No more accounts found on page {page}")
+                                break
+                except aiohttp.client_exceptions.ClientConnectorError as dns_error:
+                    # Special handling for DNS errors
+                    if "No address associated with hostname" in str(dns_error):
+                        error_msg = f"DNS resolution error: Cannot resolve host {hostname}. This is likely a DNS configuration issue on the server."
+                        self.stdout.write(self.style.ERROR(error_msg))
+                        self.stdout.write(self.style.WARNING(f"Recommended solution: Update DNS configuration or add an entry to /etc/hosts for {hostname}"))
                         
-                        data = await response.json()
-                        current_page_accounts = data.get("data", [])
-                        
-                        # Check if we have more pages
-                        has_more = (
-                            data and 
-                            data.get("data") and 
-                            isinstance(data.get("data"), list) and 
-                            len(data.get("data")) > 0
+                        # Log the detailed error for debugging
+                        await asyncio.to_thread(
+                            SpamcheckErrorLog.objects.create,
+                            user=spamcheck.user,
+                            bison_spamcheck=spamcheck,
+                            error_type='dns_error',
+                            provider='bison',
+                            error_message=error_msg,
+                            error_details={
+                                'hostname': hostname,
+                                'full_error': str(dns_error),
+                                'traceback': traceback.format_exc()
+                            },
+                            step='refresh_accounts',
+                            workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                         )
-                        
-                        if current_page_accounts:
-                            all_accounts.extend(current_page_accounts)
-                            self.stdout.write(f"Found {len(current_page_accounts)} accounts on page {page}")
-                            page += 1
-                        else:
-                            self.stdout.write(f"No more accounts found on page {page}")
-                            break
+                        raise Exception(error_msg)
+                    else:
+                        # Re-raise other connection errors
+                        raise
             
             self.stdout.write(f"Total accounts fetched: {len(all_accounts)}")
             
@@ -1050,90 +1097,126 @@ class Command(BaseCommand):
             
         self.stdout.write(f"Fetching campaign copy from campaign ID: {spamcheck.campaign_copy_source_id}")
         
-        url = f"{user_bison.base_url.rstrip('/')}/api/campaigns/{spamcheck.campaign_copy_source_id}/sequence-steps"
+        # Get URL with base URL cleanup to handle potential variations
+        base_url = user_bison.base_url.rstrip('/')
+        # Check for API hostname DNS resolution issues
+        hostname = base_url.split('://')[1].split('/')[0]
+        
+        url = f"{base_url}/api/campaigns/{spamcheck.campaign_copy_source_id}/sequence-steps"
         headers = {
             "Authorization": f"Bearer {user_bison.bison_organization_api_key}",
             "Content-Type": "application/json"
         }
         
         try:
-            async with self.rate_limit:
-                async with session.get(url, headers=headers) as response:
-                    if response.status != 200:
-                        error_text = await response.text()
-                        self.stdout.write(self.style.WARNING(f"Could not fetch campaign copy: {response.status} - {error_text}"))
-                        self.stdout.write(f"Using existing subject and body from spamcheck")
-                        return True
-                    
-                    data = await response.json()
-                    steps = data.get('data', [])
-                    
-                    if not steps:
-                        self.stdout.write(self.style.WARNING(f"No sequence steps found for campaign {spamcheck.campaign_copy_source_id}"))
-                        self.stdout.write(f"Using existing subject and body from spamcheck")
-                        return True
-                    
-                    # Get the first step (step 1)
-                    first_step = steps[0]
-                    subject = first_step.get('email_subject', '')
-                    html_body = first_step.get('email_body', '')
-                    
-                    if not subject or not html_body:
-                        self.stdout.write(self.style.WARNING(f"Campaign has empty subject or body"))
-                        self.stdout.write(f"Using existing subject and body from spamcheck")
-                        return True
-                    
-                    # Convert HTML to plain text
-                    try:
-                        import re
-                        from html import unescape
+            try:
+                async with self.rate_limit:
+                    async with session.get(url, headers=headers) as response:
+                        if response.status != 200:
+                            error_text = await response.text()
+                            self.stdout.write(self.style.WARNING(f"Could not fetch campaign copy: {response.status} - {error_text}"))
+                            self.stdout.write(f"Using existing subject and body from spamcheck")
+                            return True
                         
-                        # Function to convert HTML to formatted plain text
-                        def html_to_text(html):
-                            if not html:
-                                return ""
-                            
-                            # Unescape HTML entities
-                            html = unescape(html)
-                            
-                            # Replace common block elements with newlines
-                            html = re.sub(r'</(div|p|h\d|ul|ol|li|blockquote|pre|table|tr)>', '\n', html)
-                            
-                            # Replace <br> tags with newlines
-                            html = re.sub(r'<br[^>]*>', '\n', html)
-                            
-                            # Replace multiple consecutive newlines with just two
-                            html = re.sub(r'\n{3,}', '\n\n', html)
-                            
-                            # Remove all remaining HTML tags
-                            html = re.sub(r'<[^>]*>', '', html)
-                            
-                            # Trim leading/trailing whitespace
-                            html = html.strip()
-                            
-                            return html
+                        data = await response.json()
+                        steps = data.get('data', [])
                         
-                        plain_body = html_to_text(html_body)
-                    except Exception as e:
-                        self.stdout.write(self.style.ERROR(f"Error converting HTML to text: {str(e)}"))
-                        plain_body = html_body  # Fallback to original HTML
-                    
-                    # Update the spamcheck with the new subject and body
-                    await asyncio.to_thread(
-                        lambda: UserSpamcheckBison.objects.filter(id=spamcheck.id).update(
-                            subject=subject,
-                            body=plain_body
+                        if not steps:
+                            self.stdout.write(self.style.WARNING(f"No sequence steps found for campaign {spamcheck.campaign_copy_source_id}"))
+                            self.stdout.write(f"Using existing subject and body from spamcheck")
+                            return True
+                        
+                        # Get the first step (step 1)
+                        first_step = steps[0]
+                        subject = first_step.get('email_subject', '')
+                        html_body = first_step.get('email_body', '')
+                        
+                        if not subject or not html_body:
+                            self.stdout.write(self.style.WARNING(f"Campaign has empty subject or body"))
+                            self.stdout.write(f"Using existing subject and body from spamcheck")
+                            return True
+                        
+                        # Convert HTML to plain text
+                        try:
+                            import re
+                            from html import unescape
+                            
+                            # Function to convert HTML to formatted plain text
+                            def html_to_text(html):
+                                if not html:
+                                    return ""
+                                
+                                # Unescape HTML entities
+                                html = unescape(html)
+                                
+                                # Replace common block elements with newlines
+                                html = re.sub(r'</(div|p|h\d|ul|ol|li|blockquote|pre|table|tr)>', '\n', html)
+                                
+                                # Replace <br> tags with newlines
+                                html = re.sub(r'<br[^>]*>', '\n', html)
+                                
+                                # Replace multiple consecutive newlines with just two
+                                html = re.sub(r'\n{3,}', '\n\n', html)
+                                
+                                # Remove all remaining HTML tags
+                                html = re.sub(r'<[^>]*>', '', html)
+                                
+                                # Trim leading/trailing whitespace
+                                html = html.strip()
+                                
+                                return html
+                            
+                            plain_body = html_to_text(html_body)
+                        except Exception as e:
+                            self.stdout.write(self.style.ERROR(f"Error converting HTML to text: {str(e)}"))
+                            plain_body = html_body  # Fallback to original HTML
+                        
+                        # Update the spamcheck with the new subject and body
+                        await asyncio.to_thread(
+                            lambda: UserSpamcheckBison.objects.filter(id=spamcheck.id).update(
+                                subject=subject,
+                                body=plain_body
+                            )
                         )
+                        
+                        # Refresh the spamcheck object
+                        spamcheck.subject = subject
+                        spamcheck.body = plain_body
+                        
+                        self.stdout.write(f"Updated spamcheck with campaign copy:")
+                        self.stdout.write(f"Subject: {subject}")
+                        self.stdout.write(f"Body: {plain_body[:100]}...")
+                        return True
+            except aiohttp.client_exceptions.ClientConnectorError as dns_error:
+                # Special handling for DNS errors
+                if "No address associated with hostname" in str(dns_error):
+                    error_msg = f"DNS resolution error: Cannot resolve host {hostname}. This is likely a DNS configuration issue on the server."
+                    self.stdout.write(self.style.ERROR(error_msg))
+                    self.stdout.write(self.style.WARNING(f"Recommended solution: Update DNS configuration or add an entry to /etc/hosts for {hostname}"))
+                    
+                    # Log the detailed error for debugging
+                    await asyncio.to_thread(
+                        SpamcheckErrorLog.objects.create,
+                        user=spamcheck.user,
+                        bison_spamcheck=spamcheck,
+                        error_type='dns_error',
+                        provider='bison',
+                        error_message=error_msg,
+                        error_details={
+                            'hostname': hostname,
+                            'full_error': str(dns_error),
+                            'traceback': traceback.format_exc()
+                        },
+                        step='fetch_campaign_copy',
+                        workspace_id=str(spamcheck.user_organization_id) if spamcheck.user_organization_id else None
                     )
                     
-                    # Refresh the spamcheck object
-                    spamcheck.subject = subject
-                    spamcheck.body = plain_body
-                    
-                    self.stdout.write(f"Updated spamcheck with campaign copy:")
-                    self.stdout.write(f"Subject: {subject}")
-                    self.stdout.write(f"Body: {plain_body[:100]}...")
+                    # Continue with existing copy
+                    self.stdout.write(self.style.WARNING("Using existing subject and body due to DNS error"))
                     return True
+                else:
+                    # Re-raise other connection errors
+                    raise
                     
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Error fetching campaign copy: {str(e)}"))
