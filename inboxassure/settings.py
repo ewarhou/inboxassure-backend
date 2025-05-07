@@ -11,9 +11,14 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os # Import os
+from dotenv import load_dotenv # Import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env file
+load_dotenv(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
@@ -48,6 +53,7 @@ INSTALLED_APPS = [
     'analytics',
     'settings',
     'spamcheck',
+    'webhook',
 ]
 
 MIDDLEWARE = [
@@ -173,6 +179,11 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': True,
         },
+        'webhook': {
+            'handlers': ['file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
     },
 }
 
@@ -234,6 +245,10 @@ DEFAULT_FROM_EMAIL = 'InboxAssure <dev@vitalitymarketingfirm.com>'
 
 # Password Reset Settings
 PASSWORD_RESET_TIMEOUT = 3600
+
+# Bison API Configuration (Replace with secure values, e.g., environment variables)
+BISON_API_BASE_URL = 'https://app.orbitmailboost.com' # Or the correct base URL for Bison
+# BISON_API_TOKEN = 'YOUR_BISON_API_TOKEN_HERE' # Removed - Token is now fetched per user/organization
 
 # Import local settings if they exist
 try:

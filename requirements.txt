@@ -14,12 +14,14 @@ idna==3.10
 multidict==6.1.0
 mysql-connector-python==9.2.0
 mysqlclient==2.2.4
+openai>=1.0.0
 packaging==24.2
 pillow==11.1.0
 propcache==0.2.1
 pydantic==2.10.5
 pydantic_core==2.27.2
 PyJWT==2.10.1
+python-dotenv>=0.15.0
 pytz==2024.1
 requests==2.31.0
 sqlparse==0.5.3
