@@ -13,12 +13,13 @@ from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils import timezone
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from .models import PasswordResetToken, AuthProfile, profile_picture_path
 from .schema import (
     TokenSchema, ErrorMessage, PasswordResetRequestSchema, 
     PasswordResetVerifySchema, PasswordResetConfirmSchema, 
-    ChangePasswordSchema, UpdateProfileSchema, ProfileResponseSchema
+    ChangePasswordSchema, UpdateProfileSchema, ProfileResponseSchema,
+    AdminPasswordResetSchema, UserListItemSchema, AdminToggleSchema
 )
 from settings.api import log_to_terminal
 
@@ -103,8 +104,16 @@ def register(request, data: SignUpSchema):
 @router.post("/login", response={200: TokenSchema, 401: ErrorSchema})
 def login(request, data: LoginSchema):
     try:
-        # Get user by email
-        user = User.objects.get(email=data.email)
+        # Get user by email - handle potential duplicates by getting the most recent one
+        users = User.objects.filter(email=data.email).order_by('-date_joined')
+        
+        if not users.exists():
+            logger.warning(f"Login attempt with non-existent email: {data.email}")
+            return 401, {"detail": "Invalid credentials"}
+            
+        # Use the most recently created account with this email
+        user = users.first()
+        
         # Authenticate using username and password
         authenticated_user = authenticate(username=user.username, password=data.password)
         
@@ -115,9 +124,6 @@ def login(request, data: LoginSchema):
         logger.info(f"Successful login for email: {data.email}")
         token = generate_token(authenticated_user)
         return 200, {"access_token": token, "token_type": "bearer"}
-    except User.DoesNotExist:
-        logger.warning(f"Login attempt with non-existent email: {data.email}")
-        return 401, {"detail": "Invalid credentials"}
     except Exception as e:
         logger.error(f"Error during login: {str(e)}")
         return 401, {"detail": "Login failed"}
@@ -440,4 +446,94 @@ def update_profile_picture(request):
             
     except Exception as e:
         log_to_terminal("Profile", "Error", f"Unexpected error in profile picture upload: {str(e)}")
-        return 500, {"message": "An unexpected error occurred. Please try again."} 
+        return 500, {"message": "An unexpected error occurred. Please try again."}
+
+@router.post("/admin/reset-password", auth=AuthBearer(), response={200: Dict, 400: ErrorMessage, 403: ErrorMessage})
+def admin_reset_password(request, data: AdminPasswordResetSchema):
+    """Admin endpoint to reset a user's password without requiring the old password"""
+    try:
+        # Check if the requesting user is an admin
+        if not request.auth.is_staff and not request.auth.is_superuser:
+            log_to_terminal("Admin", "PasswordReset", f"Unauthorized attempt by {request.auth.username}")
+            return 403, {"message": "You do not have permission to perform this action"}
+        
+        # Get the target user
+        try:
+            target_user = User.objects.get(id=data.user_id)
+        except User.DoesNotExist:
+            log_to_terminal("Admin", "PasswordReset", f"User with ID {data.user_id} not found")
+            return 400, {"message": f"User with ID {data.user_id} not found"}
+        
+        # Set new password
+        target_user.set_password(data.new_password)
+        target_user.save()
+        
+        log_to_terminal("Admin", "PasswordReset", f"Admin {request.auth.username} reset password for user {target_user.username}")
+        return 200, {"message": f"Password for user {target_user.username} has been reset successfully"}
+    except Exception as e:
+        logger.error(f"Error in admin password reset: {str(e)}")
+        return 400, {"message": "Failed to reset password"}
+
+@router.get("/admin/users", auth=AuthBearer(), response={200: List[UserListItemSchema], 403: ErrorMessage})
+def admin_list_users(request):
+    """Admin endpoint to list all users in the system"""
+    try:
+        # Check if the requesting user is an admin
+        if not request.auth.is_staff and not request.auth.is_superuser:
+            log_to_terminal("Admin", "ListUsers", f"Unauthorized attempt by {request.auth.username}")
+            return 403, {"message": "You do not have permission to perform this action"}
+        
+        # Get all users
+        users = User.objects.all().order_by('-date_joined')
+        
+        # Format the response
+        user_list = []
+        for user in users:
+            user_list.append({
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "is_staff": user.is_staff,
+                "is_superuser": user.is_superuser,
+                "date_joined": user.date_joined,
+                "last_login": user.last_login
+            })
+        
+        log_to_terminal("Admin", "ListUsers", f"Admin {request.auth.username} listed all users")
+        return 200, user_list
+    except Exception as e:
+        logger.error(f"Error in admin list users: {str(e)}")
+        return 403, {"message": "Failed to list users"}
+
+@router.post("/admin/toggle-staff", auth=AuthBearer(), response={200: Dict, 400: ErrorMessage, 403: ErrorMessage})
+def admin_toggle_staff(request, data: AdminToggleSchema):
+    """Admin endpoint to toggle staff status for a user"""
+    try:
+        # Check if the requesting user is a superuser
+        if not request.auth.is_superuser:
+            log_to_terminal("Admin", "ToggleStaff", f"Unauthorized attempt by {request.auth.username}")
+            return 403, {"message": "Only superusers can change staff status"}
+        
+        # Get the target user
+        try:
+            target_user = User.objects.get(id=data.user_id)
+        except User.DoesNotExist:
+            log_to_terminal("Admin", "ToggleStaff", f"User with ID {data.user_id} not found")
+            return 400, {"message": f"User with ID {data.user_id} not found"}
+        
+        # Don't allow demoting yourself
+        if request.auth.id == target_user.id and not data.is_staff:
+            return 400, {"message": "You cannot remove your own admin status"}
+        
+        # Update staff status
+        target_user.is_staff = data.is_staff
+        target_user.save()
+        
+        action = "promoted to admin" if data.is_staff else "demoted from admin"
+        log_to_terminal("Admin", "ToggleStaff", f"Admin {request.auth.username} {action} user {target_user.username}")
+        return 200, {"message": f"User {target_user.username} {action} successfully"}
+    except Exception as e:
+        logger.error(f"Error in toggle staff status: {str(e)}")
+        return 400, {"message": "Failed to update staff status"} 

@@ -9248,3 +9248,7 @@
 [2025-05-08 11:19:05] [SpamCheck] [Bison Account Details] Looking up details for email: Combs@corporateexitstrategies.info
 [2025-05-08 11:19:05] [SpamCheck] [Bison Account Details] Found 33 reports for email Combs@corporateexitstrategies.info
 [2025-05-08 11:19:05] [SpamCheck] [Bison Account Details] Found account data for Combs@corporateexitstrategies.info: {'email_account': 'Combs@corporateexitstrategies.info', 'domain': 'corporateexitstrategies.info', 'sends_per_day': 25, 'google_score': Decimal('1.00'), 'outlook_score': Decimal('1.00'), 'status': 'Inboxing', 'workspace': 'Karpos', 'check_id': '5bfa5008f2ed4235960ae39c48f480a1', 'check_date': datetime.datetime(2025, 4, 8, 1, 51, 51, 908085), 'reports_link': 'https://app.emailguard.io/inbox-placement-tests/9e9f5e6c-e462-4ff8-8202-06beb299f1fd', 'total_checks': 28, 'good_checks': Decimal('28'), 'bad_checks': Decimal('0'), 'bounce_count': 0, 'reply_count': 0, 'emails_sent': 0, 'tags_list': 'Google Good,CI Outlook ,p.CheapInboxes Outlook Feb 24 2025,Outlook Bad'}
+[2025-05-08 14:16:33] [Admin] [ListUsers] Admin aminewarh2 listed all users
+[2025-05-08 14:17:13] [Admin] [ListUsers] Admin aminewarh2 listed all users
+[2025-05-08 14:18:00] [Admin] [PasswordReset] Admin aminewarh2 reset password for user aminewarh
+[2025-05-08 14:23:26] [Admin] [PasswordReset] Admin aminewarh2 reset password for user ahmed@gmail.com
