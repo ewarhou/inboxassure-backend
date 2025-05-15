@@ -198,6 +198,14 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
             campaign_id = campaign.get('id')
             sender_email = sender_email_info.get('email') # Get sender email
 
+            # --- Extract domain from sender_email ---
+            domain = None # Initialize domain to None
+            if sender_email and '@' in sender_email:
+                try:
+                    domain = sender_email.split('@')[1]
+                except IndexError:
+                    logger.warning(f"Could not extract domain from sender_email: {sender_email}")
+
             # --- Fetch sender tags from Bison API ---
             sender_tags = []
             if sender_email:
