@@ -30,7 +30,7 @@ else:
         api_key=OPENROUTER_API_KEY,
     )
 
-def call_openrouter(prompt: str, model: str = "meta-llama/llama-4-scout:free") -> str | None:
+def call_openrouter(prompt: str, model: str = "openai/gpt-4o-mini") -> str | None:
     """Calls the OpenRouter API with a given prompt and model."""
     if not client:
         print("Error: OpenRouter client not initialized due to missing API key.")
