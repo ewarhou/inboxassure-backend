@@ -28,9 +28,9 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = 'django-insecure-koad96i6a2=2^w=@apr^2*4*rxt@0aze*96_e2)e*@rywglp$i'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['inboxassure-backend.imnodev.com', '68.183.98.54', 'localhost', '127.0.0.1', 'backend.inboxassure.app']
+ALLOWED_HOSTS = ['backend.inboxassure.app', 'inboxassure-backend.imnodev.com', '68.183.98.54', 'localhost', '127.0.0.1']
 
 # Use X-Forwarded-Host header for determining the host
 USE_X_FORWARDED_HOST = True
