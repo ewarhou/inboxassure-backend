@@ -29,10 +29,9 @@ BOUNCE_BUCKETS = [
 ]
 
 def truncate_bounce_reply(text: Optional[str]) -> Optional[str]:
-    """Truncates bounce reply text to the first 3000 characters."""
-    if not text:
-        return text
-    return text[:3000] # Return the first 3000 characters
+    """Returns the full bounce reply text (truncation removed)."""
+    # Simply return the text without truncation
+    return text
 
 # Modified to accept base_url/api_token, handle pagination, and return (text_body, uuid)
 def get_bison_bounce_reply(base_url, api_token, campaign_id, scheduled_email_id):
