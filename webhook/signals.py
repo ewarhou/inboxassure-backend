@@ -29,15 +29,10 @@ BOUNCE_BUCKETS = [
 ]
 
 def truncate_bounce_reply(text: Optional[str]) -> Optional[str]:
-    """Truncates bounce reply text, keeping only content before >= 6 consecutive newlines."""
+    """Truncates bounce reply text to the first 3000 characters."""
     if not text:
         return text
-
-    separator = '\n' * 6
-    parts = text.split(separator, 1) # Split only on the first occurrence
-    
-    # Return the first part, stripped of leading/trailing whitespace
-    return parts[0].strip()
+    return text[:3000] # Return the first 3000 characters
 
 # Modified to accept base_url/api_token, handle pagination, and return (text_body, uuid)
 def get_bison_bounce_reply(base_url, api_token, campaign_id, scheduled_email_id):
@@ -204,14 +199,6 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
             campaign_id = campaign.get('id')
             sender_email = sender_email_info.get('email') # Get sender email
 
-            # --- Extract domain from sender_email ---
-            domain = None
-            if sender_email and '@' in sender_email:
-                try:
-                    domain = sender_email.split('@')[1]
-                except IndexError:
-                    logger.warning(f"Could not extract domain from sender_email: {sender_email}")
-            
             # --- Fetch sender tags from Bison API ---
             sender_tags = []
             if sender_email:
@@ -220,7 +207,7 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
                  logger.warning(f"Missing sender_email in payload for webhook data ID: {instance.id}. Cannot fetch tags.")
 
             # Fetch bounce reply from Bison API using the user's token and base URL
-            original_bounce_reply_text, bounce_reply_uuid = None, None # Variable for original text
+            original_bounce_reply_text, bounce_reply_uuid = None, None
             if campaign_id and scheduled_email_id:
                 original_bounce_reply_text, bounce_reply_uuid = get_bison_bounce_reply(bison_base_url, bison_api_token, campaign_id, scheduled_email_id)
             
@@ -290,7 +277,7 @@ def process_bounce_webhook(sender, instance: BisonWebhookData, created, **kwargs
                 logger.warning(f"Cannot construct bounce_reply_url: missing base_url ({bool(bison_base_url)}) or bounce_reply_uuid ({bool(bounce_reply_uuid)}) for webhook data ID {instance.id}")
             # ------------------------------------
 
-            # --- Extract SMTP Bounce Code ---
+            # --- Extract SMTP Bounce Code --- 
             smtp_code = None
             if original_bounce_reply_text: # Use the ORIGINAL text here
                 smtp_code = extract_smtp_code(original_bounce_reply_text)
